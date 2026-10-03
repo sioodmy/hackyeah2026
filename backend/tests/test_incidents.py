@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from hy.asgi import create_app
-from hy.models import IncidentReport
+from hy.models import INCIDENT_DEFAULT_WEIGHTS, IncidentReport
 from hy.routers.incidents import GRID_DEG, WEIGHT_FLOOR, snap
 
 
@@ -66,7 +66,7 @@ def test_heatmap_returns_grid_cells(client: TestClient) -> None:
         props = feature["properties"]
         assert 0.0 <= props["weight"] <= 1.0
         assert props["count"] >= 1
-        assert props["category"] in set(props) or props["category"]
+        assert props["category"] in INCIDENT_DEFAULT_WEIGHTS
         # No per-report identity or free text may appear in a shared heatmap.
         assert "id" not in props
         assert "description" not in props
@@ -89,37 +89,147 @@ def test_heatmap_aggregates_nearby_reports(client: TestClient) -> None:
     assert sum(f["properties"]["count"] for f in data["features"]) > len(data["features"])
 
 
-def test_heatmap_weight_is_scaled_against_the_busiest_cell(client: TestClient) -> None:
-    """Weights follow the reports that exist, not a fixed divisor.
+def test_heatmap_weight_follows_the_reported_severity(client: TestClient, session: Session) -> None:
+    """Weights track how dangerous the reports in a cell actually are.
 
-    MapLibre paints a cell from an absolute kernel value, so a cell whose weight
-    came out near zero was drawn as a barely visible haze no matter what had been
-    reported there. The busiest reported cell has to reach the top of the ramp and
-    no reported cell may drop below the floor.
+    Pinned to exact values because a pure rank-based rescale into [floor, 1] would
+    also be monotone and also in range while claiming nothing about magnitude.
     """
-    features = client.get("/api/v1/incidents/heatmap").json()["features"]
-    weights = [feature["properties"]["weight"] for feature in features]
-
-    assert max(weights) == 1.0
-    assert min(weights) >= WEIGHT_FLOOR
-    assert weights == sorted(weights, reverse=True)
-
-
-def test_a_lone_report_is_still_painted(client: TestClient, session: Session) -> None:
-    """One report must not be scaled away to nothing."""
     session.query(IncidentReport).delete()
     session.commit()
 
-    created = client.post(
-        "/api/v1/incidents",
-        json={"category": "harassment", "severity": 2, "lat": 50.0619, "lng": 19.9370},
+    # Each report lands in its own cell, several grid cells apart. Server-derived
+    # report weights: harassment/1 = 0.39, robbery/2 = 0.75, assault/3 = 1.0, each
+    # painted at 0.35 + 0.65 * report / 3.
+    for category, severity, lat, lng in (
+        ("harassment", 1, 50.0619, 19.9370),
+        ("robbery", 2, 50.0480, 19.9200),
+        ("assault", 3, 50.0700, 19.9100),
+    ):
+        assert (
+            client.post(
+                "/api/v1/incidents",
+                json={"category": category, "severity": severity, "lat": lat, "lng": lng},
+            ).status_code
+            == 201
+        )
+
+    by_category = {
+        feature["properties"]["category"]: feature["properties"]
+        for feature in client.get("/api/v1/incidents/heatmap").json()["features"]
+    }
+    assert {category: props["weight"] for category, props in by_category.items()} == {
+        "harassment": 0.434,
+        "robbery": 0.512,
+        "assault": 0.567,
+    }
+
+
+def test_heatmap_weight_is_absolute_not_relative_to_the_response(
+    client: TestClient, session: Session
+) -> None:
+    """A cell's weight must not depend on any other cell, or on a filter.
+
+    Otherwise a street changes colour because somewhere else in Kraków gained a
+    report, and the legend's "more danger" end stops meaning more danger.
+    """
+    session.query(IncidentReport).delete()
+    session.commit()
+    assert (
+        client.post(
+            "/api/v1/incidents",
+            json={"category": "harassment", "severity": 2, "lat": 50.0619, "lng": 19.9370},
+        ).status_code
+        == 201
     )
-    assert created.status_code == 201
+
+    def harassment_weight() -> float:
+        features = client.get("/api/v1/incidents/heatmap").json()["features"]
+        return next(
+            f["properties"]["weight"]
+            for f in features
+            if f["properties"]["category"] == "harassment"
+        )
+
+    alone = harassment_weight()
+    assert alone == 0.469
+    # A pile of reports elsewhere must not make this cell look worse.
+    for index in range(12):
+        assert (
+            client.post(
+                "/api/v1/incidents",
+                json={
+                    "category": "assault",
+                    "severity": 3,
+                    "lat": 50.0400 + index * 0.01,
+                    "lng": 19.90,
+                },
+            ).status_code
+            == 201
+        )
+
+    assert harassment_weight() == alone
+    # ...and neither must filtering the response down to just that cell.
+    filtered = client.get("/api/v1/incidents/heatmap?category=harassment").json()["features"]
+    assert len(filtered) == 1
+    assert filtered[0]["properties"]["weight"] == alone
+
+
+def test_a_lone_report_is_visible_but_is_not_the_worst_place(
+    client: TestClient, session: Session
+) -> None:
+    """One report must be drawn, and must not be drawn as maximum danger."""
+    session.query(IncidentReport).delete()
+    session.commit()
+    assert (
+        client.post(
+            "/api/v1/incidents",
+            json={"category": "harassment", "severity": 1, "lat": 50.0619, "lng": 19.9370},
+        ).status_code
+        == 201
+    )
 
     features = client.get("/api/v1/incidents/heatmap").json()["features"]
     assert len(features) == 1
-    assert features[0]["properties"]["count"] == 1
-    assert features[0]["properties"]["weight"] >= WEIGHT_FLOOR
+    props = features[0]["properties"]
+    assert props["count"] == 1
+    assert props["weight"] == 0.434
+    assert WEIGHT_FLOOR <= props["weight"] < 1.0
+
+
+def test_a_cell_saturates_only_once_it_is_genuinely_bad(
+    client: TestClient, session: Session
+) -> None:
+    """Three full-weight reports in one cell reach the top of the ramp."""
+    session.query(IncidentReport).delete()
+    session.commit()
+    for index in range(3):
+        assert (
+            client.post(
+                "/api/v1/incidents",
+                json={
+                    "category": "sexual_assault",
+                    "severity": 3,
+                    "lat": 50.0619 + index * 0.0001,
+                    "lng": 19.9370,
+                },
+            ).status_code
+            == 201
+        )
+
+    features = client.get("/api/v1/incidents/heatmap").json()["features"]
+    assert len(features) == 1
+    assert features[0]["properties"]["weight"] == 1.0
+
+
+def test_every_reported_cell_stays_on_the_ramp(client: TestClient) -> None:
+    """No reported cell may be scaled into the transparent end of the ramp."""
+    weights = [
+        feature["properties"]["weight"]
+        for feature in client.get("/api/v1/incidents/heatmap").json()["features"]
+    ]
+    assert min(weights) >= WEIGHT_FLOOR
+    assert max(weights) <= 1.0
 
 
 def test_heatmap_is_empty_when_nothing_was_reported(client: TestClient, session: Session) -> None:

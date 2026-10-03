@@ -44,8 +44,8 @@ const MAP_STYLE = osmRasterStyle();
  * one thing on screen that already moves smoothly on its own.
  *
  * Also renders the Kraków danger heatmap. The server only ever returns grid
- * cells (see `heatCellMeters`), never individual report coordinates, so this
- * layer cannot pinpoint anybody.
+ * cells (`GRID_DEG` in `hy.routers.incidents`), never individual report
+ * coordinates, so this layer cannot pinpoint anybody.
  */
 export function MapCanvas({
   friends,
@@ -102,10 +102,11 @@ export function MapCanvas({
       {/* Kraków danger heatmap: yellow (few) -> crimson (many).
 
         The stops follow the densities MapLibre can actually reach for these
-        weights (`weight * intensity * 0.3989`): 0.33 for the quietest reported
-        cell at zoom 15 and 0.94 for the busiest, so the ramp starts to colour at
-        0.08 rather than 0.15 and every reported street is drawn, not only the
-        ones that happen to share a cell. `HeatmapLegend` mirrors these stops. */}
+        weights (`weight * intensity * 0.3989`, with no per-tile rescaling): 0.33
+        for the quietest reported cell at zoom 15 and 0.94 for a saturated one, so
+        the ramp starts to colour at 0.08 rather than 0.15 and every reported
+        street is drawn, not only the ones that happen to share a cell.
+        `HeatmapLegend` mirrors these stops. */}
       {showHeatmap && heatmapData && heatmapData.features && heatmapData.features.length > 0 && (
         <GeoJSONSource id="danger-heatmap-source" data={heatmapData}>
           <Layer

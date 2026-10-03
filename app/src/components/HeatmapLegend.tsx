@@ -10,6 +10,9 @@ export type HeatmapLegendProps = {
   hottestCells?: { lat: number; lng: number; count: number; severity: number }[];
   /** Why the heatmap could not be read. An empty map means "no data", not "safe". */
   error?: string | null;
+  /** The request is still in flight, so the report count is not known yet. */
+  loading?: boolean;
+  onRetry?: () => void;
   onClose: () => void;
   onOpenReport: () => void;
 };
@@ -19,12 +22,12 @@ export function HeatmapLegend({
   totalIncidents = 0,
   hottestCells = [],
   error = null,
+  loading = false,
+  onRetry,
   onClose,
   onOpenReport,
 }: HeatmapLegendProps) {
   if (!visible) return null;
-
-  const hasReports = !error && totalIncidents > 0;
 
   return (
     <View style={[styles.card, floatingShadow(12)]}>
@@ -38,9 +41,23 @@ export function HeatmapLegend({
         </Pressable>
       </View>
 
-      {error ? (
-        <Text style={styles.errorText}>Mapa zagrożeń niedostępna: {error}</Text>
-      ) : hasReports ? (
+      {/* The four states are kept apart on purpose. "No reports" is a claim about
+          the city and may only be made once a response has actually said so. */}
+      {loading ? (
+        <Text style={styles.subtitle}>Wczytywanie zgłoszeń…</Text>
+      ) : error ? (
+        <View>
+          <Text style={styles.errorText} numberOfLines={3}>
+            {totalIncidents > 0 ? 'Dane mogą być nieaktualne. ' : ''}
+            Nie udało się odświeżyć mapy zagrożeń: {error}.
+          </Text>
+          {onRetry ? (
+            <Pressable style={styles.retryBtn} onPress={onRetry} accessibilityRole="button">
+              <Text style={styles.retryBtnText}>Spróbuj ponownie</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : totalIncidents > 0 ? (
         <Text style={styles.subtitle}>
           Gęstość zdarzeń na podstawie {totalIncidents} zgłoszeń (zaczepki, napaści, gwałty)
         </Text>
@@ -56,7 +73,9 @@ export function HeatmapLegend({
         <Svg width="100%" height={10} style={styles.gradientSvg}>
           <Defs>
             <LinearGradient id="legendGrad" x1="0" y1="0" x2="1" y2="0">
-              {/* Same stops as the `heatmap-color` ramp in MapCanvas. */}
+              {/* Same stops as the `heatmap-color` ramp in MapCanvas, transparent
+                  anchor included. */}
+              <Stop offset="0" stopColor="rgba(0, 0, 0, 0)" />
               <Stop offset="0.08" stopColor="rgba(255, 235, 59, 0.5)" />
               <Stop offset="0.25" stopColor="rgba(255, 193, 7, 0.68)" />
               <Stop offset="0.5" stopColor="rgba(255, 112, 67, 0.82)" />
@@ -67,8 +86,8 @@ export function HeatmapLegend({
           <Rect x="0" y="0" width="100%" height="10" rx="5" fill="url(#legendGrad)" />
         </Svg>
         <View style={styles.scaleLabels}>
-          <Text style={styles.scaleLeft}>Żółty: Mniej zdarzeń</Text>
-          <Text style={styles.scaleRight}>Czerwony: Wysokie zagrożenie</Text>
+          <Text style={styles.scaleLeft}>Pomarańczowy: pojedyncze zgłoszenie</Text>
+          <Text style={styles.scaleRight}>Czerwony: wiele ciężkich zgłoszeń</Text>
         </View>
       </View>
 
@@ -168,12 +187,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#FFF176',
     fontWeight: '500',
+    flexShrink: 1,
   },
   scaleRight: {
     ...type.caption,
     fontSize: 11,
     color: '#FF5252',
     fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'right',
   },
   hotspotsSection: {
     marginTop: spacing.xs,
@@ -210,6 +232,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: palette.level3,
     marginBottom: spacing.sm,
+  },
+  retryBtn: {
+    alignSelf: 'flex-start',
+    marginBottom: spacing.sm,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  retryBtnText: {
+    ...type.label,
+    fontSize: 12,
+    color: palette.text,
+    fontWeight: '600',
   },
   reportBtn: {
     flexDirection: 'row',
