@@ -8,6 +8,8 @@ export type HeatmapLegendProps = {
   totalIncidents?: number;
   /** Heaviest grid cells from the heatmap response, for the summary list. */
   hottestCells?: { lat: number; lng: number; count: number; severity: number }[];
+  /** Why the heatmap could not be read. An empty map means "no data", not "safe". */
+  error?: string | null;
   onClose: () => void;
   onOpenReport: () => void;
 };
@@ -16,10 +18,13 @@ export function HeatmapLegend({
   visible,
   totalIncidents = 0,
   hottestCells = [],
+  error = null,
   onClose,
   onOpenReport,
 }: HeatmapLegendProps) {
   if (!visible) return null;
+
+  const hasReports = !error && totalIncidents > 0;
 
   return (
     <View style={[styles.card, floatingShadow(12)]}>
@@ -33,19 +38,30 @@ export function HeatmapLegend({
         </Pressable>
       </View>
 
-      <Text style={styles.subtitle}>
-        Gęstość zdarzeń na podstawie {totalIncidents} zgłoszeń (zaczepki, napaści, gwałty)
-      </Text>
+      {error ? (
+        <Text style={styles.errorText}>Mapa zagrożeń niedostępna: {error}</Text>
+      ) : hasReports ? (
+        <Text style={styles.subtitle}>
+          Gęstość zdarzeń na podstawie {totalIncidents} zgłoszeń (zaczepki, napaści, gwałty)
+        </Text>
+      ) : (
+        <Text style={styles.subtitle}>
+          Brak zgłoszeń w tej chwili. Strefy pojawiają się dopiero po pierwszym zgłoszeniu — mapa
+          nie pokazuje niczego, czego nie zgłoszono.
+        </Text>
+      )}
 
       {/* Gradient Bar: Yellow -> Amber -> Red -> Crimson */}
       <View style={styles.gradientContainer}>
         <Svg width="100%" height={10} style={styles.gradientSvg}>
           <Defs>
             <LinearGradient id="legendGrad" x1="0" y1="0" x2="1" y2="0">
-              <Stop offset="0" stopColor="rgba(255, 235, 59, 0.7)" />
-              <Stop offset="0.35" stopColor="rgba(255, 152, 0, 0.85)" />
-              <Stop offset="0.7" stopColor="rgba(244, 67, 54, 0.95)" />
-              <Stop offset="1.0" stopColor="rgba(183, 28, 28, 1)" />
+              {/* Same stops as the `heatmap-color` ramp in MapCanvas. */}
+              <Stop offset="0.08" stopColor="rgba(255, 235, 59, 0.5)" />
+              <Stop offset="0.25" stopColor="rgba(255, 193, 7, 0.68)" />
+              <Stop offset="0.5" stopColor="rgba(255, 112, 67, 0.82)" />
+              <Stop offset="0.75" stopColor="rgba(244, 67, 54, 0.92)" />
+              <Stop offset="1" stopColor="rgba(183, 28, 28, 0.98)" />
             </LinearGradient>
           </Defs>
           <Rect x="0" y="0" width="100%" height="10" rx="5" fill="url(#legendGrad)" />
@@ -188,6 +204,12 @@ const styles = StyleSheet.create({
     ...type.caption,
     fontSize: 11,
     color: palette.text,
+  },
+  errorText: {
+    ...type.caption,
+    fontSize: 12,
+    color: palette.level3,
+    marginBottom: spacing.sm,
   },
   reportBtn: {
     flexDirection: 'row',

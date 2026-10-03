@@ -13,7 +13,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from hy.asgi import create_app
-from hy.routers.incidents import GRID_DEG, snap
+from hy.models import IncidentReport
+from hy.routers.incidents import GRID_DEG, WEIGHT_FLOOR, snap
 
 
 @pytest.fixture(autouse=True)
@@ -86,6 +87,50 @@ def test_heatmap_aggregates_nearby_reports(client: TestClient) -> None:
     exceed the number of features."""
     data = client.get("/api/v1/incidents/heatmap").json()
     assert sum(f["properties"]["count"] for f in data["features"]) > len(data["features"])
+
+
+def test_heatmap_weight_is_scaled_against_the_busiest_cell(client: TestClient) -> None:
+    """Weights follow the reports that exist, not a fixed divisor.
+
+    MapLibre paints a cell from an absolute kernel value, so a cell whose weight
+    came out near zero was drawn as a barely visible haze no matter what had been
+    reported there. The busiest reported cell has to reach the top of the ramp and
+    no reported cell may drop below the floor.
+    """
+    features = client.get("/api/v1/incidents/heatmap").json()["features"]
+    weights = [feature["properties"]["weight"] for feature in features]
+
+    assert max(weights) == 1.0
+    assert min(weights) >= WEIGHT_FLOOR
+    assert weights == sorted(weights, reverse=True)
+
+
+def test_a_lone_report_is_still_painted(client: TestClient, session: Session) -> None:
+    """One report must not be scaled away to nothing."""
+    session.query(IncidentReport).delete()
+    session.commit()
+
+    created = client.post(
+        "/api/v1/incidents",
+        json={"category": "harassment", "severity": 2, "lat": 50.0619, "lng": 19.9370},
+    )
+    assert created.status_code == 201
+
+    features = client.get("/api/v1/incidents/heatmap").json()["features"]
+    assert len(features) == 1
+    assert features[0]["properties"]["count"] == 1
+    assert features[0]["properties"]["weight"] >= WEIGHT_FLOOR
+
+
+def test_heatmap_is_empty_when_nothing_was_reported(client: TestClient, session: Session) -> None:
+    """No reports means no cells. The heatmap never invents danger zones."""
+    session.query(IncidentReport).delete()
+    session.commit()
+
+    assert client.get("/api/v1/incidents/heatmap").json() == {
+        "type": "FeatureCollection",
+        "features": [],
+    }
 
 
 def test_filter_heatmap_by_category(client: TestClient) -> None:

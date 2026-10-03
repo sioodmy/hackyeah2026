@@ -62,6 +62,7 @@ export function MapScreen() {
 
   // Kraków danger heatmap state
   const [heatmapData, setHeatmapData] = useState<HeatmapGeoJSON | null>(null);
+  const [heatmapError, setHeatmapError] = useState<string | null>(null);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -100,8 +101,14 @@ export function MapScreen() {
     try {
       const data = await api.incidentHeatmap();
       setHeatmapData(data);
-    } catch {
-      // quiet fallback
+      setHeatmapError(null);
+    } catch (err) {
+      // Deliberately not silent: a failed read leaves the map unpainted, and an
+      // unpainted map reads as "nobody reported anything here". The reason is kept
+      // and the legend is opened, so the layer is visibly unavailable rather than
+      // silently implying safety.
+      setHeatmapError(err instanceof Error ? err.message : 'Nie udało się pobrać danych');
+      setShowLegend(true);
     }
   }, [api]);
 
@@ -299,6 +306,7 @@ export function MapScreen() {
         visible={showLegend}
         totalIncidents={totalReported}
         hottestCells={hottestCells}
+        error={heatmapError}
         onClose={() => setShowLegend(false)}
         onOpenReport={() => {
           setShowLegend(false);
