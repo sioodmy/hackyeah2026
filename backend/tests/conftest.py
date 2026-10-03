@@ -199,7 +199,7 @@ def push_spy(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
     """Replace Expo push delivery with a recorder."""
     calls: list[dict] = []
 
-    async def _fake_send_push(*, level, tokens, lat, lng, display_name=None):
+    async def _fake_send_push(*, level, tokens, lat, lng, display_name=None, **extra):
         from hy.push import PushResult
 
         calls.append(
@@ -209,6 +209,7 @@ def push_spy(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
                 "lat": lat,
                 "lng": lng,
                 "displayName": display_name,
+                **extra,
             }
         )
         return PushResult(

@@ -20,9 +20,23 @@ import { useEvidenceRecorder } from '@/hooks/useEvidenceRecorder';
 import { useApi } from '@/lib/ApiContext';
 import { useAuthToken } from '@/lib/useAuthToken';
 import { avatarEmoji } from '@/lib/avatar';
-import type { HeatmapGeoJSON, ReportIncidentInput } from '@/lib/api';
+import type { AlertAck, HeatmapGeoJSON, ReportIncidentInput } from '@/lib/api';
 import { colorForLevel, floatingShadow, palette, radii, spacing, type } from '@/theme';
 import { THREAT_FULL, THREAT_SAFE, hint, label, type ThreatLevel } from '@/theme/levels';
+
+const ACK_LABEL: Record<AlertAck['action'], string> = {
+  seen: 'widzi alert',
+  answered: 'rozmawia',
+  on_the_way: 'idzie do ciebie',
+};
+
+/** What the friends' phones have reported back, in one discreet line. */
+function ackLine(acks: AlertAck[]): string | null {
+  if (!acks.length) return null;
+  return acks
+    .map((ack) => `${ack.displayName || 'Ktoś'} — ${ACK_LABEL[ack.action] ?? ACK_LABEL.seen}`)
+    .join(' · ');
+}
 
 /**
  * The only screen that matters.
@@ -213,6 +227,13 @@ export function MapScreen() {
     return palette.textMuted;
   }, [previewLevel, threat.level]);
 
+  // Only from level 2 up: below that nobody has been told anything yet, so there is
+  // nobody who could have answered.
+  const friendResponse = useMemo(
+    () => (threat.level >= 2 ? ackLine(threat.acks) : null),
+    [threat.acks, threat.level],
+  );
+
   return (
     <View style={styles.root}>
       <StatusBar hidden />
@@ -352,6 +373,8 @@ export function MapScreen() {
             </View>
           ) : null}
         </View>
+
+        {friendResponse ? <Text style={styles.ackLine}>{friendResponse}</Text> : null}
 
         <ThreatSlider
           onCommit={handleCommit}
@@ -542,6 +565,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     letterSpacing: 0.1,
+  },
+  ackLine: {
+    ...type.caption,
+    paddingHorizontal: spacing.lg + 2,
+    paddingBottom: spacing.sm,
+    color: palette.success,
   },
   liveIndicator: {
     flexDirection: 'row',

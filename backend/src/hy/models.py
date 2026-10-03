@@ -38,6 +38,13 @@ FRIENDSHIP_DECLINED = "declined"
 ALERT_ACTIVE = "active"
 ALERT_RESOLVED = "resolved"
 
+#: What a friend did with an alert. The values are ordered: an acknowledgement only
+#: ever moves forward, so a late "seen" cannot undo an "on_the_way".
+ACK_SEEN = "seen"
+ACK_ANSWERED = "answered"
+ACK_ON_THE_WAY = "on_the_way"
+ACK_ORDER = {ACK_SEEN: 0, ACK_ANSWERED: 1, ACK_ON_THE_WAY: 2}
+
 EVIDENCE_OPEN = "open"
 EVIDENCE_FINALIZED = "finalized"
 
@@ -171,6 +178,27 @@ class Alert(Base):
             "dispatchEtaMin": self.dispatch_eta_min,
             "evidenceSessionId": self.evidence_session_id,
         }
+
+
+class AlertAck(Base):
+    """One friend's response to an alert: saw it, answered the call, is coming.
+
+    One row per (alert, friend) — the friend's latest word is the row, updated in
+    place, because "Kasia is on her way" must never be overwritten by a second
+    push arriving on her phone a moment later.
+    """
+
+    __tablename__ = "alert_acks"
+    __table_args__ = (UniqueConstraint("alert_id", "user_id", name="uq_alert_acks_alert_user"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    alert_id: Mapped[str] = mapped_column(String(64), ForeignKey("alerts.id", ondelete="CASCADE"))
+    user_id: Mapped[str] = mapped_column(String(128), ForeignKey("users.id", ondelete="CASCADE"))
+    action: Mapped[str] = mapped_column(String(16), default=ACK_SEEN)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
 
 
 class LocationPing(Base):

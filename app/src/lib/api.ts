@@ -44,6 +44,18 @@ export type Friend = {
   lastSeenAt?: string | null;
 };
 
+/**
+ * What a friend did with the alert, as the person in danger sees it.
+ *
+ * The friend writes it from `ackAlert`; the owner reads it back on the alert.
+ */
+export type AlertAck = {
+  userId: string;
+  displayName: string | null;
+  action: 'seen' | 'answered' | 'on_the_way';
+  at: string;
+};
+
 export type AlertPayload = {
   id: string;
   userId: string;
@@ -58,6 +70,7 @@ export type AlertPayload = {
   dispatchCaseId: string | null;
   dispatchEtaMin: number | null;
   evidenceSessionId: string | null;
+  acks?: AlertAck[];
 };
 
 export type AlertResponse = {
@@ -273,6 +286,18 @@ export function createApiClient(getToken: TokenProvider) {
       }),
 
     activeAlert: () => request<AlertPayload | null>('/api/v1/alerts/active'),
+
+    /**
+     * Tell the person in danger what this friend did with the alert.
+     *
+     * Only a friend of the alert's owner may call it, and the stored action only
+     * moves forward — answering a call never gets un-answered by a late push.
+     */
+    ackAlert: (alertId: string, action: AlertAck['action']) =>
+      request<AlertAck>(`/api/v1/alerts/${alertId}/ack`, {
+        method: 'POST',
+        body: JSON.stringify({ action }),
+      }),
 
     resolveAlert: (id: string) =>
       request<AlertPayload>(`/api/v1/alerts/${id}/resolve`, {
