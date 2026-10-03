@@ -286,7 +286,8 @@
                 export ANDROID_SDK_ROOT="${android.env.ANDROID_SDK_ROOT}"
                 export JAVA_HOME="${android.env.JAVA_HOME}"
                 export PATH="$ANDROID_HOME/platform-tools:$PATH"
-              '';
+              ''
+              + ''
               echo ""
               echo "  PanicMap devshell — $(uname -s) $(uname -m)"
               echo "    just setup   install app + backend dependencies"
