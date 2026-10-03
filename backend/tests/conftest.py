@@ -78,7 +78,7 @@ def _clean_tables() -> Iterator[None]:
         conn.execute(
             text(
                 "TRUNCATE users, devices, friendships, alerts, location_pings, "
-                "evidence_sessions, evidence_chunks, dispatch_log RESTART IDENTITY CASCADE"
+                "evidence_sessions, evidence_chunks, dispatch_log, incident_reports RESTART IDENTITY CASCADE"
             )
         )
 

@@ -41,6 +41,26 @@ ALERT_RESOLVED = "resolved"
 EVIDENCE_OPEN = "open"
 EVIDENCE_FINALIZED = "finalized"
 
+INCIDENT_CATEGORY_LABELS: dict[str, str] = {
+    "harassment": "Zaczepianie / Molestowanie słowne",
+    "sexual_assault": "Próba gwałtu / Napaść na tle seksualnym",
+    "assault": "Napaść fizyczna / Pobicie",
+    "robbery": "Rozbój / Kradzież zuchwała",
+    "stalking": "Śledzenie / Stalking",
+    "suspicious": "Agresywna grupa / Zastraszanie",
+    "other": "Inne niebezpieczne zdarzenie",
+}
+
+INCIDENT_DEFAULT_WEIGHTS: dict[str, float] = {
+    "harassment": 0.55,
+    "sexual_assault": 1.0,
+    "assault": 0.9,
+    "robbery": 0.75,
+    "stalking": 0.7,
+    "suspicious": 0.45,
+    "other": 0.5,
+}
+
 
 def _uuid() -> str:
     return str(uuid.uuid4())
@@ -254,3 +274,62 @@ class DispatchLog(Base):
     evidence_session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     mocked: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class IncidentReport(Base):
+    """User-submitted or seeded report of a dangerous situation in Krakow."""
+
+    __tablename__ = "incident_reports"
+    __table_args__ = (
+        Index("ix_incidents_category", "category"),
+        Index("ix_incidents_coords", "lat", "lng"),
+        Index("ix_incidents_created", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    category: Mapped[str] = mapped_column(String(32))
+    severity: Mapped[int] = mapped_column(Integer, default=2)
+    weight: Mapped[float] = mapped_column(Float, default=0.6)
+    lat: Mapped[float] = mapped_column(Float)
+    lng: Mapped[float] = mapped_column(Float)
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    def as_public_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "userId": self.user_id,
+            "category": self.category,
+            "categoryLabel": INCIDENT_CATEGORY_LABELS.get(self.category, self.category),
+            "severity": self.severity,
+            "weight": self.weight,
+            "lat": self.lat,
+            "lng": self.lng,
+            "title": self.title or INCIDENT_CATEGORY_LABELS.get(self.category, self.category),
+            "description": self.description,
+            "reportedAt": self.reported_at.isoformat() if self.reported_at else None,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+    def as_geojson_feature(self) -> dict:
+        return {
+            "type": "Feature",
+            "id": self.id,
+            "geometry": {
+                "type": "Point",
+                "coordinates": [self.lng, self.lat],
+            },
+            "properties": {
+                "id": self.id,
+                "category": self.category,
+                "categoryLabel": INCIDENT_CATEGORY_LABELS.get(self.category, self.category),
+                "severity": self.severity,
+                "weight": self.weight,
+                "title": self.title or INCIDENT_CATEGORY_LABELS.get(self.category, self.category),
+                "description": self.description,
+                "reportedAt": self.reported_at.isoformat() if self.reported_at else None,
+            },
+        }

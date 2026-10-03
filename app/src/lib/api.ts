@@ -1,13 +1,24 @@
 /**
- * Typed client for the PanicMap API.
+ * Typed client for the PanicMap REST API.
  *
- * Every call carries the Clerk session token, which the backend verifies with a
- * networkless RS256 check, so an expired token fails fast and locally.
+ * Requests carry Clerk session tokens in `Authorization: Bearer <token>` when a
+ * session is active. Unauthenticated calls succeed for endpoints that do not
+ * require a principal (e.g. `GET /healthz`, public invites, guest incident viewing/reporting).
  */
 
 import Constants from 'expo-constants';
 
 export type ThreatLevel = 0 | 1 | 2 | 3;
+
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
 
 export type Friend = {
   id: string;
@@ -63,20 +74,77 @@ export type EvidenceSession = {
   totalBytes: number;
   durationS: number | null;
   uploadedBytes: number;
+  expectedChunkCount?: number | null;
   nextSeq: number;
   manifestSha256: string | null;
   hasManifest: boolean;
 };
 
-export class ApiError extends Error {
-  readonly status: number;
+export type IncidentCategory =
+  | 'harassment'
+  | 'sexual_assault'
+  | 'assault'
+  | 'robbery'
+  | 'stalking'
+  | 'suspicious'
+  | 'other';
 
-  constructor(status: number, message: string) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-  }
-}
+export type IncidentReport = {
+  id: string;
+  userId?: string | null;
+  category: string;
+  categoryLabel: string;
+  severity: number;
+  weight: number;
+  lat: number;
+  lng: number;
+  title?: string | null;
+  description?: string | null;
+  reportedAt?: string | null;
+  createdAt?: string | null;
+};
+
+export type HeatmapFeature = {
+  type: 'Feature';
+  id?: string;
+  geometry: {
+    type: 'Point';
+    coordinates: [number, number]; // [lng, lat]
+  };
+  properties: {
+    id: string;
+    category: string;
+    categoryLabel: string;
+    severity: number;
+    weight: number;
+    title?: string | null;
+    description?: string | null;
+    reportedAt?: string | null;
+  };
+};
+
+export type HeatmapGeoJSON = {
+  type: 'FeatureCollection';
+  features: HeatmapFeature[];
+};
+
+export type IncidentStats = {
+  total: number;
+  city: string;
+  byCategory: Record<string, number>;
+  highRiskZones: string[];
+};
+
+export type ReportIncidentInput = {
+  category: string;
+  severity?: number;
+  lat: number;
+  lng: number;
+  weight?: number;
+  title?: string;
+  description?: string;
+  reportedAt?: string;
+};
 
 /**
  * Where the API lives.
@@ -214,6 +282,29 @@ export function createApiClient(getToken: TokenProvider) {
     evidenceSessions: () => request<EvidenceSession[]>('/api/v1/evidence/sessions'),
 
     evidenceSession: (id: string) => request<EvidenceSession>(`/api/v1/evidence/sessions/${id}`),
+
+    incidentHeatmap: (category?: string, minSeverity?: number) => {
+      const params = new URLSearchParams();
+      if (category) params.append('category', category);
+      if (minSeverity) params.append('min_severity', String(minSeverity));
+      const qs = params.toString();
+      return request<HeatmapGeoJSON>(`/api/v1/incidents/heatmap${qs ? `?${qs}` : ''}`);
+    },
+
+    incidents: (category?: string, limit: number = 100) => {
+      const params = new URLSearchParams();
+      if (category) params.append('category', category);
+      params.append('limit', String(limit));
+      return request<IncidentReport[]>(`/api/v1/incidents?${params.toString()}`);
+    },
+
+    reportIncident: (input: ReportIncidentInput) =>
+      request<IncidentReport>('/api/v1/incidents', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
+    incidentStats: () => request<IncidentStats>('/api/v1/incidents/stats'),
 
     /**
      * Upload one recorded segment.

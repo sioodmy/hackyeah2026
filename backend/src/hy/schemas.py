@@ -210,3 +210,45 @@ class FriendAlias(CamelModel):
     id: str
     display_name: str | None = Field(default=None, alias="displayName")
     status: str = FRIENDSHIP_ACCEPTED
+
+
+# --------------------------------------------------------------------------- #
+# incidents / danger heatmap
+# --------------------------------------------------------------------------- #
+class IncidentReportCreate(CamelModel):
+    category: str = Field(min_length=2, max_length=32)
+    category_label: str | None = Field(default=None, alias="categoryLabel")
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+    severity: int = Field(default=2, ge=1, le=3)
+    weight: float | None = Field(default=None, ge=0.0, le=1.0)
+    title: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    reported_at: datetime | None = Field(default=None, alias="reportedAt")
+
+
+class IncidentReportOut(CamelModel):
+    id: str
+    user_id: str | None = Field(default=None, alias="userId")
+    category: str
+    category_label: str = Field(alias="categoryLabel")
+    severity: int
+    weight: float
+    lat: float
+    lng: float
+    title: str | None = None
+    description: str | None = None
+    reported_at: datetime | None = Field(default=None, alias="reportedAt")
+    created_at: datetime | None = Field(default=None, alias="createdAt")
+
+
+class HeatmapGeoJSON(CamelModel):
+    type: str = "FeatureCollection"
+    features: list[dict]
+
+
+class IncidentStatsOut(CamelModel):
+    total: int
+    city: str = "Kraków"
+    by_category: dict[str, int] = Field(alias="byCategory")
+    high_risk_zones: list[str] = Field(alias="highRiskZones")

@@ -93,6 +93,23 @@ async def require_principal(request: Request) -> Principal:
 CurrentPrincipal = Annotated[Principal, Depends(require_principal)]
 
 
+async def optional_principal(request: Request) -> Principal | None:
+    """FastAPI dependency for endpoints that accept both authenticated and guest callers."""
+    token = _bearer_from_header(request.headers.get("authorization"))
+    if not token:
+        return None
+    try:
+        principal = authenticate_token(token)
+        request.state.principal = principal
+        _touch_last_seen(principal.user_id)
+        return principal
+    except Exception:
+        return None
+
+
+OptionalPrincipal = Annotated[Principal | None, Depends(optional_principal)]
+
+
 def _touch_last_seen(user_id: str) -> None:
     """Best-effort last-seen update; never fails the request."""
     try:

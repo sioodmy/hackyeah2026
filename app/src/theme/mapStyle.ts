@@ -22,8 +22,8 @@ export const DEFAULT_OSM_TILES: string[] = [
 
 export const OSM_TILE_URL: string = process.env.EXPO_PUBLIC_OSM_TILE_URL ?? DEFAULT_OSM_TILES[0]!;
 
-/** Warsaw [longitude, latitude] — used before the first location fix lands. */
-export const DEFAULT_CENTER: [number, number] = [21.0122, 52.2297];
+/** Kraków [longitude, latitude] — used before the first location fix lands. */
+export const DEFAULT_CENTER: [number, number] = [19.9373, 50.0617];
 export const DEFAULT_ZOOM = 13.5;
 
 export function osmRasterStyle(tileUrl: string = OSM_TILE_URL): StyleSpecification {
