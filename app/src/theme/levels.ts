@@ -44,20 +44,32 @@ export const LOCATION_INTERVAL_ACTIVE_MS = 2_000;
 export const LOCATION_INTERVAL_LIVE_MS = 15_000;
 
 export function levelForProgress(progress: number): ThreatLevel {
+  'worklet';
   const clamped = Math.min(1, Math.max(0, progress));
-  for (const zone of ZONES) {
-    if (clamped < zone.to) return zone.level;
-  }
-  return MAX_LEVEL;
+  if (clamped < 0.18) return THREAT_SAFE;
+  if (clamped < 0.5) return THREAT_HINT;
+  if (clamped < 0.85) return THREAT_HELP;
+  return THREAT_FULL;
 }
 
 export function isBeyondSafe(progress: number): boolean {
-  return progress >= (ZONES[THREAT_HINT]?.from ?? 0.18);
+  'worklet';
+  return progress >= 0.18;
 }
 
 /** Detent for a level, with a total function so it is always safe to index. */
 export function detentFor(level: ThreatLevel): number {
-  return DETENTS[level] ?? DETENTS[THREAT_SAFE];
+  'worklet';
+  switch (level) {
+    case THREAT_HINT:
+      return 0.34;
+    case THREAT_HELP:
+      return 0.66;
+    case THREAT_FULL:
+      return 1;
+    default:
+      return 0;
+  }
 }
 
 export function label(level: ThreatLevel): string {
