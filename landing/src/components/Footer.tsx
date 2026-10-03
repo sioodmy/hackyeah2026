@@ -31,32 +31,26 @@ export const Footer: React.FC = () => {
 
         {/* Navigation Links */}
         <div className="flex flex-wrap justify-center gap-6 text-xs text-slate-400 font-medium">
+          <a href="#mechanizm" className="hover:text-white transition-colors">
+            Cztery strefy
+          </a>
           <a
             href="#jak-to-dziala"
             className="hover:text-white transition-colors"
           >
-            Jak to działa
+            Kamuflaż
           </a>
-          <a href="#symulator" className="hover:text-white transition-colors">
-            Symulator
-          </a>
-          <a
-            href="#siostrzany-pakt"
-            className="hover:text-white transition-colors"
-          >
+          <a href="#manifest" className="hover:text-white transition-colors">
             Manifest
           </a>
           <a href="#heatmapa" className="hover:text-white transition-colors">
             Heatmapa
           </a>
-          <a href="#dla-sedziow" className="hover:text-white transition-colors">
-            Dla sędziów
+          <a href="#zalozenia" className="hover:text-white transition-colors">
+            Założenia
           </a>
-          <a
-            href="#architektura"
-            className="hover:text-white transition-colors"
-          >
-            Tech Stack
+          <a href="#stack" className="hover:text-white transition-colors">
+            Stack
           </a>
         </div>
 

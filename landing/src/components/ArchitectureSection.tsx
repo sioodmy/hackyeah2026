@@ -1,25 +1,19 @@
 import React from "react";
-import {
-  Cpu,
-  Database,
-  DeviceMobile,
-  TerminalWindow,
-} from "@phosphor-icons/react";
+import { Database, DeviceMobile, TerminalWindow } from "@phosphor-icons/react";
 
 export const ArchitectureSection: React.FC = () => {
   return (
     <section
-      id="architektura"
-      className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto"
+      id="stack"
+      className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/80"
     >
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto mb-16">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff2a85]/10 border border-[#ff2a85]/25 text-[#ff2a85] text-xs font-semibold uppercase tracking-wider mb-4">
-          <Cpu size={14} weight="fill" />
-          <span>Architektura Inżynieryjna</span>
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff2a85]/10 border border-[#ff2a85]/20 text-[#ff2a85] text-xs font-semibold uppercase tracking-wider mb-4">
+          Stack Technologiczny
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-          Solidny stack technologiczny zbudowany na HackYeah 2026
+          Stack technologiczny i architektura
         </h2>
         <p className="text-slate-400 text-base leading-relaxed">
           Od natywnych shaderów rastrowych w MapLibre po kafelkowanie PostGIS i

@@ -49,20 +49,20 @@ const criteria: Criterion[] = [
 export const JurySection: React.FC = () => {
   return (
     <section
-      id="dla-sedziow"
+      id="zalozenia"
       className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/80"
     >
       {/* Header */}
       <div className="max-w-3xl mx-auto text-center mb-16">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff2a85]/10 border border-[#ff2a85]/20 text-[#ff2a85] text-xs font-semibold uppercase tracking-wider mb-4">
-          Dla Sędziów i Mentorek Hackathonu
+          Założenia Projektowe
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-          Kluczowe filary oceny projektu PanicMap
+          Filary projektu PanicMap
         </h2>
         <p className="text-slate-400 text-base leading-relaxed">
-          Zestawienie merytorycznych założeń technicznych, projektowych i
-          społecznych przygotowane pod kątem kryteriów HackYeah 2026.
+          Merytoryczne założenia techniczne, projektowe i społeczne stworzone na
+          HackYeah 2026.
         </p>
       </div>
 

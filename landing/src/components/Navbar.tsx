@@ -1,11 +1,5 @@
 import React, { useState } from "react";
-import {
-  ShieldCheck,
-  GithubLogo,
-  List,
-  X,
-  DownloadSimple,
-} from "@phosphor-icons/react";
+import { ShieldCheck, GithubLogo, List, X } from "@phosphor-icons/react";
 
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -55,20 +49,20 @@ export const Navbar: React.FC = () => {
             Heatmapa
           </a>
           <a
-            href="#dla-sedziow"
+            href="#zalozenia"
             className="text-xs font-medium text-slate-300 hover:text-white transition-colors"
           >
-            Dla sędziów
+            Założenia
           </a>
           <a
-            href="#architektura"
+            href="#stack"
             className="text-xs font-medium text-slate-300 hover:text-white transition-colors"
           >
-            Tech Stack
+            Stack
           </a>
         </nav>
 
-        {/* Desktop CTA Buttons */}
+        {/* Desktop CTA Button */}
         <div className="hidden md:flex items-center gap-3">
           <a
             href="https://github.com/sioodmy/hackyeah2026"
@@ -78,15 +72,6 @@ export const Navbar: React.FC = () => {
           >
             <GithubLogo size={15} weight="bold" />
             <span>GitHub</span>
-          </a>
-          <a
-            href="https://github.com/sioodmy/hackyeah2026/releases"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold text-white bg-[#ff2a85] hover:bg-[#e61a72] transition-colors shadow-sm"
-          >
-            <DownloadSimple size={15} weight="bold" />
-            <span>Pobierz APK</span>
           </a>
         </div>
 
@@ -136,11 +121,11 @@ export const Navbar: React.FC = () => {
             Heatmapa Krakowa
           </a>
           <a
-            href="#dla-sedziow"
+            href="#zalozenia"
             onClick={() => setMobileMenuOpen(false)}
-            className="block py-2 text-sm font-medium text-[#ff2a85] font-semibold"
+            className="block py-2 text-sm font-medium text-slate-300 hover:text-white"
           >
-            Dla sędziów
+            Założenia
           </a>
           <div className="pt-2 flex flex-col gap-2">
             <a

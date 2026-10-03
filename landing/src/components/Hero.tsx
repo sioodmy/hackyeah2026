@@ -12,12 +12,7 @@ export const Hero: React.FC = () => {
 
       {/* Main hero content container */}
       <div className="my-auto flex flex-col items-center text-center max-w-4xl mx-auto">
-        {/* 1. Eyebrow */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-[#ff2a85] text-xs font-mono uppercase tracking-wider mb-6">
-          HackYeah 2026 · Cyberfeminist Stealth Tech
-        </div>
-
-        {/* 2. Headline (Max 2 lines on desktop) */}
+        {/* Headline (Max 2 lines on desktop) */}
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white leading-[1.1] mb-6">
           Mapa, która wygląda jak mapa.{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-200 via-[#ff2a85] to-pink-400">
