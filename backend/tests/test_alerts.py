@@ -213,6 +213,22 @@ def test_an_unknown_acknowledgement_action_is_rejected(
     assert response.status_code == 422
 
 
+def test_a_resolved_alert_cannot_be_acknowledged(
+    users, session: Session, client: TestClient, client_for
+) -> None:
+    """A friend acting on a stale notification has nothing left to report."""
+    alice, bob, _ = users
+    make_friendship(session, alice, bob)
+
+    alert = client.post("/api/v1/alerts", json={"level": 3, **WARSAW}).json()["alert"]
+    client.patch(f"/api/v1/alerts/{alert['id']}/resolve", json={})
+
+    response = client_for(bob).post(f"/api/v1/alerts/{alert['id']}/ack", json={"action": "seen"})
+
+    assert response.status_code == 409
+    assert client.get(f"/api/v1/alerts/{alert['id']}").json()["acks"] == []
+
+
 def test_active_alert_is_reported(users, session: Session, client: TestClient) -> None:
     assert client.get("/api/v1/alerts/active").json() is None
 

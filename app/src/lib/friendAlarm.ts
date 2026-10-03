@@ -40,6 +40,50 @@ export const UNKNOWN_SENDER = 'Ktoś z bliskich';
 let current: IncomingAlert | null = null;
 const listeners = new Set<() => void>();
 
+/**
+ * What each alert has already done on this phone.
+ *
+ * Two jobs. `seen` swallows a notification that Expo or FCM delivers twice, so a
+ * friend does not get a second siren for the same push. `resolved` outlives the
+ * overlay on purpose: once an alert has been resolved, a level-2 or level-3 push
+ * that was already on the wire must not be able to re-open a call screen for it,
+ * and that has to hold even after the overlay has been dismissed.
+ */
+const seen = new Map<string, { sentAt: number; level: number }>();
+const resolved = new Map<string, number>();
+
+/** Keep the bookkeeping bounded on a phone that never restarts. */
+const REMEMBERED_ALERTS = 8;
+
+function remember<T>(store: Map<string, T>, key: string, value: T): void {
+  if (!store.has(key) && store.size >= REMEMBERED_ALERTS) {
+    const oldest = store.keys().next();
+    if (!oldest.done) store.delete(oldest.value);
+  }
+  store.set(key, value);
+}
+
+/**
+ * Whether a push is worth acting on.
+ *
+ * Rejects anything older than what this alert has already done, and the exact same
+ * push arriving again. An escalation that lands in the same second as the push
+ * before it still counts, because the level is higher.
+ */
+function isFresh(alertId: string, sentAt: number, level: number): boolean {
+  const resolvedAt = resolved.get(alertId);
+  if (resolvedAt !== undefined && sentAt <= resolvedAt) return false;
+
+  const previous = seen.get(alertId);
+  if (previous) {
+    if (sentAt < previous.sentAt) return false;
+    if (sentAt === previous.sentAt && level <= previous.level) return false;
+  }
+
+  remember(seen, alertId, { sentAt, level });
+  return true;
+}
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
@@ -77,25 +121,32 @@ function asText(value: unknown): string {
  * PanicMap away without reading. Level 0 is the opposite — it silences whatever is
  * ringing, because the person in danger is safe again and a friend still looking
  * at an alarm for an episode that ended is worse than no alarm at all.
+ *
+ * Both are scoped to one alert: a friend can be alarmed by more than one person at
+ * a time, so resolving one of them must never silence the other.
  */
 export function applyIncomingPush(data: unknown): void {
   const payload = (data ?? {}) as PushPayload;
   const level = asNumber(payload.level) ?? 0;
+  const alertId = asText(payload.alertId);
+  const sentAt = asNumber(payload.at) ?? 0;
 
   if (level <= 0 || payload.kind === 'resolved') {
-    if (current) emit(null);
+    // A resolution we cannot attribute is ignored rather than applied: silencing a
+    // live alarm from someone else is worse than leaving a stale one ringing, and
+    // the backend always sends `alertId` with a resolve.
+    if (!alertId) return;
+    const alreadyResolved = resolved.get(alertId);
+    if (alreadyResolved === undefined || sentAt > alreadyResolved) {
+      remember(resolved, alertId, sentAt);
+    }
+    if (current?.alertId === alertId) emit(null);
     return;
   }
 
-  if (level < 2) return;
+  if (level < 2 || !alertId) return;
 
-  const sentAt = asNumber(payload.at) ?? 0;
-  const previous = getSnapshot();
-  const alertId = asText(payload.alertId);
-
-  // A resolved push that lost the race with its own alarm must not be re-opened by
-  // a level-3 notification that was already on the wire.
-  if (previous && alertId === previous.alertId && sentAt > 0 && sentAt < previous.sentAt) return;
+  if (!isFresh(alertId, sentAt, level)) return;
 
   emit({
     alertId,

@@ -42,10 +42,12 @@ CALL_CHANNEL = "call-request"
 FULL_ALERT_CHANNEL = "full-alert"
 DEFAULT_CHANNEL = "default"
 
-#: Notification categories the client registers. Android only turns a notification
-#: into a full-screen intent when its category is `android.app.category.alarm` or
-#: `android.app.category.call`, so these ids are deliberately the bare platform
-#: values rather than names of our own.
+#: Notification categories the client registers. Each one has to exist on the
+#: phone with at least one action, which is what gives a level-2 or level-3 push a
+#: button ("Odbierz", "Idę do niej") that opens the app onto the right screen. A
+#: category is *not* a full-screen intent — Android needs `setCategory` on the
+#: notification for that, which `expo-notifications` never sends — so the channel's
+#: sound, its vibration and `bypassDnd` are what wake a friend whose app is dead.
 CALL_CATEGORY = "call"
 FULL_ALERT_CATEGORY = "alarm"
 
@@ -123,16 +125,16 @@ def build_messages(
         }
         if level >= 3:
             # Android: heads-up, bypass of Do Not Disturb when the app has the
-            # permission, and — because of the `alarm` category — a full-screen
-            # intent that opens the app straight onto the alarm.
+            # permission, and the `alarm` category, which adds the button that
+            # opens the app straight onto the alarm.
             message["priority"] = "high"
             message["interruptionLevel"] = "time-sensitive"
             message["categoryId"] = FULL_ALERT_CATEGORY
             message["_contentAvailable"] = True
         elif level == 2:
-            # A call request has to be a heads-up, and the `call` category is what
-            # makes it a full-screen intent the client turns into an incoming call.
-            # No Do Not Disturb bypass: only level 3 earns that.
+            # A call request has to be a heads-up, and the `call` category gives it
+            # an "Odbierz" button that opens the app onto the incoming call. No Do
+            # Not Disturb bypass: only level 3 earns that.
             message["priority"] = "high"
             message["categoryId"] = CALL_CATEGORY
         messages.append(message)

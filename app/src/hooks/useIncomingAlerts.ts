@@ -23,6 +23,13 @@ function dataOf(notification: Notifications.Notification): unknown {
   return notification.request.content.data;
 }
 
+/**
+ * `getLastNotificationResponseAsync` keeps answering with the same notification,
+ * so it is worth reading exactly once per process: re-reading it after a sign-out
+ * and back would ring a friend about an alert that ended hours ago.
+ */
+let coldStartRead = false;
+
 export function useIncomingAlerts(enabled: boolean): void {
   useEffect(() => {
     if (!enabled) return undefined;
@@ -38,14 +45,17 @@ export function useIncomingAlerts(enabled: boolean): void {
     // Cold start: the app was launched *by* the notification (or by its full-screen
     // intent), and there is no live listener to catch the event that started it.
     let cancelled = false;
-    void Notifications.getLastNotificationResponseAsync()
-      .then((response) => {
-        if (cancelled || !response) return;
-        applyIncomingPush(dataOf(response.notification));
-      })
-      .catch(() => {
-        /* a friend without push permission still gets the map */
-      });
+    if (!coldStartRead) {
+      coldStartRead = true;
+      void Notifications.getLastNotificationResponseAsync()
+        .then((response) => {
+          if (cancelled || !response) return;
+          applyIncomingPush(dataOf(response.notification));
+        })
+        .catch(() => {
+          /* a friend without push permission still gets the map */
+        });
+    }
 
     return () => {
       cancelled = true;
