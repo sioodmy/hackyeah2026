@@ -91,6 +91,8 @@ describe('openapi document', () => {
         '/api/v1/invites/redeem',
         '/api/v1/invites/{codeId}',
         '/api/v1/invites/{codeId}/links',
+        '/api/v1/locations/ping',
+        '/api/v1/locations/snapshot',
         '/api/v1/users/me',
         '/api/v1/users/sync',
       ].sort(),

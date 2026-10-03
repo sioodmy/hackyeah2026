@@ -1,4 +1,5 @@
 import cors from '@fastify/cors';
+import websocket from '@fastify/websocket';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -18,6 +19,7 @@ import { authRoutes } from './routes/auth.js';
 import { contactRoutes } from './routes/contacts.js';
 import { deviceRoutes } from './routes/devices.js';
 import { inviteRoutes } from './routes/invites.js';
+import { locationRoutes } from './routes/locations.js';
 import { userRoutes } from './routes/users.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -34,6 +36,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.setSerializerCompiler(serializerCompiler);
 
   await app.register(cors, { origin: true });
+  // Registered before the routes: the socket lives at the app root, not under
+  // the API prefix, because the mobile WebSocket client cannot rewrite its URL.
+  await app.register(websocket);
 
   await app.register(swagger, {
     openapi: {
@@ -108,6 +113,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     await deviceRoutes(instance, opts);
     await alertRoutes(instance, opts);
     await inviteRoutes(instance, opts);
+    await locationRoutes(instance, opts);
   };
 
   await app.register(api, { prefix: env.API_PREFIX });
