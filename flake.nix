@@ -282,8 +282,13 @@
                 export PATH="$PANICMAP_ROOT/scripts:$PATH"
               ''
               + lib.optionalString isLinux ''
-                export ANDROID_HOME="${android.env.ANDROID_HOME}"
-                export ANDROID_SDK_ROOT="${android.env.ANDROID_SDK_ROOT}"
+                if [ -d "$HOME/Android/sdk" ]; then
+                  export ANDROID_HOME="$HOME/Android/sdk"
+                  export ANDROID_SDK_ROOT="$HOME/Android/sdk"
+                else
+                  export ANDROID_HOME="${android.env.ANDROID_HOME}"
+                  export ANDROID_SDK_ROOT="${android.env.ANDROID_SDK_ROOT}"
+                fi
                 export JAVA_HOME="${android.env.JAVA_HOME}"
                 export PATH="$ANDROID_HOME/platform-tools:$PATH"
               ''
