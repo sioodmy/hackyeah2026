@@ -1,6 +1,6 @@
-# PanicMap API
+# Mokosh API
 
-FastAPI backend for the PanicMap mobile app.
+FastAPI backend for the Mokosh mobile app.
 
 - `POST /api/v1/alerts` — create an alert (threat level 1–3), fan out Expo pushes,
   and at level 3 open an evidence-recording session + fire a mock dispatch.

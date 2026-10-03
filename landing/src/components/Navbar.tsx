@@ -13,7 +13,7 @@ export const Navbar: React.FC = () => {
             <ShieldCheck size={20} weight="fill" />
           </div>
           <span className="font-bold text-lg tracking-tight text-white">
-            PanicMap
+            Mokosh
           </span>
         </a>
 

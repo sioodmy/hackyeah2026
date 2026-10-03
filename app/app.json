@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "PanicMap",
-    "slug": "panicmap",
-    "scheme": "panicmap",
+    "name": "Mokosh",
+    "slug": "mokosh",
+    "scheme": "mokosh",
     "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -15,7 +15,7 @@
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "bundleIdentifier": "pl.hackyeah.panicmap",
+      "bundleIdentifier": "pl.hackyeah.mokosh",
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Twoja lokalizacja jest udostępniana znajomym tylko wtedy, gdy zaznaczysz poziom zagrożenia.",
@@ -28,7 +28,7 @@
       }
     },
     "android": {
-      "package": "pl.hackyeah.panicmap",
+      "package": "pl.hackyeah.mokosh",
       "versionCode": 200,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
@@ -44,7 +44,7 @@
         {
           "action": "VIEW",
           "autoVerify": false,
-          "data": [{ "scheme": "panicmap" }],
+          "data": [{ "scheme": "mokosh" }],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ]

@@ -15,11 +15,11 @@ import pytest
 
 TEST_DB_URL = os.environ.get(
     "TEST_DATABASE_URL",
-    "postgresql+psycopg://panicmap@127.0.0.1:5433/panicmap_test",
+    "postgresql+psycopg://mokosh@127.0.0.1:5433/mokosh_test",
 )
 
 os.environ["DATABASE_URL"] = TEST_DB_URL
-os.environ["EVIDENCE_DIR"] = tempfile.mkdtemp(prefix="panicmap-evidence-test-")
+os.environ["EVIDENCE_DIR"] = tempfile.mkdtemp(prefix="mokosh-evidence-test-")
 os.environ["INVITE_SIGNING_KEY"] = "test-signing-key"
 os.environ["DISPATCH_ARTIFICIAL_DELAY_SECONDS"] = "0"
 # The suite creates the schema once per session; the app must not also try to,

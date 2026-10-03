@@ -66,7 +66,7 @@ def _init_database() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _init_database()
-    log.info("PanicMap API ready")
+    log.info("Mokosh API ready")
     yield
     await registry.disconnect_all()
 
@@ -75,10 +75,10 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="PanicMap API",
+        title="Mokosh API",
         version="0.1.0",
         description=(
-            "Backend for PanicMap: live friend locations over WebSocket, threat-level "
+            "Backend for Mokosh: live friend locations over WebSocket, threat-level "
             "alerting with Expo push, segmented audio evidence upload, and danger heatmap."
         ),
         lifespan=lifespan,

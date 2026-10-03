@@ -16,7 +16,7 @@ export type StoredEvidenceState = {
   startedAt: number;
 };
 
-const DIR_NAME = 'panicmap-evidence';
+const DIR_NAME = 'mokosh-evidence';
 const FILE_NAME = 'active-session.json';
 
 function stateDir(): Directory {

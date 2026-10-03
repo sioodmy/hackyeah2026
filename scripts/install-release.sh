@@ -1,19 +1,19 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Download a release APK from GitHub and install it via ADB.
 #
 #   ./scripts/install-release.sh              # installs latest release
 #   ./scripts/install-release.sh v0.2.0       # installs specific tag
 #   ./scripts/install-release.sh --launch     # installs and opens the app
 #
-# Caches downloaded APKs in /tmp/panicmap-release-cache so repeated runs
+# Caches downloaded APKs in /tmp/mokosh-release-cache so repeated runs
 # don't re-download 180MB needlessly. Verifies SHA-256 digest when published
 # with the release.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PACKAGE_NAME="pl.hackyeah.panicmap"
-CACHE_DIR="${TMPDIR:-/tmp}/panicmap-release-cache"
+PACKAGE_NAME="${PACKAGE_NAME:-pl.hackyeah.mokosh}"
+CACHE_DIR="${TMPDIR:-/tmp}/mokosh-release-cache"
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
@@ -30,7 +30,7 @@ Options:
   -s, --device SERIAL   ADB device serial (defaults to $ANDROID_SERIAL or single device)
   -r, --repo OWNER/REPO GitHub repo (default: auto-detected from git or sioodmy/hackyeah2026)
   -f, --force           Force re-download even if APK is cached
-  -l, --launch          Launch PanicMap on the device after installation
+  -l, --launch          Launch Mokosh on the device after installation
   -h, --help            Show this help message
 EOF
 }
@@ -202,8 +202,17 @@ install_apk() {
   echo "==> installing $APK_NAME via adb..."
   "${ADB[@]}" install -r -d "$APK_PATH"
 
+  local pkg="$PACKAGE_NAME"
   local version_info
-  version_info="$("${ADB[@]}" shell dumpsys package "$PACKAGE_NAME" 2>/dev/null | grep -E "versionCode|versionName" | tr -d '\r' | sed 's/^[[:space:]]*//' || true)"
+  version_info="$("${ADB[@]}" shell dumpsys package "$pkg" 2>/dev/null | grep -E "versionCode|versionName" | tr -d '\r' | sed 's/^[[:space:]]*//' || true)"
+  if [[ -z $version_info ]]; then
+    local fallback_info
+    fallback_info="$("${ADB[@]}" shell dumpsys package "pl.hackyeah.panicmap" 2>/dev/null | grep -E "versionCode|versionName" | tr -d '\r' | sed 's/^[[:space:]]*//' || true)"
+    if [[ -n $fallback_info ]]; then
+      pkg="pl.hackyeah.panicmap"
+      version_info="$fallback_info"
+    fi
+  fi
 
   echo "==> successfully installed!"
   if [[ -n $version_info ]]; then
@@ -214,8 +223,8 @@ install_apk() {
   fi
 
   if [[ $LAUNCH_APP == true ]]; then
-    echo "==> launching $PACKAGE_NAME..."
-    "${ADB[@]}" shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
+    echo "==> launching $pkg..."
+    "${ADB[@]}" shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
   fi
 }
 

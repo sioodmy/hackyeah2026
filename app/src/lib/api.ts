@@ -1,5 +1,5 @@
 /**
- * Typed client for the PanicMap REST API.
+ * Typed client for the Mokosh REST API.
  *
  * Requests carry Clerk session tokens in `Authorization: Bearer <token>` when a
  * session is active. Unauthenticated calls succeed only for endpoints that do not
