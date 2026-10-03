@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from hy.asgi import create_app
+
 
 def test_get_my_profile_returns_default(users, client: TestClient) -> None:
     res = client.get("/api/v1/users/me")
@@ -78,6 +80,58 @@ def test_update_trims_and_ignores_extra(users, client: TestClient) -> None:
     )
     assert res.status_code == 200, res.text
     assert res.json()["displayName"] == "Ola"
+
+
+def test_display_name_can_be_cleared(users, client: TestClient) -> None:
+    """Sending an explicit null means "remove my name".
+
+    An `is not None` check on the parsed body cannot tell that apart from the
+    field being omitted, so the old name survived and the field could never be
+    emptied from the app.
+    """
+    assert client.patch("/api/v1/users/me", json={"displayName": "Kasia"}).json()[
+        "displayName"
+    ] == ("Kasia")
+
+    cleared = client.patch("/api/v1/users/me", json={"displayName": None})
+    assert cleared.status_code == 200
+    assert cleared.json()["displayName"] is None
+
+    assert client.get("/api/v1/users/me").json()["displayName"] is None
+
+
+def test_display_name_can_be_cleared_with_empty_string(users, client: TestClient) -> None:
+    client.patch("/api/v1/users/me", json={"displayName": "Kasia"})
+    assert (
+        client.patch("/api/v1/users/me", json={"displayName": "   "}).json()["displayName"] is None
+    )
+
+
+def test_omitted_field_is_left_alone(users, client: TestClient) -> None:
+    """A patch that touches only the avatar must not wipe the name."""
+    client.patch("/api/v1/users/me", json={"displayName": "Kasia"})
+    client.patch("/api/v1/users/me", json={"avatarUrl": "🦊"})
+    assert client.get("/api/v1/users/me").json()["displayName"] == "Kasia"
+
+
+def test_avatar_aura_round_trips(users, client: TestClient) -> None:
+    res = client.patch("/api/v1/users/me", json={"avatarUrl": "🌸|#F472B6"})
+    assert res.status_code == 200
+    assert res.json()["avatarUrl"] == "🌸|#F472B6"
+
+
+def test_avatar_with_malformed_aura_is_rejected(users, client: TestClient) -> None:
+    """`avatar_url` is a friend-supplied string rendered by every client, so the
+    `emoji|#RRGGBB` shape has to hold rather than being assumed downstream."""
+    for bad in ["🌸|red", "🌸|#GGGGGG", "🌸|#FFF", "🌸|javascript:alert(1)"]:
+        res = client.patch("/api/v1/users/me", json={"avatarUrl": bad})
+        assert res.status_code == 422, bad
+
+
+def test_users_me_requires_auth() -> None:
+    anon = TestClient(create_app())
+    assert anon.get("/api/v1/users/me").status_code == 401
+    assert anon.patch("/api/v1/users/me", json={"displayName": "x"}).status_code == 401
 
 
 def test_friends_list_and_snapshot_include_avatar(users, client: TestClient, client_for) -> None:

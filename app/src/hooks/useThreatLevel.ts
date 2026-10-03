@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
-import type { AlertPayload, ApiClient, DispatchReceipt, Position } from '@/lib/api';
+import type { AlertAck, AlertPayload, ApiClient, DispatchReceipt, Position } from '@/lib/api';
 import {
   FAKE_CALL_DELAY_MS,
   THREAT_FULL,
@@ -30,6 +30,8 @@ export type ThreatState = {
   callPhase: CallPhase;
   /** Level-3 evidence session, once the backend hands one back. */
   evidenceSessionId: string | null;
+  /** What friends have said they are doing about this alert. */
+  acks: AlertAck[];
   busy: boolean;
   error: string | null;
 };
@@ -41,9 +43,13 @@ const INITIAL: ThreatState = {
   countdown: null,
   callPhase: 'idle',
   evidenceSessionId: null,
+  acks: [],
   busy: false,
   error: null,
 };
+
+/** How often the victim's phone asks whether a friend has responded yet. */
+const ACK_POLL_MS = 4_000;
 
 export type UseThreatLevelArgs = {
   api: ApiClient;
@@ -111,6 +117,37 @@ export function useThreatLevel({
   }, []);
 
   useEffect(() => clearTimers, [clearTimers]);
+
+  // Whether a friend has actually picked up is the one thing the person in danger
+  // cannot do anything about, so it is polled rather than pushed: a friend who
+  // answers the call while the map is open has to show up here on its own.
+  const alertId = state.alert?.id ?? null;
+  useEffect(() => {
+    if (!alertId || state.level < THREAT_HELP) {
+      setState((prev) => (prev.acks.length === 0 ? prev : { ...prev, acks: [] }));
+      return undefined;
+    }
+
+    let cancelled = false;
+    const tick = () => {
+      api
+        .activeAlert()
+        .then((alert) => {
+          if (cancelled || !alert || alert.id !== alertId) return;
+          setState((prev) => ({ ...prev, acks: alert.acks ?? [] }));
+        })
+        .catch(() => {
+          /* the level itself is the important part */
+        });
+    };
+
+    tick();
+    const poll = setInterval(tick, ACK_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+    };
+  }, [alertId, api, state.level]);
 
   const scheduleFakeCall = useCallback(
     (level: ThreatLevel) => {

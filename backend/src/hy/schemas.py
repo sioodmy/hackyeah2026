@@ -6,23 +6,28 @@ the Python side uses snake_case internally and maps with explicit aliases.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 from hy.models import (
+    ACK_ANSWERED,
+    ACK_ON_THE_WAY,
+    ACK_SEEN,
     ALERT_ACTIVE,
     EVIDENCE_OPEN,
     FRIENDSHIP_ACCEPTED,
     FRIENDSHIP_PENDING,
 )
 
+#: An acknowledgement never moves backwards — see `ACK_ORDER`.
+AckAction = Literal[ACK_SEEN, ACK_ANSWERED, ACK_ON_THE_WAY]
+
 
 class CamelModel(BaseModel):
-    model_config = ConfigDict(
-        populate_by_name=True, from_attributes=True, extra="ignore"
-    )
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True, extra="ignore")
 
 
 # --------------------------------------------------------------------------- #
@@ -90,6 +95,10 @@ class UserProfileOut(CamelModel):
 
 
 class UserProfileUpdate(CamelModel):
+    # Every field is Optional-with-None so a client can send an explicit `null` to
+    # clear a value; the router distinguishes "not sent" from "sent as null" via
+    # `model_fields_set`. Sending `displayName: ""` or `null` must actually clear
+    # the name, otherwise the field can never be emptied.
     display_name: str | None = Field(default=None, alias="displayName", max_length=120)
     avatar_url: str | None = Field(default=None, alias="avatarUrl", max_length=500)
 
@@ -108,6 +117,28 @@ class UserProfileUpdate(CamelModel):
             return cleaned if cleaned else None
         return value
 
+    @field_validator("avatar_url")
+    @classmethod
+    def _check_avatar(cls, value: str | None) -> str | None:
+        """`avatar_url` is a friend-supplied string rendered by every client.
+
+        It is not HTML, so there is no XSS, but it is still untrusted input that
+        ends up in a MapLibre `borderColor` and in a `Text` node on other people's
+        phones. Constrain it to the `emoji` / `emoji|#RRGGBB` shape the client
+        writes so a malformed value cannot reach a consumer that assumes the format.
+        """
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        emoji, sep, aura = cleaned.partition("|")
+        if not emoji or len(emoji) > 16:
+            raise ValueError("avatar must be an emoji, optionally followed by |#RRGGBB")
+        if sep and not re.fullmatch(r"#[0-9A-Fa-f]{6}", aura):
+            raise ValueError("avatar aura must be a #RRGGBB colour")
+        return cleaned
+
 
 # --------------------------------------------------------------------------- #
 # alerts
@@ -118,6 +149,17 @@ class AlertCreate(CamelModel):
     lng: float = Field(ge=-180, le=180)
     accuracy: float | None = Field(default=None, ge=0, le=100_000)
     bearing: float | None = Field(default=None, ge=-360, le=360)
+
+
+class AlertAckOut(CamelModel):
+    user_id: str = Field(alias="userId")
+    display_name: str | None = Field(default=None, alias="displayName")
+    action: AckAction
+    at: datetime
+
+
+class AlertAckIn(CamelModel):
+    action: AckAction = ACK_SEEN
 
 
 class AlertOut(CamelModel):
@@ -134,6 +176,8 @@ class AlertOut(CamelModel):
     dispatch_case_id: str | None = Field(default=None, alias="dispatchCaseId")
     dispatch_eta_min: int | None = Field(default=None, alias="dispatchEtaMin")
     evidence_session_id: str | None = Field(default=None, alias="evidenceSessionId")
+    #: Who has responded so far. Only ever read by the alert's owner.
+    acks: list[AlertAckOut] = Field(default_factory=list)
 
 
 class AlertCreateResponse(CamelModel):
@@ -245,3 +289,54 @@ class FriendAlias(CamelModel):
     display_name: str | None = Field(default=None, alias="displayName")
     avatar_url: str | None = Field(default=None, alias="avatarUrl")
     status: str = FRIENDSHIP_ACCEPTED
+
+
+# --------------------------------------------------------------------------- #
+# incidents / danger heatmap
+# --------------------------------------------------------------------------- #
+class IncidentReportCreate(CamelModel):
+    # `category` is validated against INCIDENT_DEFAULT_WEIGHTS in the router, so an
+    # unknown category cannot create a synthetic heatmap cell.
+    category: str = Field(min_length=2, max_length=32)
+    category_label: str | None = Field(default=None, alias="categoryLabel")
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+    severity: int = Field(default=2, ge=1, le=3)
+    # Accepted for backwards compatibility and then ignored: the weight is always
+    # derived server-side from category and severity.
+    weight: float | None = Field(default=None, ge=0.0, le=1.0)
+    title: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    reported_at: datetime | None = Field(default=None, alias="reportedAt")
+
+
+class IncidentReportOut(CamelModel):
+    """A report as returned to the reporter who filed it.
+
+    `user_id` is absent by design — no endpoint in this app returns a reporter's
+    identity to anyone, including the reporter themselves.
+    """
+
+    id: str
+    category: str
+    category_label: str = Field(alias="categoryLabel")
+    severity: int
+    weight: float
+    lat: float
+    lng: float
+    title: str | None = None
+    description: str | None = None
+    reported_at: datetime | None = Field(default=None, alias="reportedAt")
+    created_at: datetime | None = Field(default=None, alias="createdAt")
+
+
+class HeatmapGeoJSON(CamelModel):
+    type: str = "FeatureCollection"
+    features: list[dict]
+
+
+class IncidentStatsOut(CamelModel):
+    total: int
+    city: str = "Kraków"
+    by_category: dict[str, int] = Field(alias="byCategory")
+    hotspots: list[dict]

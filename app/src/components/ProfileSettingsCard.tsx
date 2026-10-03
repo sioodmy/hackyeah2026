@@ -1,10 +1,11 @@
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useUser } from '@clerk/expo';
 
 import { floatingShadow, palette, radii, spacing, type } from '@/theme';
 import { useApi } from '@/lib/ApiContext';
+import { parseAvatar } from '@/lib/avatar';
 
 type EmojiCategory = {
   id: string;
@@ -53,6 +54,13 @@ const AURAS: AuraOption[] = [
 export function ProfileSettingsCard() {
   const api = useApi();
   const { user } = useUser();
+  // Read through a ref so a new Clerk `user` object identity does not re-run the
+  // load effect and overwrite whatever the user is currently typing. Depending on
+  // `user` directly re-fetched on every identity change, which silently discarded
+  // an in-progress name or emoji selection.
+  const clerkFirstName = user?.firstName;
+  const clerkFirstNameRef = useRef(clerkFirstName);
+  clerkFirstNameRef.current = clerkFirstName;
 
   const [displayName, setDisplayName] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('🌸');
@@ -68,28 +76,24 @@ export function ProfileSettingsCard() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      const fallbackName = clerkFirstNameRef.current;
       try {
         const profile = await api.myProfile();
         if (cancelled) return;
         if (profile.displayName) {
           setDisplayName(profile.displayName);
-        } else if (user?.firstName) {
-          setDisplayName(user.firstName);
+        } else if (fallbackName) {
+          setDisplayName(fallbackName);
         }
 
         if (profile.avatarUrl) {
-          const raw = profile.avatarUrl.trim();
-          if (raw.includes('|')) {
-            const [emo, aura] = raw.split('|');
-            if (emo) setSelectedEmoji(emo.trim());
-            if (aura) setSelectedAura(aura.trim());
-          } else {
-            setSelectedEmoji(raw);
-          }
+          const { emoji, aura } = parseAvatar(profile.avatarUrl);
+          setSelectedEmoji(emoji);
+          if (aura) setSelectedAura(aura);
         }
       } catch {
-        if (user?.firstName && !cancelled) {
-          setDisplayName(user.firstName);
+        if (fallbackName && !cancelled) {
+          setDisplayName(fallbackName);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -99,7 +103,7 @@ export function ProfileSettingsCard() {
     return () => {
       cancelled = true;
     };
-  }, [api, user]);
+  }, [api]);
 
   const handleSelectEmoji = useCallback((emoji: string) => {
     setSelectedEmoji(emoji);

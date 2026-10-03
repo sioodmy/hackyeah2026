@@ -38,8 +38,35 @@ FRIENDSHIP_DECLINED = "declined"
 ALERT_ACTIVE = "active"
 ALERT_RESOLVED = "resolved"
 
+#: What a friend did with an alert. The values are ordered: an acknowledgement only
+#: ever moves forward, so a late "seen" cannot undo an "on_the_way".
+ACK_SEEN = "seen"
+ACK_ANSWERED = "answered"
+ACK_ON_THE_WAY = "on_the_way"
+ACK_ORDER = {ACK_SEEN: 0, ACK_ANSWERED: 1, ACK_ON_THE_WAY: 2}
+
 EVIDENCE_OPEN = "open"
 EVIDENCE_FINALIZED = "finalized"
+
+INCIDENT_CATEGORY_LABELS: dict[str, str] = {
+    "harassment": "Zaczepianie / Molestowanie słowne",
+    "sexual_assault": "Próba gwałtu / Napaść na tle seksualnym",
+    "assault": "Napaść fizyczna / Pobicie",
+    "robbery": "Rozbój / Kradzież zuchwała",
+    "stalking": "Śledzenie / Stalking",
+    "suspicious": "Agresywna grupa / Zastraszanie",
+    "other": "Inne niebezpieczne zdarzenie",
+}
+
+INCIDENT_DEFAULT_WEIGHTS: dict[str, float] = {
+    "harassment": 0.55,
+    "sexual_assault": 1.0,
+    "assault": 0.9,
+    "robbery": 0.75,
+    "stalking": 0.7,
+    "suspicious": 0.45,
+    "other": 0.5,
+}
 
 
 def _uuid() -> str:
@@ -153,6 +180,27 @@ class Alert(Base):
         }
 
 
+class AlertAck(Base):
+    """One friend's response to an alert: saw it, answered the call, is coming.
+
+    One row per (alert, friend) — the friend's latest word is the row, updated in
+    place, because "Kasia is on her way" must never be overwritten by a second
+    push arriving on her phone a moment later.
+    """
+
+    __tablename__ = "alert_acks"
+    __table_args__ = (UniqueConstraint("alert_id", "user_id", name="uq_alert_acks_alert_user"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    alert_id: Mapped[str] = mapped_column(String(64), ForeignKey("alerts.id", ondelete="CASCADE"))
+    user_id: Mapped[str] = mapped_column(String(128), ForeignKey("users.id", ondelete="CASCADE"))
+    action: Mapped[str] = mapped_column(String(16), default=ACK_SEEN)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
 class LocationPing(Base):
     """A single live-location sample. `id` doubles as the fan-out cursor."""
 
@@ -254,3 +302,55 @@ class DispatchLog(Base):
     evidence_session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     mocked: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class IncidentReport(Base):
+    """User-submitted or seeded report of a dangerous situation in Krakow."""
+
+    __tablename__ = "incident_reports"
+    __table_args__ = (
+        Index("ix_incidents_category", "category"),
+        Index("ix_incidents_user", "user_id"),
+        Index("ix_incidents_coords", "lat", "lng"),
+        Index("ix_incidents_created", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    # CASCADE so deleting an account also deletes the reports it filed: an
+    # orphaned Clerk id attached to a rape report is retained personal data.
+    # Anonymous reports keep a NULL here and are not affected.
+    user_id: Mapped[str | None] = mapped_column(
+        String(128),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    category: Mapped[str] = mapped_column(String(32))
+    severity: Mapped[int] = mapped_column(Integer, default=2)
+    weight: Mapped[float] = mapped_column(Float, default=0.6)
+    lat: Mapped[float] = mapped_column(Float)
+    lng: Mapped[float] = mapped_column(Float)
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    def as_own_dict(self) -> dict:
+        """Serialise for the reporter who filed this report.
+
+        Deliberately omits `user_id`: no response in this app should ever carry a
+        reporter identity. Coordinates here are the caller's own, so they stay
+        exact — this is the one endpoint where the user needs their real position.
+        """
+        return {
+            "id": self.id,
+            "category": self.category,
+            "categoryLabel": INCIDENT_CATEGORY_LABELS.get(self.category, self.category),
+            "severity": self.severity,
+            "weight": self.weight,
+            "lat": self.lat,
+            "lng": self.lng,
+            "title": self.title or INCIDENT_CATEGORY_LABELS.get(self.category, self.category),
+            "description": self.description,
+            "reportedAt": self.reported_at.isoformat() if self.reported_at else None,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }

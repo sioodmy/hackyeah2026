@@ -34,7 +34,7 @@ from sqlalchemy import text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from hy.asgi import create_app  # noqa: E402
-from hy.auth import Principal, require_principal  # noqa: E402
+from hy.auth import Principal, optional_principal, require_principal  # noqa: E402
 from hy.db import Base, get_engine, session_scope  # noqa: E402
 from hy.models import (  # noqa: E402
     Device,
@@ -79,7 +79,7 @@ def _clean_tables() -> Iterator[None]:
         conn.execute(
             text(
                 "TRUNCATE users, devices, friendships, alerts, location_pings, "
-                "evidence_sessions, evidence_chunks, dispatch_log RESTART IDENTITY CASCADE"
+                "evidence_sessions, evidence_chunks, dispatch_log, incident_reports RESTART IDENTITY CASCADE"
             )
         )
 
@@ -140,28 +140,49 @@ def evidence_dir() -> Path:
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
-    """TestClient whose auth dependency always resolves to `user_alice`."""
+    """TestClient authenticated as `user_alice`.
+
+    Both auth dependencies are overridden, not just `require_principal`: the guest
+    endpoints (incident reporting) depend on `optional_principal`, and overriding
+    only the strict one left those routes resolving to an anonymous caller in
+    tests while production sent a real token.
+    """
     app = create_app()
 
     def _override() -> Principal:
         return Principal(user_id="user_alice")
 
+    async def _override_optional() -> Principal:
+        return Principal(user_id="user_alice")
+
     app.dependency_overrides[require_principal] = _override
+    app.dependency_overrides[optional_principal] = _override_optional
     with TestClient(app) as test_client:
         yield test_client
 
 
 @pytest.fixture
 def client_for() -> Iterator[callable]:
-    """Factory for clients authenticated as an arbitrary user id."""
-    app = create_app()
+    """Factory for clients authenticated as an arbitrary user id.
+
+    Each call builds its own app. Sharing one app across clients meant a later
+    `_make()` overwrote `dependency_overrides` for every client already handed
+    out, so an "alice" client created after a "bob" client would silently start
+    authenticating as bob.
+    """
     clients: list[TestClient] = []
 
     def _make(user_id: str) -> TestClient:
+        app = create_app()
+
         def _override() -> Principal:
             return Principal(user_id=user_id)
 
+        async def _override_optional() -> Principal:
+            return Principal(user_id=user_id)
+
         app.dependency_overrides[require_principal] = _override
+        app.dependency_overrides[optional_principal] = _override_optional
         test_client = TestClient(app)
         test_client.__enter__()
         clients.append(test_client)
@@ -178,7 +199,7 @@ def push_spy(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
     """Replace Expo push delivery with a recorder."""
     calls: list[dict] = []
 
-    async def _fake_send_push(*, level, tokens, lat, lng, display_name=None):
+    async def _fake_send_push(*, level, tokens, lat, lng, display_name=None, **extra):
         from hy.push import PushResult
 
         calls.append(
@@ -188,6 +209,7 @@ def push_spy(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
                 "lat": lat,
                 "lng": lng,
                 "displayName": display_name,
+                **extra,
             }
         )
         return PushResult(

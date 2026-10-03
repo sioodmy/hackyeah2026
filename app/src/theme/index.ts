@@ -21,31 +21,15 @@ export const palette = {
   textMuted: '#9BA1AA',
   textFaint: '#6B717A',
 
-  /** Threat levels, matching the slider gradient stops exactly. */
+  /** Threat levels, matching the slider stops exactly. */
   level0: '#5C6069',
-  level0Dark: '#43474E',
   level1: '#EFC02B',
   level2: '#F2761B',
   level3: '#D62828',
-  level3Deep: '#B01616',
 
   accent: '#8AB4F8',
   success: '#4CAF7D',
 } as const;
-
-/**
- * Slider gradient stops as `[offset, color]` pairs, in track coordinates.
- * The offsets line up with `DETENTS` so the colour under the knob is the colour
- * of the level it would activate.
- */
-export const LEVEL_GRADIENT: ReadonlyArray<readonly [number, string]> = [
-  [0, palette.level0Dark],
-  [0.14, palette.level0],
-  [0.34, palette.level1],
-  [0.66, palette.level2],
-  [0.93, palette.level3],
-  [1, palette.level3Deep],
-] as const;
 
 export function colorForLevel(level: number): string {
   switch (level) {

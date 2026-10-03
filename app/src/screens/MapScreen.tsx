@@ -11,6 +11,8 @@ import { MapCanvas } from '@/components/MapCanvas';
 import { ThreatSlider } from '@/components/ThreatSlider';
 import { IncomingCallOverlay } from '@/components/IncomingCallOverlay';
 import { EvidenceIndicator } from '@/components/EvidenceIndicator';
+import { HeatmapLegend } from '@/components/HeatmapLegend';
+import { IncidentReportModal } from '@/components/IncidentReportModal';
 import { useThreatLevel } from '@/hooks/useThreatLevel';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useLiveLocations } from '@/hooks/useLiveLocations';
@@ -18,14 +20,32 @@ import { useSmoothedLocations } from '@/hooks/useSmoothedLocations';
 import { useEvidenceRecorder } from '@/hooks/useEvidenceRecorder';
 import { useApi } from '@/lib/ApiContext';
 import { useAuthToken } from '@/lib/useAuthToken';
+import type { AlertAck, HeatmapGeoJSON, ReportIncidentInput } from '@/lib/api';
 import { colorForLevel, floatingShadow, palette, radii, spacing, type } from '@/theme';
 import { THREAT_FULL, THREAT_SAFE, hint, label, type ThreatLevel } from '@/theme/levels';
+
+const ACK_LABEL: Record<AlertAck['action'], string> = {
+  seen: 'widzi alert',
+  answered: 'rozmawia',
+  on_the_way: 'idzie do ciebie',
+};
+
+/** What the friends' phones have reported back, in one discreet line. */
+function ackLine(acks: AlertAck[]): string | null {
+  if (!acks.length) return null;
+  return acks
+    .map((ack) => `${ack.displayName || 'Ktoś'} — ${ACK_LABEL[ack.action] ?? ACK_LABEL.seen}`)
+    .join(' · ');
+}
 
 /**
  * The only screen that matters.
  *
  * Everything else is reachable by tapping the small pill in the corner, because
  * the main surface has to stay unremarkable: a map, and a slider at the bottom.
+ *
+ * Includes Kraków danger heatmap based on street harassment, sexual assault,
+ * and dangerous situations.
  */
 export function MapScreen() {
   const api = useApi();
@@ -36,6 +56,13 @@ export function MapScreen() {
   const centredRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [previewLevel, setPreviewLevel] = useState<ThreatLevel | null>(null);
+
+  // Kraków danger heatmap state
+  const [heatmapData, setHeatmapData] = useState<HeatmapGeoJSON | null>(null);
+  const [heatmapError, setHeatmapError] = useState<string | null>(null);
+  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const evidence = useEvidenceRecorder({ api });
   const lastBroadcastRef = useRef(0);
@@ -65,6 +92,49 @@ export function MapScreen() {
   });
 
   const { points, staleSeconds } = useSmoothedLocations(locations);
+
+  // Fetch heatmap data for Kraków
+  const loadHeatmap = useCallback(async () => {
+    try {
+      const data = await api.incidentHeatmap();
+      setHeatmapData(data);
+      setHeatmapError(null);
+    } catch (err) {
+      // Deliberately not silent: a failed read leaves the map unpainted, and an
+      // unpainted map reads as "nobody reported anything here". The reason is kept
+      // and the legend is opened, so the layer is visibly unavailable rather than
+      // silently implying safety.
+      setHeatmapError(err instanceof Error ? err.message : 'Nie udało się pobrać danych');
+      setShowLegend(true);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    void loadHeatmap();
+  }, [loadHeatmap]);
+
+  // The response is one feature per ~200 m grid cell, so counting features would
+  // report the number of occupied cells as if it were the number of reports.
+  const { totalReported, hottestCells } = useMemo(() => {
+    const cells = heatmapData?.features ?? [];
+    return {
+      totalReported: cells.reduce((sum, feature) => sum + feature.properties.count, 0),
+      hottestCells: cells.slice(0, 3).map((feature) => ({
+        lat: feature.geometry.coordinates[1],
+        lng: feature.geometry.coordinates[0],
+        count: feature.properties.count,
+        severity: feature.properties.severity,
+      })),
+    };
+  }, [heatmapData]);
+
+  const handleReportIncident = useCallback(
+    async (data: ReportIncidentInput) => {
+      await api.reportIncident(data);
+      await loadHeatmap();
+    },
+    [api, loadHeatmap],
+  );
 
   // Push our own position on the alert interval, not on every GPS fix.
   useEffect(() => {
@@ -148,6 +218,13 @@ export function MapScreen() {
     return palette.textMuted;
   }, [previewLevel, threat.level]);
 
+  // Only from level 2 up: below that nobody has been told anything yet, so there is
+  // nobody who could have answered.
+  const friendResponse = useMemo(
+    () => (threat.level >= 2 ? ackLine(threat.acks) : null),
+    [threat.acks, threat.level],
+  );
+
   return (
     <View style={styles.root}>
       <StatusBar hidden />
@@ -157,6 +234,8 @@ export function MapScreen() {
         staleSeconds={staleSeconds}
         level={threat.level}
         cameraRef={cameraRef}
+        showHeatmap={showHeatmap}
+        heatmapData={heatmapData}
       />
 
       <View
@@ -170,6 +249,32 @@ export function MapScreen() {
               <Text style={styles.statusText}>{label(threat.level)}</Text>
             </View>
           ) : null}
+
+          {/* Kraków Danger Heatmap Toggle Pill */}
+          <Pressable
+            style={[styles.heatmapPill, showHeatmap && styles.heatmapPillActive, floatingShadow(6)]}
+            onPress={() => {
+              setShowHeatmap((prev) => !prev);
+              setShowLegend((prev) => !prev);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Strefy zagrożenia Kraków"
+          >
+            <Text style={styles.heatmapPillIcon}>🔥</Text>
+            <Text style={[styles.heatmapPillText, showHeatmap && styles.heatmapPillTextActive]}>
+              Zagrożenia
+            </Text>
+          </Pressable>
+
+          {/* Quick Danger Report Button */}
+          <Pressable
+            style={[styles.reportPill, floatingShadow(6)]}
+            onPress={() => setShowReportModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Zgłoś niebezpieczeństwo"
+          >
+            <Text style={styles.reportPillText}>+ Zgłoś</Text>
+          </Pressable>
         </View>
 
         <View style={styles.rightGroup} pointerEvents="box-none">
@@ -185,6 +290,27 @@ export function MapScreen() {
           </Pressable>
         </View>
       </View>
+
+      {/* Heatmap Legend Card */}
+      <HeatmapLegend
+        visible={showLegend}
+        totalIncidents={totalReported}
+        hottestCells={hottestCells}
+        error={heatmapError}
+        onClose={() => setShowLegend(false)}
+        onOpenReport={() => {
+          setShowLegend(false);
+          setShowReportModal(true);
+        }}
+      />
+
+      {/* Incident Reporting Sheet */}
+      <IncidentReportModal
+        visible={showReportModal}
+        userCoords={position ? [position.lng, position.lat] : null}
+        onClose={() => setShowReportModal(false)}
+        onSubmit={handleReportIncident}
+      />
 
       {permission === 'denied' ? (
         <View style={[styles.banner, { top: insets.top + 70 }]}>
@@ -228,6 +354,8 @@ export function MapScreen() {
             </View>
           ) : null}
         </View>
+
+        {friendResponse ? <Text style={styles.ackLine}>{friendResponse}</Text> : null}
 
         <ThreatSlider
           onCommit={handleCommit}
@@ -281,6 +409,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 50,
   },
   leftGroup: {
     flexDirection: 'row',
@@ -313,6 +442,48 @@ const styles = StyleSheet.create({
     ...type.label,
     color: palette.text,
   },
+  heatmapPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  heatmapPillActive: {
+    backgroundColor: 'rgba(214, 40, 40, 0.16)',
+    borderColor: 'rgba(214, 40, 40, 0.45)',
+  },
+  heatmapPillIcon: {
+    fontSize: 14,
+  },
+  heatmapPillText: {
+    ...type.label,
+    fontSize: 12,
+    color: palette.textMuted,
+  },
+  heatmapPillTextActive: {
+    color: '#FF8A80',
+    fontWeight: '600',
+  },
+  reportPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  reportPillText: {
+    ...type.label,
+    fontSize: 12,
+    color: palette.text,
+  },
   iconPill: {
     width: 44,
     height: 44,
@@ -335,6 +506,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.card,
     backgroundColor: 'rgba(214, 40, 40, 0.92)',
+    zIndex: 80,
   },
   bannerText: {
     ...type.caption,
@@ -359,6 +531,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     letterSpacing: 0.1,
+  },
+  ackLine: {
+    ...type.caption,
+    paddingHorizontal: spacing.lg + 2,
+    paddingBottom: spacing.sm,
+    color: palette.success,
   },
   liveIndicator: {
     flexDirection: 'row',

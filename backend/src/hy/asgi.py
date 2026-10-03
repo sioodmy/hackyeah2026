@@ -23,7 +23,16 @@ from sqlalchemy import text
 from hy.config import get_settings
 from hy.db import get_engine
 from hy.realtime import registry
-from hy.routers import alerts, authorities, devices, evidence, friends, locations, users
+from hy.routers import (
+    alerts,
+    authorities,
+    devices,
+    evidence,
+    friends,
+    incidents,
+    locations,
+    users,
+)
 from hy.ws import router as ws_router
 
 logging.basicConfig(
@@ -36,7 +45,7 @@ log = logging.getLogger("hy")
 def _init_database() -> None:
     """Create tables on boot — a hackathon does not need migration tooling."""
     from hy import models  # noqa: F401  (ensures models are registered)
-    from hy.db import Base
+    from hy.db import Base, session_scope
 
     Path(get_settings().evidence_dir).expanduser().mkdir(parents=True, exist_ok=True)
 
@@ -45,6 +54,12 @@ def _init_database() -> None:
         return
 
     Base.metadata.create_all(get_engine())
+
+    if get_settings().seed_demo_incidents:
+        from hy.krakow_data import seed_krakow_incidents
+
+        with session_scope() as session:
+            seed_krakow_incidents(session)
     log.info("database ready")
 
 
@@ -64,7 +79,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description=(
             "Backend for PanicMap: live friend locations over WebSocket, threat-level "
-            "alerting with Expo push, and segmented audio evidence upload."
+            "alerting with Expo push, segmented audio evidence upload, and danger heatmap."
         ),
         lifespan=lifespan,
     )
@@ -84,6 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(authorities.router)
     app.include_router(locations.router)
     app.include_router(evidence.router)
+    app.include_router(incidents.router)
     app.include_router(ws_router)
 
     @app.get("/healthz", tags=["meta"])

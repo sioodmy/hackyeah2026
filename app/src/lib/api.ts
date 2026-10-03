@@ -1,13 +1,25 @@
 /**
- * Typed client for the PanicMap API.
+ * Typed client for the PanicMap REST API.
  *
- * Every call carries the Clerk session token, which the backend verifies with a
- * networkless RS256 check, so an expired token fails fast and locally.
+ * Requests carry Clerk session tokens in `Authorization: Bearer <token>` when a
+ * session is active. Unauthenticated calls succeed only for endpoints that do not
+ * require a principal (`GET /healthz`, and incident *reporting* — someone in
+ * danger should not have to log in first). Every incident read requires a session.
  */
 
 import Constants from 'expo-constants';
 
 export type ThreatLevel = 0 | 1 | 2 | 3;
+
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
 
 export type UserProfile = {
   id: string;
@@ -32,6 +44,18 @@ export type Friend = {
   lastSeenAt?: string | null;
 };
 
+/**
+ * What a friend did with the alert, as the person in danger sees it.
+ *
+ * The friend writes it from `ackAlert`; the owner reads it back on the alert.
+ */
+export type AlertAck = {
+  userId: string;
+  displayName: string | null;
+  action: 'seen' | 'answered' | 'on_the_way';
+  at: string;
+};
+
 export type AlertPayload = {
   id: string;
   userId: string;
@@ -46,6 +70,7 @@ export type AlertPayload = {
   dispatchCaseId: string | null;
   dispatchEtaMin: number | null;
   evidenceSessionId: string | null;
+  acks?: AlertAck[];
 };
 
 export type AlertResponse = {
@@ -77,20 +102,86 @@ export type EvidenceSession = {
   totalBytes: number;
   durationS: number | null;
   uploadedBytes: number;
+  expectedChunkCount?: number | null;
   nextSeq: number;
   manifestSha256: string | null;
   hasManifest: boolean;
 };
 
-export class ApiError extends Error {
-  readonly status: number;
+export type IncidentCategory =
+  | 'harassment'
+  | 'sexual_assault'
+  | 'assault'
+  | 'robbery'
+  | 'stalking'
+  | 'suspicious'
+  | 'other';
 
-  constructor(status: number, message: string) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-  }
-}
+export type IncidentReport = {
+  id: string;
+  category: string;
+  categoryLabel: string;
+  severity: number;
+  weight: number;
+  lat: number;
+  lng: number;
+  title?: string | null;
+  description?: string | null;
+  reportedAt?: string | null;
+  createdAt?: string | null;
+};
+
+/**
+ * One grid cell of the heatmap, not one report.
+ *
+ * The server buckets every report into a ~200 m cell before responding, and never
+ * includes a report id, a description or a coordinate finer than the cell — so a
+ * client cannot turn this response back into the location of a specific person.
+ */
+export type HeatmapFeature = {
+  type: 'Feature';
+  geometry: {
+    type: 'Point';
+    coordinates: [number, number]; // [lng, lat] of the cell centre
+  };
+  properties: {
+    count: number;
+    weight: number; // normalised 0..1 across the busiest cell
+    severity: number; // worst severity seen in the cell
+    category: string; // most common category in the cell
+    categoryLabel: string;
+  };
+};
+
+export type HeatmapGeoJSON = {
+  type: 'FeatureCollection';
+  features: HeatmapFeature[];
+};
+
+export type IncidentHotspot = {
+  lat: number;
+  lng: number;
+  count: number;
+};
+
+export type IncidentStats = {
+  total: number;
+  city: string;
+  byCategory: Record<string, number>;
+  /** Heaviest grid cells, derived from reported data rather than hardcoded. */
+  hotspots: IncidentHotspot[];
+};
+
+export type ReportIncidentInput = {
+  category: string;
+  severity?: number;
+  lat: number;
+  lng: number;
+  weight?: number;
+  title?: string;
+  description?: string;
+  reportedAt?: string;
+};
 
 /**
  * Where the API lives.
@@ -221,6 +312,18 @@ export function createApiClient(getToken: TokenProvider) {
 
     activeAlert: () => request<AlertPayload | null>('/api/v1/alerts/active'),
 
+    /**
+     * Tell the person in danger what this friend did with the alert.
+     *
+     * Only a friend of the alert's owner may call it, and the stored action only
+     * moves forward — answering a call never gets un-answered by a late push.
+     */
+    ackAlert: (alertId: string, action: AlertAck['action']) =>
+      request<AlertAck>(`/api/v1/alerts/${alertId}/ack`, {
+        method: 'POST',
+        body: JSON.stringify({ action }),
+      }),
+
     resolveAlert: (id: string) =>
       request<AlertPayload>(`/api/v1/alerts/${id}/resolve`, {
         method: 'PATCH',
@@ -255,6 +358,35 @@ export function createApiClient(getToken: TokenProvider) {
     evidenceSessions: () => request<EvidenceSession[]>('/api/v1/evidence/sessions'),
 
     evidenceSession: (id: string) => request<EvidenceSession>(`/api/v1/evidence/sessions/${id}`),
+
+    incidentHeatmap: (category?: string, minSeverity?: number) => {
+      const params = new URLSearchParams();
+      if (category) params.append('category', category);
+      if (minSeverity) params.append('min_severity', String(minSeverity));
+      const qs = params.toString();
+      return request<HeatmapGeoJSON>(`/api/v1/incidents/heatmap${qs ? `?${qs}` : ''}`);
+    },
+
+    /** The caller's own reports. The server scopes this to the authenticated user. */
+    incidents: (category?: string, limit: number = 50) => {
+      const params = new URLSearchParams();
+      if (category) params.append('category', category);
+      params.append('limit', String(limit));
+      return request<IncidentReport[]>(`/api/v1/incidents?${params.toString()}`);
+    },
+
+    /**
+     * `weight` is accepted for wire compatibility but the server ignores it and
+     * derives the weight from category and severity, so a caller cannot inflate
+     * the heatmap.
+     */
+    reportIncident: (input: ReportIncidentInput) =>
+      request<IncidentReport>('/api/v1/incidents', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
+    incidentStats: () => request<IncidentStats>('/api/v1/incidents/stats'),
 
     /**
      * Upload one recorded segment.

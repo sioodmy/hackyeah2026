@@ -24,7 +24,9 @@ def test_level_3_push_is_maximal() -> None:
     assert message["priority"] == "high"
     assert message["interruptionLevel"] == "time-sensitive"
     assert message["channelId"] == "full-alert"
-    assert message["categoryId"] == "full-alert"
+    # `alarm` is Android's own category for this, and the reason the OS fires a
+    # full-screen intent instead of only showing a heads-up.
+    assert message["categoryId"] == "alarm"
     assert message["data"]["kind"] == "full-alert"
 
 
@@ -37,19 +39,46 @@ def test_level_3_push_carries_coordinates_and_callback_hint() -> None:
     assert message["data"]["lat"] == WARSAW["lat"]
 
 
-def test_level_2_push_is_a_help_request() -> None:
+def test_level_2_push_is_a_call_request() -> None:
     message = _message(2)
 
     assert message["title"] == LEVEL_2_TITLE
     assert message["data"]["kind"] == "help"
-    # No Do Not Disturb bypass at level 2 — only level 3 earns that.
+    # Heads-up, because a friend being asked to talk should not be able to miss it,
+    # but no Do Not Disturb bypass — only level 3 earns that.
+    assert message["priority"] == "high"
     assert "interruptionLevel" not in message
-    assert message["channelId"] == "default"
+    assert message["channelId"] == "call-request"
+    assert message["categoryId"] == "call"
 
 
 def test_level_1_push_is_a_soft_check_in() -> None:
     message = _message(1)
     assert message["data"]["kind"] == "check-in"
+    assert message["channelId"] == "default"
+    # Nothing takes over the friend's screen at level 1.
+    assert "categoryId" not in message
+
+
+def test_every_push_identifies_who_and_which_alert() -> None:
+    message = build_messages(
+        level=3,
+        tokens=[TOKENS[0]],
+        lat=WARSAW["lat"],
+        lng=WARSAW["lng"],
+        display_name="Kasia",
+        alert_id="alert_1",
+        user_id="user_kasia",
+    )[0]
+
+    data = message["data"]
+    assert data["alertId"] == "alert_1"
+    assert data["from"] == "Kasia"
+    assert data["fromId"] == "user_kasia"
+    assert data["level"] == 3
+    assert data["at"] > 0
+    # One thread per alert, so escalations stack instead of scattering.
+    assert message["threadId"] == "alert_1"
 
 
 def test_resolution_push_has_no_sound() -> None:

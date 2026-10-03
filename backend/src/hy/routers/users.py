@@ -45,13 +45,13 @@ def update_my_profile(
         if user is None:
             user = upsert_user(session, user_id=principal.user_id)
 
-        provided = body.model_fields_set if body is not None else set()
-        if "display_name" in provided and body is not None:
-            # Validator already stripped / normalised empty -> None.
-            user.display_name = body.display_name
+        if body is not None:
+            if "display_name" in body.model_fields_set:
+                clean_name = (body.display_name or "").strip()
+                user.display_name = clean_name or None
 
-        if "avatar_url" in provided and body is not None:
-            user.avatar_url = body.avatar_url
+            if "avatar_url" in body.model_fields_set:
+                user.avatar_url = body.avatar_url
 
         session.flush()
         code = _ensure_invite_code(session, principal.user_id)

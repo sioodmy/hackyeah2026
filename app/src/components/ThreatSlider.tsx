@@ -5,57 +5,59 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
   Easing,
-  Extrapolation,
   interpolate,
   interpolateColor,
   runOnJS,
-  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import * as Haptics from 'expo-haptics';
 
-import { LEVEL_GRADIENT, floatingShadow, palette, radii, spacing } from '@/theme';
+import { colorForLevel, floatingShadow, palette, radii, spacing } from '@/theme';
 import {
   detentFor,
   MAX_LEVEL,
   OVERDRAG,
+  STOP_LEVELS,
   THREAT_SAFE,
   levelForProgress,
   type ThreatLevel,
 } from '@/theme/levels';
 
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
-
-const TRACK_HEIGHT = 64;
-const KNOB_SIZE = 56;
+const TRACK_HEIGHT = 56;
+const KNOB_SIZE = 44;
 const KNOB_INSET = (TRACK_HEIGHT - KNOB_SIZE) / 2;
+
+const TICK_WIDTH = 2;
+const TICK_HEIGHT = 6;
+/** Wide enough for the widest stop label, so labels can centre on their stop. */
+const STOP_WIDTH = 44;
 
 /** Spring used while the finger is driving the knob. */
 const KNOB_SPRING = { damping: 18, stiffness: 220, mass: 0.7 } as const;
-/** Firmer spring for snapping onto a detent after release. */
+/** Firmer spring for snapping onto a stop after release. */
 const SNAP_SPRING = { damping: 24, stiffness: 300, mass: 0.9 } as const;
 /** How long the knob takes to slide home once the action has fired. */
 const RESET_DURATION_MS = 420;
+/** Cross-fade between two level colours. */
+const ZONE_BLEND_MS = 140;
+/** Half-period of the breathing ring while the top level is live. */
+const LIVE_PULSE_MS = 900;
 
 const LEVEL_COLORS = [palette.level0, palette.level1, palette.level2, palette.level3];
 
-type AnimatedRectProps = {
-  width: number;
-  height: number;
-  rx: number;
-  fill: string;
-};
+/** What each stop is called, left to right. */
+const STOP_LABELS = ['—', '1', '2', 'SOS'];
 
 export type ThreatSliderProps = {
-  /** Fires the moment the knob is released past a threshold. */
+  /** Fires the moment the knob is released on a stop. */
   onCommit: (level: ThreatLevel) => void;
-  /** Level currently live, used for the resting tint and the top-level pulse. */
+  /** Level currently live, used for the resting highlight. */
   activeLevel: ThreatLevel;
   /** Live zone feedback while the finger is actively sliding. */
   onDragLevelChange?: (level: ThreatLevel | null) => void;
@@ -63,10 +65,11 @@ export type ThreatSliderProps = {
 };
 
 /**
- * Minimalist, tactile, non-transparent threat slider.
+ * The threat slider: one track, one knob, four labelled stops.
  *
- * Solid dark-mode track with precision micro-notches, understated affordance text,
- * and a tactile physical knob. Pure, clean product design with zero visual clutter.
+ * Nothing happens while the thumb is down. The knob follows the finger, the
+ * stop it is over lights up, and letting go commits that level — so brushing
+ * across the screen can never start a call or page anyone.
  */
 export function ThreatSlider({
   onCommit,
@@ -75,45 +78,41 @@ export function ThreatSlider({
   disabled = false,
 }: ThreatSliderProps) {
   const [trackWidth, setTrackWidth] = useState(0);
-  const [dragZone, setDragZone] = useState<ThreatLevel>(THREAT_SAFE);
-  const [isDragging, setIsDragging] = useState(false);
+  /** The level under the finger, or null while nothing is being dragged. */
+  const [preview, setPreview] = useState<ThreatLevel | null>(null);
 
-  const width = trackWidth || 1;
-  const travel = Math.max(0, width - KNOB_SIZE);
+  const travel = Math.max(0, trackWidth - KNOB_SIZE);
 
-  // Shared values only: worklets cannot read React refs or component state.
+  // Shared values only: worklets cannot read React state.
   const progress = useSharedValue(0);
   const travelSV = useSharedValue(0);
   const pressed = useSharedValue(0);
-  const zoneAnim = useSharedValue(0);
-  const pulse = useSharedValue(0);
+  /** Whole levels only, and never animated — this is what gets committed. */
+  const zone = useSharedValue<number>(THREAT_SAFE);
+  /** The same value, animated, so the fill colour cross-fades between stops. */
+  const zoneMix = useSharedValue<number>(THREAT_SAFE);
+  const live = useSharedValue(0);
 
   useEffect(() => {
     travelSV.value = travel;
   }, [travel, travelSV]);
 
+  const handleDragBegin = useCallback(() => {
+    setPreview(THREAT_SAFE);
+    onDragLevelChange?.(THREAT_SAFE);
+  }, [onDragLevelChange]);
+
   const handleZoneCrossed = useCallback(
-    (zone: ThreatLevel) => {
-      setDragZone(zone);
-      onDragLevelChange?.(zone);
+    (level: ThreatLevel) => {
+      setPreview(level);
+      onDragLevelChange?.(level);
       Haptics.selectionAsync().catch(() => {});
     },
     [onDragLevelChange],
   );
 
-  const handleDragBegin = useCallback(() => {
-    setIsDragging(true);
-    setDragZone(THREAT_SAFE);
-    onDragLevelChange?.(THREAT_SAFE);
-  }, [onDragLevelChange]);
-
   const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-    onDragLevelChange?.(null);
-  }, [onDragLevelChange]);
-
-  const resetDragZone = useCallback(() => {
-    setDragZone(THREAT_SAFE);
+    setPreview(null);
     onDragLevelChange?.(null);
   }, [onDragLevelChange]);
 
@@ -133,14 +132,22 @@ export function ThreatSlider({
     () =>
       Gesture.Pan()
         .enabled(!disabled)
+        .maxPointers(1)
         .minDistance(0)
         .onBegin(() => {
           pressed.value = withSpring(1, KNOB_SPRING);
+          // Start from a known zone, so the first update always reports where
+          // the finger actually is, even if it lands on last gesture's stop.
+          zone.value = THREAT_SAFE;
+          zoneMix.value = THREAT_SAFE;
           cancelAnimation(progress);
+          cancelAnimation(zoneMix);
           runOnJS(handleDragBegin)();
         })
         .onUpdate((event) => {
-          const maxTravel = travelSV.value || 1;
+          const maxTravel = travelSV.value;
+          if (maxTravel <= 0) return;
+
           const raw = (event.x - KNOB_SIZE / 2) / maxTravel;
 
           // Rubber-band past the far end instead of hard-stopping.
@@ -149,40 +156,41 @@ export function ThreatSlider({
 
           progress.value = Math.min(1 + OVERDRAG, next);
 
-          const zone = levelForProgress(progress.value);
-          if (zone !== zoneAnim.value) {
-            zoneAnim.value = withTiming(zone, { duration: 160 });
-            runOnJS(handleZoneCrossed)(zone);
+          const crossed = levelForProgress(next);
+          if (crossed !== zone.value) {
+            zone.value = crossed;
+            zoneMix.value = withTiming(crossed, { duration: ZONE_BLEND_MS });
+            runOnJS(handleZoneCrossed)(crossed);
           }
         })
-        .onFinalize(() => {
+        .onFinalize((_event, success) => {
           pressed.value = withSpring(0, KNOB_SPRING);
           runOnJS(handleDragEnd)();
 
-          const snapped = zoneAnim.value as ThreatLevel;
-          const detent = detentFor(snapped);
+          if (travelSV.value <= 0) return;
 
-          if (snapped === THREAT_SAFE) {
-            progress.value = withSpring(detent, SNAP_SPRING);
-            zoneAnim.value = withTiming(THREAT_SAFE, { duration: 200 });
-            runOnJS(resetDragZone)();
+          // `zone` only ever holds whole levels, so the level that escapes here
+          // is always one the state machine and the API understand.
+          const level = Math.min(
+            MAX_LEVEL,
+            Math.max(THREAT_SAFE, Math.round(zone.value)),
+          ) as ThreatLevel;
+
+          // A gesture another pointer took over is not a decision: spring home
+          // and commit nothing.
+          if (!success || level === THREAT_SAFE) {
+            zone.value = THREAT_SAFE;
+            zoneMix.value = withTiming(THREAT_SAFE, { duration: ZONE_BLEND_MS });
+            progress.value = withSpring(0, SNAP_SPRING);
             return;
           }
 
-          runOnJS(commit)(snapped);
+          runOnJS(commit)(level);
 
           progress.value = withSequence(
-            withSpring(detent, SNAP_SPRING),
+            withSpring(detentFor(level), SNAP_SPRING),
             withTiming(0, { duration: RESET_DURATION_MS, easing: Easing.out(Easing.cubic) }),
           );
-          zoneAnim.value = withSequence(
-            withTiming(snapped, { duration: 80 }),
-            withTiming(THREAT_SAFE, {
-              duration: RESET_DURATION_MS,
-              easing: Easing.out(Easing.cubic),
-            }),
-          );
-          runOnJS(resetDragZone)();
         }),
     [
       commit,
@@ -192,63 +200,45 @@ export function ThreatSlider({
       handleZoneCrossed,
       pressed,
       progress,
-      resetDragZone,
       travelSV,
-      zoneAnim,
+      zone,
+      zoneMix,
     ],
   );
 
-  // Gradient fill revealed smoothly up to the knob position
-  const fillProps = useAnimatedProps<AnimatedRectProps>(() => ({
-    width: Math.max(0, Math.min(1, progress.value) * width),
+  const fillStyle = useAnimatedStyle(() => ({
+    width: Math.max(0, Math.min(1, progress.value) * travelSV.value),
+    backgroundColor: interpolateColor(zoneMix.value, [0, 1, 2, 3], LEVEL_COLORS),
   }));
 
   const knobStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: Math.max(0, progress.value) * travelSV.value },
-      { scale: interpolate(pressed.value, [0, 1], [1, 1.08]) },
+      { scale: interpolate(pressed.value, [0, 1], [1, 1.06]) },
     ],
-  }));
-
-  const knobCoreStyle = useAnimatedStyle(() => {
-    const effectiveZone = pressed.value > 0 ? zoneAnim.value : activeLevel;
-    return {
-      backgroundColor: interpolateColor(effectiveZone, [0, 1, 2, 3], LEVEL_COLORS),
-      transform: [{ scale: interpolate(effectiveZone, [0, 3], [1, 1.1]) }],
-    };
-  });
-
-  const promptStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.14], [0.75, 0], Extrapolation.CLAMP),
-    transform: [
-      { translateX: interpolate(progress.value, [0, 0.14], [0, 10], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(zoneAnim.value, [0, 1, 2, 3], [0, 0.25, 0.38, 0.5]),
-    shadowColor: interpolateColor(zoneAnim.value, [0, 1, 2, 3], LEVEL_COLORS),
   }));
 
   // Slow breathing ring while the top level is live.
   useEffect(() => {
     if (activeLevel !== MAX_LEVEL) {
-      pulse.value = withTiming(0, { duration: 250 });
+      live.value = withTiming(0, { duration: 200 });
       return undefined;
     }
-    pulse.value = withTiming(1, { duration: 800, easing: Easing.inOut(Easing.quad) });
-    const id = setInterval(() => {
-      pulse.value = withTiming(pulse.value > 0.5 ? 0 : 1, {
-        duration: 800,
-        easing: Easing.inOut(Easing.quad),
-      });
-    }, 800);
-    return () => clearInterval(id);
-  }, [activeLevel, pulse]);
+    live.value = withRepeat(
+      withTiming(1, { duration: LIVE_PULSE_MS, easing: Easing.inOut(Easing.quad) }),
+      -1,
+      true,
+    );
+    return () => cancelAnimation(live);
+  }, [activeLevel, live]);
 
-  const pulseStyle = useAnimatedStyle(() => ({
-    opacity: activeLevel === MAX_LEVEL ? 0.15 + pulse.value * 0.45 : 0,
-  }));
+  const liveRingStyle = useAnimatedStyle(
+    () => ({
+      opacity: activeLevel === MAX_LEVEL ? 0.3 + live.value * 0.55 : 0,
+      transform: [{ scale: interpolate(live.value, [0, 1], [0.92, 1.08]) }],
+    }),
+    [activeLevel],
+  );
 
   const onLayout = useCallback((event: LayoutChangeEvent) => {
     setTrackWidth(event.nativeEvent.layout.width);
@@ -257,24 +247,12 @@ export function ThreatSlider({
   const onAccessibilityAction = useCallback(
     (event: { nativeEvent: { actionName: string } }) => {
       const step = event.nativeEvent.actionName === 'increment' ? 1 : -1;
-      commit(Math.min(MAX_LEVEL, Math.max(0, activeLevel + step)) as ThreatLevel);
+      commit(Math.min(MAX_LEVEL, Math.max(THREAT_SAFE, activeLevel + step)) as ThreatLevel);
     },
     [activeLevel, commit],
   );
 
-  const displayedZone = isDragging ? dragZone : activeLevel;
-  const glyphText = useMemo(() => {
-    switch (displayedZone) {
-      case 1:
-        return '1';
-      case 2:
-        return '2';
-      case 3:
-        return 'SOS';
-      default:
-        return '››';
-    }
-  }, [displayedZone]);
+  const shownLevel = preview ?? activeLevel;
 
   return (
     <View
@@ -282,8 +260,8 @@ export function ThreatSlider({
       accessible
       accessibilityRole="adjustable"
       accessibilityLabel="Poziom zagrożenia"
-      accessibilityHint="Przesuń w prawo i puść, aby zwiększyć poziom zagrożenia"
-      accessibilityValue={{ min: 0, max: MAX_LEVEL, now: activeLevel }}
+      accessibilityHint="Przesuń w prawo i puść na wybranym poziomie"
+      accessibilityValue={{ min: THREAT_SAFE, max: MAX_LEVEL, now: activeLevel }}
       accessibilityActions={[
         { name: 'increment', label: 'Wyższy poziom' },
         { name: 'decrement', label: 'Niższy poziom' },
@@ -291,105 +269,40 @@ export function ThreatSlider({
       onAccessibilityAction={onAccessibilityAction}
     >
       <GestureDetector gesture={panGesture}>
-        <View style={styles.hitArea} onLayout={onLayout}>
-          <Animated.View style={[styles.glow, glowStyle]} pointerEvents="none" />
-          <Animated.View style={[styles.pulse, pulseStyle]} pointerEvents="none" />
+        <View>
+          <View style={styles.hitArea} onLayout={onLayout}>
+            <View style={styles.track} pointerEvents="none" />
+            <Animated.View style={[styles.fill, fillStyle]} pointerEvents="none" />
 
-          <Svg width={width} height={TRACK_HEIGHT} style={styles.svg} pointerEvents="none">
-            <Defs>
-              {/* Opaque tactile solid dark gradient for track base */}
-              <LinearGradient id="trackBg" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor="#191C23" />
-                <Stop offset="1" stopColor="#111317" />
-              </LinearGradient>
-
-              {/* Threat level gradient */}
-              <LinearGradient id="threat" x1="0" y1="0" x2="1" y2="0">
-                {LEVEL_GRADIENT.map(([offset, color]) => (
-                  <Stop key={offset} offset={offset} stopColor={color} />
-                ))}
-              </LinearGradient>
-            </Defs>
-
-            {/* Solid, non-transparent track background */}
-            <Rect
-              x={0}
-              y={0}
-              width={width}
-              height={TRACK_HEIGHT}
-              rx={radii.track}
-              fill="url(#trackBg)"
-            />
-
-            {/* Crisp outer border */}
-            <Rect
-              x={0.75}
-              y={0.75}
-              width={width - 1.5}
-              height={TRACK_HEIGHT - 1.5}
-              rx={radii.track}
-              fill="none"
-              stroke="rgba(255, 255, 255, 0.12)"
-              strokeWidth={1.5}
-            />
-
-            {/* Detent micro-notches indicating level detents */}
-            {travel > 0 ? (
-              <>
-                {/* Level 1 detent notch */}
-                <Rect
-                  x={KNOB_SIZE / 2 + 0.34 * travel - 1}
-                  y={TRACK_HEIGHT / 2 - 5}
-                  width={2}
-                  height={10}
-                  rx={1}
-                  fill="rgba(255, 255, 255, 0.18)"
-                />
-                {/* Level 2 detent notch */}
-                <Rect
-                  x={KNOB_SIZE / 2 + 0.66 * travel - 1}
-                  y={TRACK_HEIGHT / 2 - 5}
-                  width={2}
-                  height={10}
-                  rx={1}
-                  fill="rgba(255, 255, 255, 0.18)"
-                />
-                {/* Level 3 detent notch */}
-                <Rect
-                  x={KNOB_SIZE / 2 + 1.0 * travel - 1.5}
-                  y={TRACK_HEIGHT / 2 - 7}
-                  width={3}
-                  height={14}
-                  rx={1.5}
-                  fill="rgba(214, 40, 40, 0.4)"
-                />
-              </>
-            ) : null}
-
-            {/* Filled portion: the gradient revealed smoothly up to knob */}
-            <AnimatedRect
-              animatedProps={fillProps}
-              x={0}
-              y={0}
-              height={TRACK_HEIGHT}
-              rx={radii.track}
-              fill="url(#threat)"
-            />
-          </Svg>
-
-          {/* Understated affordance prompt on track when idle */}
-          <Animated.View style={[styles.promptRow, promptStyle]} pointerEvents="none">
-            <Text style={styles.promptChevrons}>››</Text>
-          </Animated.View>
-
-          {/* Tactile knob handle */}
-          <Animated.View style={[styles.knob, knobStyle, floatingShadow(8)]} pointerEvents="none">
-            <Animated.View style={[styles.knobCore, knobCoreStyle]}>
-              <Text style={[styles.knobGlyph, glyphText === 'SOS' ? styles.knobGlyphSOS : null]}>
-                {glyphText}
-              </Text>
+            <Animated.View style={[styles.knob, knobStyle, floatingShadow(6)]} pointerEvents="none">
+              <Animated.View style={[styles.liveRing, liveRingStyle]} />
             </Animated.View>
-          </Animated.View>
+          </View>
+
+          {travel > 0 ? (
+            <View style={styles.stops} pointerEvents="none">
+              {STOP_LEVELS.map((level) => {
+                const highlighted = level === shownLevel;
+                const tint = level === THREAT_SAFE ? palette.text : colorForLevel(level);
+                return (
+                  <View
+                    key={level}
+                    style={[styles.stop, { left: KNOB_SIZE / 2 + detentFor(level) * travel }]}
+                  >
+                    <View
+                      style={[
+                        styles.tick,
+                        highlighted && { backgroundColor: tint, height: TICK_HEIGHT + 4 },
+                      ]}
+                    />
+                    <Text style={[styles.stopLabel, highlighted && { color: tint }]}>
+                      {STOP_LABELS[level]}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
         </View>
       </GestureDetector>
     </View>
@@ -398,55 +311,25 @@ export function ThreatSlider({
 
 const styles = StyleSheet.create({
   wrapper: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
   },
   hitArea: {
     height: TRACK_HEIGHT,
     justifyContent: 'center',
-    borderRadius: radii.track,
   },
-  svg: {
+  track: {
+    height: TRACK_HEIGHT,
+    borderRadius: radii.track,
+    backgroundColor: '#191C23',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+  },
+  fill: {
     position: 'absolute',
     left: 0,
     top: 0,
-    borderRadius: radii.track,
-  },
-  glow: {
-    position: 'absolute',
-    left: -6,
-    right: -6,
-    top: 2,
-    bottom: 2,
-    borderRadius: radii.track,
-    backgroundColor: 'transparent',
-    shadowOpacity: 0.9,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 12,
-  },
-  pulse: {
-    position: 'absolute',
-    left: -4,
-    right: -4,
-    top: 0,
     bottom: 0,
     borderRadius: radii.track,
-    borderWidth: 2,
-    borderColor: palette.level3,
-    backgroundColor: 'transparent',
-  },
-  promptRow: {
-    position: 'absolute',
-    right: spacing.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  promptChevrons: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.32)',
-    letterSpacing: 1,
   },
   knob: {
     position: 'absolute',
@@ -455,28 +338,40 @@ const styles = StyleSheet.create({
     width: KNOB_SIZE,
     height: KNOB_SIZE,
     borderRadius: KNOB_SIZE / 2,
-    backgroundColor: '#1E222A',
+    backgroundColor: palette.text,
+  },
+  liveRing: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: KNOB_SIZE / 2,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderColor: palette.level3,
+  },
+  stops: {
+    height: TICK_HEIGHT + 5 + 16,
+    marginTop: spacing.xs,
+  },
+  stop: {
+    position: 'absolute',
+    top: 0,
+    width: STOP_WIDTH,
+    marginLeft: -STOP_WIDTH / 2,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  knobCore: {
-    width: KNOB_SIZE - 18,
-    height: KNOB_SIZE - 18,
-    borderRadius: (KNOB_SIZE - 18) / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+  tick: {
+    width: TICK_WIDTH,
+    height: TICK_HEIGHT,
+    borderRadius: TICK_WIDTH / 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.20)',
   },
-  knobGlyph: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
-  knobGlyphSOS: {
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+  stopLabel: {
+    marginTop: 5,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    color: palette.textFaint,
   },
 });

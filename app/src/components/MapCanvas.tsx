@@ -19,6 +19,7 @@ import { palette } from '@/theme';
 import { DEFAULT_CENTER, DEFAULT_ZOOM, osmRasterStyle } from '@/theme/mapStyle';
 import { isStale, type SmoothedPoint } from '@/hooks/useSmoothedLocations';
 import { FriendMapMarker } from '@/components/FriendMapMarker';
+import type { HeatmapGeoJSON } from '@/lib/api';
 
 export type MapCanvasProps = {
   friends: Record<string, SmoothedPoint>;
@@ -26,6 +27,8 @@ export type MapCanvasProps = {
   level: number;
   cameraRef: RefObject<CameraRef | null>;
   onMapPress?: (coordinate: [number, number]) => void;
+  showHeatmap?: boolean;
+  heatmapData?: HeatmapGeoJSON | null;
 };
 
 type FeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point>;
@@ -35,10 +38,24 @@ const MAP_STYLE = osmRasterStyle();
 /**
  * The fullscreen map.
  *
- * Renders live friend locations as custom avatar pins with their chosen emoji
- * and display name, backed by a soft glowing threat-level halo on the street.
+ * Everything about it is deliberately quiet: desaturated tiles, no chrome, no
+ * labels of our own. Friend positions are avatar pins with a soft glowing
+ * threat-level halo; the user's own position is the native puck, which is the
+ * one thing on screen that already moves smoothly on its own.
+ *
+ * Also renders the Kraków danger heatmap. The server only ever returns grid
+ * cells (see `heatCellMeters`), never individual report coordinates, so this
+ * layer cannot pinpoint anybody.
  */
-export function MapCanvas({ friends, staleSeconds, level, cameraRef, onMapPress }: MapCanvasProps) {
+export function MapCanvas({
+  friends,
+  staleSeconds,
+  level,
+  cameraRef,
+  onMapPress,
+  showHeatmap = true,
+  heatmapData,
+}: MapCanvasProps) {
   const collection = useMemo<FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
@@ -82,7 +99,60 @@ export function MapCanvas({ friends, staleSeconds, level, cameraRef, onMapPress 
 
       <UserLocation animated accuracy heading={false} />
 
-      {/* Luminous halo on the map pavement under each friend */}
+      {/* Kraków danger heatmap: yellow (few) -> crimson (many).
+
+        The stops follow the densities MapLibre can actually reach for these
+        weights (`weight * intensity * 0.3989`): 0.33 for the quietest reported
+        cell at zoom 15 and 0.94 for the busiest, so the ramp starts to colour at
+        0.08 rather than 0.15 and every reported street is drawn, not only the
+        ones that happen to share a cell. `HeatmapLegend` mirrors these stops. */}
+      {showHeatmap && heatmapData && heatmapData.features && heatmapData.features.length > 0 && (
+        <GeoJSONSource id="danger-heatmap-source" data={heatmapData}>
+          <Layer
+            id="danger-heatmap-layer"
+            type="heatmap"
+            minzoom={8}
+            maxzoom={19}
+            paint={{
+              'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1],
+              'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 9, 0.8, 13, 1.5, 16, 2.8],
+              'heatmap-color': [
+                'interpolate',
+                ['linear'],
+                ['heatmap-density'],
+                0,
+                'rgba(0, 0, 0, 0)',
+                0.08,
+                'rgba(255, 235, 59, 0.50)',
+                0.25,
+                'rgba(255, 193, 7, 0.68)',
+                0.5,
+                'rgba(255, 112, 67, 0.82)',
+                0.75,
+                'rgba(244, 67, 54, 0.92)',
+                1.0,
+                'rgba(183, 28, 28, 0.98)',
+              ],
+              'heatmap-radius': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                9,
+                14,
+                12,
+                24,
+                15,
+                36,
+                17,
+                50,
+              ],
+              'heatmap-opacity': 0.85,
+            }}
+          />
+        </GeoJSONSource>
+      )}
+
+      {/* Two layers so the marker reads at any zoom: a soft halo, then the pin. */}
       <GeoJSONSource id="friends" data={collection}>
         <Layer
           id="friends-halo"

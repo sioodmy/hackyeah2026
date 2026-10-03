@@ -4,6 +4,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colorForLevel, floatingShadow, palette, radii } from '@/theme';
 import type { SmoothedPoint } from '@/hooks/useSmoothedLocations';
+import { parseAvatar } from '@/lib/avatar';
 
 export type FriendMapMarkerProps = {
   point: SmoothedPoint;
@@ -27,9 +28,7 @@ export const FriendMapMarker = memo(function FriendMapMarker({
   const [expanded, setExpanded] = useState(false);
 
   // Parse emoji and optional signature aura color (format: "emoji" or "emoji|#HEX")
-  const avatarRaw = point.avatarUrl?.trim() || '🌸';
-  const [emojiPart, auraPart] = avatarRaw.includes('|') ? avatarRaw.split('|') : [avatarRaw, null];
-  const emoji = emojiPart?.trim() || '🌸';
+  const { emoji, aura: auraPart } = parseAvatar(point.avatarUrl);
 
   // Threat level color overrides or signature aura in safe mode
   const threatAccent = colorForLevel(level);

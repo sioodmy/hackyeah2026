@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, radii, spacing, type } from '@/theme';
 import { useApi } from '@/lib/ApiContext';
 import type { Friend } from '@/lib/api';
+import { parseAvatar } from '@/lib/avatar';
 
 /**
  * Friends: connect by QR, or by typing six characters.
@@ -81,14 +82,10 @@ export function FriendsScreen() {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Oczekujące prośby</Text>
             {requests.map((friend) => {
-              const [emojiPart, auraPart] = (friend.avatarUrl ?? '').includes('|')
-                ? (friend.avatarUrl ?? '').split('|')
-                : [friend.avatarUrl, null];
-              const emoji = emojiPart?.trim() || '🌸';
-              const aura = auraPart?.trim() || palette.level1;
+              const { emoji, aura } = parseAvatar(friend.avatarUrl);
               return (
                 <View key={friend.id} style={styles.row}>
-                  <View style={[styles.friendAvatarBadge, { borderColor: aura }]}>
+                  <View style={[styles.friendAvatarBadge, { borderColor: aura ?? palette.border }]}>
                     <Text style={styles.friendAvatarEmoji}>{emoji}</Text>
                   </View>
                   <View style={styles.friendInfo}>
@@ -131,14 +128,10 @@ export function FriendsScreen() {
             <Text style={styles.note}>Brak kontaktów. Pokaż swój kod znajomej.</Text>
           ) : (
             friends.map((friend) => {
-              const [emojiPart, auraPart] = (friend.avatarUrl ?? '').includes('|')
-                ? (friend.avatarUrl ?? '').split('|')
-                : [friend.avatarUrl, null];
-              const emoji = emojiPart?.trim() || '🌸';
-              const aura = auraPart?.trim() || palette.level1;
+              const { emoji, aura } = parseAvatar(friend.avatarUrl);
               return (
                 <View key={friend.id} style={styles.row}>
-                  <View style={[styles.friendAvatarBadge, { borderColor: aura }]}>
+                  <View style={[styles.friendAvatarBadge, { borderColor: aura ?? palette.border }]}>
                     <Text style={styles.friendAvatarEmoji}>{emoji}</Text>
                   </View>
                   <View style={styles.friendInfo}>

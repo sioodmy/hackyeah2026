@@ -18,15 +18,20 @@ The threat slider has four zones. You push the knob and **let go**; nothing
 happens while your thumb is still down, which is deliberate — an accidental brush
 across the screen must not start a call.
 
+Each row is both sides of the alert: what your phone does, and what your friends'
+phones do about it.
+
 | Zone | Colour | What actually happens |
 | --- | --- | --- |
 | **0** | grey | Nothing. This is the resting state, and it is the state the app returns to after every action. |
-| **1** | yellow | After **10 seconds** the phone fakes an incoming call: fullscreen call UI, a quiet looping ringtone, a repeating haptic pattern, a contact name. Answer it and you get an ambient call that runs for ~30s, then returns to the map. Decline it and the screen goes back to the map. **Nothing leaves the device.** |
-| **2** | orange | Everything level 1 does, plus friends get an Expo push with your live location and a "call me" prompt, and your phone starts streaming position over a WebSocket so their map moves. |
-| **3** | red | Everything level 2 does, plus friends get a **FULL ALERT** — critical priority, `time-sensitive` interruption, full-screen intent on the `full-alert` channel — the mock 112 dispatch fires and returns a case number, and **audio recording starts** (see below). |
+| **1** | yellow | After **10 seconds** your phone fakes an incoming call: fullscreen call UI, a quiet looping ringtone, a repeating haptic pattern, a contact name. Answer it and you get an ambient call that runs for ~30s, then returns to the map. Decline it and the screen goes back to the map. Your friends get a **notification** — the heads-up is left to the OS, and nothing takes over their screen. |
+| **2** | orange | Everything level 1 does, plus friends get a **call request**: a heads-up on its own channel with an "Odbierz" button on it. Tapping the notification or that button opens their phone fullscreen on a ringing call with your name on it. Answering is the thing you asked for, and answering reports back to you as "Kasia rozmawia". Your phone also starts streaming position over a WebSocket so their map moves. |
+| **3** | red | Everything level 2 does, plus friends get an **alarm**: the critical channel (heads-up, `bypassDnd`, a long vibration), `time-sensitive`, and an "Idę do niej" button that opens their phone onto a looping siren at full volume — which only stops when they say what they are doing about it. Meanwhile the mock 112 dispatch fires and returns a case number, and **audio recording starts** (see below). |
 
-Dragging the slider back to 0 resolves the alert, tells friends it is over, and
-finalises the recording.
+Raising the slider again on a live alert **notifies again at the new level** — a
+friend who only heard the level-1 notification has to hear the alarm. Dragging the
+slider back to 0 resolves the alert, silences whatever is ringing on your friends'
+phones, tells them it is over, and finalises the recording.
 
 ### Why it is unremarkable from a distance
 
@@ -140,17 +145,36 @@ and it is inferred from the Metro host, which is usually right.
 1. Sign in on both devices.
 2. On one: Settings → Manage friends → show the QR.
 3. On the other: Scan a friend's code.
-4. On one: push the slider into yellow, let go. Ten seconds later it rings.
-5. Push it to red. The other phone buzzes with FULL ALERT, shows a live dot on
-   the map, and `curl localhost:8000/api/v1/alerts/active` shows the case number
-   from the mock dispatch.
+4. On one: push the slider into yellow, let go. Ten seconds later it rings, and the
+   other phone gets a notification.
+5. Push it to orange. The other phone's **call request** takes over the screen.
+   Answer it and the first phone's status line picks up "Kasia — rozmawia".
+6. Push it to red. The other phone's alarm channel buzzes with an "Idę do niej"
+   button; tapping it opens their phone onto the fullscreen looping siren, which
+   stops only once the friend presses the button — which lands on the first phone
+   as "Kasia — idzie do ciebie". `curl localhost:8000/api/v1/alerts/active` shows
+   the acks plus the case number from the mock dispatch.
 
 ---
 
 ## Threat model and honest limits
 
-- **Levels 0 and 1 never touch the network.** The fake call is generated on the
-  device.
+- **Levels 0 and 1 leave the device only as a notification.** The fake call is
+  generated on the phone; level 1 tells friends that you are not comfortable and
+  nothing more, because a level that takes over a friend's screen for "I might need
+  a minute" is a level they learn to swipe away.
+- **There is no full-screen intent, so the notification is the wake-up call.**
+  Android would only promote a notification to a full-screen intent when its
+  category is `alarm` or `call`, and `expo-notifications` never puts the category
+  on the notification — it only looks the category up to attach buttons. So levels
+  2 and 3 are delivered as a heads-up with sound and vibration (plus `bypassDnd`
+  at level 3), and the friend's tap — on the notification or on its "Odbierz" /
+  "Idę do niej" button — is what opens the app onto the call or the alarm. A real
+  full-screen intent needs a native module or a config plugin, which is more than
+  a demo should carry.
+- **A friend's phone with PanicMap killed gets the channel, not the app.** The
+  siren, the fake call UI and the acknowledgements all need the app running; what
+  the push does on its own is make noise and offer a button.
 - **Alert delivery is Expo push, not the WebSocket.** Push reaches a phone with
   the app killed; the socket does not. Only live *positions* use the socket.
 - **A single uvicorn worker on purpose.** The WebSocket registry is in-process
@@ -207,9 +231,10 @@ src/hy/
 └── routers/         devices, friends, alerts, authorities, locations, evidence
 ```
 
-93 tests cover the level semantics, evidence upload idempotency and digest
-verification, the WebSocket fan-out and its privacy boundary, the signed QR
-payloads, and the mock dispatch.
+127 tests cover the level semantics, escalation re-notifying friends,
+acknowledgements, evidence upload idempotency and digest verification, the
+WebSocket fan-out and its privacy boundary, the signed QR payloads, and the mock
+dispatch.
 
 ---
 
