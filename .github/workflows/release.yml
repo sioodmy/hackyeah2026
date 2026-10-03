@@ -5,7 +5,7 @@ name: release
 # the artifact reproducible from the tag alone.
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
 
 permissions:
   contents: write
