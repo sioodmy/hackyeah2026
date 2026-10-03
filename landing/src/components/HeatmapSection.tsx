@@ -1,69 +1,78 @@
 import React, { useState } from "react";
-import { Fire, GridFour, LockKey, Compass } from "@phosphor-icons/react";
+import { LockKey, Compass, GridFour } from "@phosphor-icons/react";
+
+interface Hotspot {
+  id: number;
+  name: string;
+  x: number;
+  y: number;
+  count: number;
+  type: "harassment" | "stalking" | "lighting";
+  severity: "critical" | "high" | "medium";
+}
+
+const hotZones: Hotspot[] = [
+  {
+    id: 1,
+    name: "Planty Krakowskie (odc. Dworzec Główny)",
+    x: 62,
+    y: 35,
+    count: 18,
+    severity: "high",
+    type: "lighting",
+  },
+  {
+    id: 2,
+    name: "ul. Floriańska / Pijarska",
+    x: 50,
+    y: 42,
+    count: 24,
+    severity: "critical",
+    type: "harassment",
+  },
+  {
+    id: 3,
+    name: "Rondo Mogilskie (przejście podziemne)",
+    x: 78,
+    y: 48,
+    count: 14,
+    severity: "medium",
+    type: "stalking",
+  },
+  {
+    id: 4,
+    name: "Kazimierz (ul. Szeroka / Miodowa)",
+    x: 54,
+    y: 72,
+    count: 21,
+    severity: "high",
+    type: "harassment",
+  },
+  {
+    id: 5,
+    name: "Krowodrza Górka (park)",
+    x: 32,
+    y: 25,
+    count: 9,
+    severity: "medium",
+    type: "lighting",
+  },
+  {
+    id: 6,
+    name: "Bulwary Wiślane (pod Wawelem)",
+    x: 42,
+    y: 64,
+    count: 16,
+    severity: "high",
+    type: "stalking",
+  },
+];
 
 export const HeatmapSection: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<
     "all" | "stalking" | "harassment" | "lighting"
   >("all");
   const [showGridOverlay, setShowGridOverlay] = useState(true);
-
-  // Simulated Kraków hotspots based on the backend seed data
-  const hotZones = [
-    {
-      id: 1,
-      name: "Planty Krakowskie (odc. Dworzec Główny)",
-      x: 62,
-      y: 35,
-      count: 18,
-      severity: "high",
-      type: "lighting",
-    },
-    {
-      id: 2,
-      name: "ul. Floriańska / Pijarska",
-      x: 50,
-      y: 42,
-      count: 24,
-      severity: "critical",
-      type: "harassment",
-    },
-    {
-      id: 3,
-      name: "Rondo Mogilskie (przejście podziemne)",
-      x: 78,
-      y: 48,
-      count: 14,
-      severity: "medium",
-      type: "stalking",
-    },
-    {
-      id: 4,
-      name: "Kazimierz (ul. Szeroka / Miodowa)",
-      x: 54,
-      y: 72,
-      count: 21,
-      severity: "high",
-      type: "harassment",
-    },
-    {
-      id: 5,
-      name: "Krowodrza Górka (park)",
-      x: 32,
-      y: 25,
-      count: 9,
-      severity: "medium",
-      type: "lighting",
-    },
-    {
-      id: 6,
-      name: "Bulwary Wiślane (pod Wawelem)",
-      x: 42,
-      y: 64,
-      count: 16,
-      severity: "high",
-      type: "stalking",
-    },
-  ];
 
   const filteredZones = hotZones.filter((zone) => {
     if (filterCategory === "all") return true;
@@ -73,60 +82,56 @@ export const HeatmapSection: React.FC = () => {
   return (
     <section
       id="heatmapa"
-      className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto"
+      className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/80"
     >
       {/* Header */}
-      <div className="text-center max-w-3xl mx-auto mb-12">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff2a85]/10 border border-[#ff2a85]/25 text-[#ff2a85] text-xs font-semibold uppercase tracking-wider mb-4">
-          <Fire size={14} weight="fill" />
-          <span>Krakowska Heatmapa Bezpieczeństwa</span>
+      <div className="max-w-3xl mx-auto text-center mb-16">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff2a85]/10 border border-[#ff2a85]/20 text-[#ff2a85] text-xs font-semibold uppercase tracking-wider mb-4">
+          Anonimowa Analityka Zagrożeń
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-          Anonimowa siatka 200 m: Miasto bezpieczne dla każdego
+          Krakowska heatmapa bezpieczeństwa
         </h2>
         <p className="text-slate-400 text-base leading-relaxed">
-          Suwak ratuje w nagłym wypadku. Heatmapa chroni całe miasto. Zgłoszenia
-          o niebezpiecznych miejscach w Krakowie są automatycznie kafelkowane do
-          200-metrowych komórek PostGIS — bez żadnych danych osobowych, bez
-          śledzenia ofiary.
+          Podczas gdy suwak odpowiada za bezpośrednie wsparcie użytkowniczki,
+          heatmapa agreguje zgłoszenia agresji i niebezpiecznych zaułków w
+          Krakowie. Dane są zrzutowane na komórki ~200 m, gwarantując całkowitą
+          ochronę prywatności zgłaszających.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        {/* Interactive Map Visualizer */}
-        <div className="lg:col-span-8 rounded-3xl bg-[#12131c] border border-slate-800 p-6 shadow-2xl relative overflow-hidden">
-          {/* Controls Bar */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Map Canvas */}
+        <div className="lg:col-span-8 rounded-3xl bg-[#10111a] border border-slate-800 p-6 shadow-xl relative overflow-hidden">
+          {/* Header controls */}
           <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-800/80 mb-4">
             <div className="flex items-center gap-2">
               <Compass size={18} weight="bold" className="text-[#ff2a85]" />
               <span className="text-xs font-semibold text-white uppercase tracking-wider">
-                Widok zrzutowany: Kraków Śródmieście
+                Kraków Śródmieście · Siatka PostGIS
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowGridOverlay(!showGridOverlay)}
-                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5 ${
-                  showGridOverlay
-                    ? "border-[#ff2a85] bg-[#ff2a85]/15 text-[#ff2a85]"
-                    : "border-slate-700 bg-slate-800 text-slate-400"
-                }`}
-              >
-                <GridFour size={14} />
-                <span>
-                  Siatka 200m PostGIS:{" "}
-                  {showGridOverlay ? "Włączona" : "Wyłączona"}
-                </span>
-              </button>
-            </div>
+            <button
+              onClick={() => setShowGridOverlay(!showGridOverlay)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5 ${
+                showGridOverlay
+                  ? "border-[#ff2a85]/60 bg-[#ff2a85]/10 text-[#ff2a85]"
+                  : "border-slate-700 bg-slate-800 text-slate-400"
+              }`}
+            >
+              <GridFour size={14} />
+              <span>
+                Siatka 200m: {showGridOverlay ? "Widoczna" : "Ukryta"}
+              </span>
+            </button>
           </div>
 
-          {/* Interactive Map Canvas (Stylized SVG Dark Kraków) */}
-          <div className="relative w-full h-[420px] rounded-2xl bg-[#0c0e14] border border-slate-800/80 overflow-hidden flex items-center justify-center">
-            {/* Kraków River Vistula (Wisła) */}
+          {/* Map canvas */}
+          <div className="relative w-full h-[400px] rounded-2xl bg-[#090b10] border border-slate-800/80 overflow-hidden flex items-center justify-center">
+            {/* SVG Kraków river and outline */}
             <svg
-              className="absolute inset-0 w-full h-full opacity-60"
+              className="absolute inset-0 w-full h-full opacity-50"
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
             >
@@ -134,19 +139,17 @@ export const HeatmapSection: React.FC = () => {
                 d="M 0,65 Q 25,60 45,68 T 80,62 T 100,55"
                 fill="none"
                 stroke="#1e293b"
-                strokeWidth="7"
+                strokeWidth="6"
                 strokeLinecap="round"
               />
-              {/* Planty Ring */}
               <circle
                 cx="50"
                 cy="45"
                 r="16"
                 fill="none"
-                stroke="#162e20"
+                stroke="#1c2d24"
                 strokeWidth="4"
               />
-              {/* Major Streets */}
               <line
                 x1="50"
                 y1="0"
@@ -173,85 +176,71 @@ export const HeatmapSection: React.FC = () => {
               />
             </svg>
 
-            {/* PostGIS 200m Snapped Grid Mesh */}
+            {/* Grid Mesh */}
             {showGridOverlay && (
-              <div className="absolute inset-0 bg-dot-grid opacity-30 pointer-events-none" />
+              <div className="absolute inset-0 bg-dot-grid opacity-25 pointer-events-none" />
             )}
 
-            {/* Heatmap Pulsing Cells */}
+            {/* Snapped 200m Grid Cells without tacky flashing */}
             {filteredZones.map((zone) => (
               <div
                 key={zone.id}
                 className="absolute -translate-x-1/2 -translate-y-1/2 group cursor-pointer"
                 style={{ left: `${zone.x}%`, top: `${zone.y}%` }}
               >
-                {/* Glow ring */}
                 <div
-                  className={`w-14 h-14 rounded-full -translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 animate-ping opacity-25 ${
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-xs text-white transition-transform group-hover:scale-110 border ${
                     zone.severity === "critical"
-                      ? "bg-rose-500"
+                      ? "bg-rose-950/80 border-rose-500/80 text-rose-200"
                       : zone.severity === "high"
-                        ? "bg-orange-500"
-                        : "bg-amber-400"
-                  }`}
-                />
-
-                {/* Heat cell blob */}
-                <div
-                  className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs text-white shadow-xl transition-transform group-hover:scale-125 border ${
-                    zone.severity === "critical"
-                      ? "bg-rose-600/80 border-rose-400 shadow-rose-600/40"
-                      : zone.severity === "high"
-                        ? "bg-orange-600/80 border-orange-400 shadow-orange-600/40"
-                        : "bg-amber-600/80 border-amber-400 shadow-amber-600/30"
+                        ? "bg-orange-950/80 border-orange-500/80 text-orange-200"
+                        : "bg-amber-950/80 border-amber-500/80 text-amber-200"
                   }`}
                 >
                   {zone.count}
                 </div>
 
-                {/* Hover Tooltip */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2.5 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl z-30 pointer-events-none text-left">
-                  <div className="text-[11px] font-bold text-white leading-tight">
+                {/* Tooltip */}
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 p-3 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl z-30 pointer-events-none text-left">
+                  <div className="text-xs font-bold text-white leading-tight">
                     {zone.name}
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-1">
-                    Zgłoszeń w komórce:{" "}
+                  <div className="text-[11px] text-slate-400 mt-1">
+                    Liczba incydentów w komórce:{" "}
                     <span className="text-white font-mono">{zone.count}</span>
                   </div>
-                  <div className="text-[9px] font-mono text-emerald-400 mt-0.5">
-                    ✓ Brak user_id · Grid 200m snapped
+                  <div className="text-[10px] font-mono text-slate-500 mt-1">
+                    Waga wyznaczona przez backend
                   </div>
                 </div>
               </div>
             ))}
 
-            {/* Bottom Map Legend */}
-            <div className="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-[10px] text-slate-300 flex items-center gap-3">
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> &gt;20
-                incydentów
+            {/* Legend */}
+            <div className="absolute bottom-3 left-3 bg-slate-950/90 px-3 py-1.5 rounded-xl border border-slate-800 text-[10px] text-slate-400 flex items-center gap-3">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-md bg-rose-500/80" />{" "}
+                &gt;20 incydentów
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />{" "}
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-md bg-orange-500/80" />{" "}
                 10-20
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />{" "}
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-md bg-amber-500/80" />{" "}
                 &lt;10
               </span>
             </div>
           </div>
 
-          {/* Category Filter Pills */}
+          {/* Category Filter Buttons */}
           <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-800/80">
-            <span className="text-xs text-slate-400 mr-2">
-              Filtruj wg typu:
-            </span>
+            <span className="text-xs text-slate-400 mr-2">Kategoria:</span>
             {[
-              { id: "all", label: "Wszystkie zgłoszenia" },
+              { id: "all", label: "Wszystkie" },
               { id: "harassment", label: "Zaczepki i nagabywanie" },
-              { id: "stalking", label: "Śledzenie / niebezpieczne zaułki" },
-              { id: "lighting", label: "Brak oświetlenia / ciemne zaułki" },
+              { id: "stalking", label: "Śledzenie" },
+              { id: "lighting", label: "Brak oświetlenia" },
             ].map((cat) => (
               <button
                 key={cat.id}
@@ -268,39 +257,42 @@ export const HeatmapSection: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Info: Privacy by Design Rules */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="p-6 rounded-2xl bg-[#12131c] border border-slate-800 space-y-4">
-            <div className="flex items-center gap-2 text-white font-bold text-base">
-              <LockKey size={20} weight="fill" className="text-[#ff2a85]" />
-              <span>Prywatność enforced po stronie serwera</span>
+        {/* Right Info: Privacy Enforcement */}
+        <div className="lg:col-span-4 p-6 rounded-3xl bg-[#10111a] border border-slate-800 space-y-4">
+          <div className="flex items-center gap-2 text-white font-bold text-base">
+            <LockKey size={20} weight="fill" className="text-[#ff2a85]" />
+            <span>Prywatność egzekwowana przez backend</span>
+          </div>
+
+          <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
+              <strong className="text-white block mb-1">
+                1. Odczyty zrzutowane na siatkę:
+              </strong>
+              Endpoint{" "}
+              <code className="text-[#ff2a85]">
+                GET /api/v1/incidents/heatmap
+              </code>{" "}
+              zwraca wyłącznie komórki ~200 m z wagami i liczbą zdarzeń. W
+              odpowiedzi API nie ma ani jednego punktu GPS ani identyfikatora
+              użytkownika.
             </div>
 
-            <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80">
-                <strong className="text-white block mb-0.5">
-                  1. Odczyty są zrzutowane na siatkę:
-                </strong>
-                Endpoint `/api/v1/incidents/heatmap` zwraca wyłącznie komórki
-                ~200 m z wagami i liczbą zgłoszeń. W odpowiedzi API nie ma ani
-                jednego punktu GPS ani identyfikatora użytkownika.
-              </div>
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
+              <strong className="text-white block mb-1">
+                2. Anonimowe zgłaszanie:
+              </strong>
+              Osoba śledzona na ulicy nie musi logować się ani zakładać konta,
+              by zgłosić zagrożenie (
+              <code className="text-slate-400">POST /api/v1/incidents</code>).
+            </div>
 
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80">
-                <strong className="text-white block mb-0.5">
-                  2. Zgłoszenia są anonimowe:
-                </strong>
-                Osoba śledzona na ulicy nie musi logować się ani rejestrować
-                konta, by oznaczyć niebezpieczny zaułek.
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80">
-                <strong className="text-white block mb-0.5">
-                  3. Wagi kalkuluje serwer:
-                </strong>
-                Klient nie może manipulować wagą zdarzenia. Poważność wynika z
-                kategorii i lokalizacji wewnątrz krakowskiego bounding-boxu.
-              </div>
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
+              <strong className="text-white block mb-1">
+                3. Wagi wyliczane po stronie serwera:
+              </strong>
+              Klient nie może manipulować wagą zdarzenia. Poważność wynika z
+              kategorii i lokalizacji wewnątrz krakowskiego bounding-boxu.
             </div>
           </div>
         </div>

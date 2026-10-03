@@ -1,7 +1,7 @@
 import React from "react";
 import { Navbar } from "./components/Navbar";
 import { Hero } from "./components/Hero";
-import { InteractiveSimulator } from "./components/InteractiveSimulator";
+import { ThreatMatrix } from "./components/ThreatMatrix";
 import { FeatureBento } from "./components/FeatureBento";
 import { FeministManifesto } from "./components/FeministManifesto";
 import { HeatmapSection } from "./components/HeatmapSection";
@@ -15,7 +15,7 @@ export const App: React.FC = () => {
       <Navbar />
       <main className="flex-1">
         <Hero />
-        <InteractiveSimulator />
+        <ThreatMatrix />
         <FeatureBento />
         <FeministManifesto />
         <HeatmapSection />
