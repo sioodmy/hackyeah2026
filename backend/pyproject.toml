@@ -1,7 +1,7 @@
 [project]
 name = "hy-api"
 version = "0.1.0"
-description = "PanicMap API — REST + WebSocket backend for the PanicMap safety app"
+description = "Mokosh API — REST + WebSocket backend for the Mokosh safety app"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

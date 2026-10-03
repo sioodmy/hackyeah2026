@@ -17,7 +17,7 @@ export const FeministManifesto: React.FC = () => {
             <Heart size={16} weight="fill" />
           </div>
           <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#ff2a85]">
-            Dlaczego powstał PanicMap
+            Dlaczego powstał Mokosh
           </span>
         </div>
 

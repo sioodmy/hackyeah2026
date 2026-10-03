@@ -1,4 +1,4 @@
-"""PanicMap backend package."""
+"""Mokosh backend package."""
 
 __all__ = ["__version__"]
 

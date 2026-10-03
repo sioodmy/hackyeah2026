@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     # --- database -----------------------------------------------------------
-    database_url: str = "postgresql+psycopg://panicmap:panicmap@127.0.0.1:5432/panicmap"
+    database_url: str = "postgresql+psycopg://mokosh:mokosh@127.0.0.1:5432/mokosh"
 
     # --- clerk --------------------------------------------------------------
     # The publishable key is only needed by the mobile client; the backend needs

@@ -1,5 +1,5 @@
 {
-  description = "PanicMap — a map that looks like a map. HackYeah 2026.";
+  description = "Mokosh — a map that looks like a map. HackYeah 2026.";
 
   inputs = {
     # 26.05 rather than unstable: unstable (26.11) has dropped x86_64-darwin,
@@ -124,7 +124,7 @@
           # uv2nix: it would add a second lockfile to keep in sync, which is a
           # bad trade with 36 hours left.
           backendDeps = pkgs.python313.pkgs.buildPythonApplication {
-            pname = "panicmap-api-deps";
+            pname = "mokosh-api-deps";
             version = "0.1.0";
             # Not a wheel: this just materialises the locked dependency set
             # into a site-packages directory.
@@ -176,7 +176,7 @@
           };
 
           backendApp = pkgs.python313.pkgs.buildPythonApplication {
-            pname = "panicmap-api";
+            pname = "mokosh-api";
             version = "0.1.0";
             # Not a wheel either: buildPhase and installPhase are overridden
             # below to use the uv virtualenv produced by `uv sync`.
@@ -235,7 +235,7 @@
             preferLocalBuild = true;
 
             meta = {
-              description = "PanicMap API — FastAPI + WebSocket backend";
+              description = "Mokosh API — FastAPI + WebSocket backend";
               mainProgram = "hy-api";
             };
           };
@@ -244,7 +244,7 @@
           treefmt = treefmtSettings;
 
           devShells.default = pkgs.mkShell {
-            name = "panicmap-dev";
+            name = "mokosh-dev";
 
             packages =
               with pkgs;
@@ -278,8 +278,9 @@
 
             shellHook =
               ''
-                export PANICMAP_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-                export PATH="$PANICMAP_ROOT/scripts:$PATH"
+                export MOKOSH_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+                export PANICMAP_ROOT="$MOKOSH_ROOT"
+                export PATH="$MOKOSH_ROOT/scripts:$PATH"
               ''
               + lib.optionalString isLinux ''
                 if [ -d "$HOME/Android/sdk" ]; then
@@ -294,7 +295,7 @@
               ''
               + ''
               echo ""
-              echo "  PanicMap devshell — $(uname -s) $(uname -m)"
+              echo "  Mokosh devshell — $(uname -s) $(uname -m)"
               echo "    just setup   install app + backend dependencies"
               echo "    just api     FastAPI (REST + /ws/locations) on :8000"
               echo "    just app     Expo dev server (needs a development build)"
@@ -369,17 +370,17 @@
                   export PGSOCK="$TMPDIR/pgsock"
                   mkdir -p "$PGSOCK"
 
-                  initdb -D "$PGDATA" -U panicmap --auth=trust >/dev/null
+                  initdb -D "$PGDATA" -U mokosh --auth=trust >/dev/null
                   pg_ctl -D "$PGDATA" \
                     -o "-p $PGPORT -k $PGSOCK -c listen_addresses=127.0.0.1" \
                     -w start >/dev/null
                   trap 'pg_ctl -D "$PGDATA" -m immediate stop >/dev/null 2>&1 || true' EXIT
 
-                  createdb -h "$PGSOCK" -p "$PGPORT" -U panicmap panicmap_test
+                  createdb -h "$PGSOCK" -p "$PGPORT" -U mokosh mokosh_test
 
                   cd ${./backend}
                   export PYTHONPATH="$PWD/src"
-                  export TEST_DATABASE_URL="postgresql+psycopg://panicmap@127.0.0.1:$PGPORT/panicmap_test"
+                  export TEST_DATABASE_URL="postgresql+psycopg://mokosh@127.0.0.1:$PGPORT/mokosh_test"
                   pytest -q tests
                   touch $out
                 '';

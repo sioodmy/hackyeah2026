@@ -1,4 +1,4 @@
-# Standalone Docker build for the PanicMap API.
+# Standalone Docker build for the Mokosh API.
 #
 # This image does not need Nix — it resolves Python dependencies with uv inside
 # the build, so `docker compose up` works on a laptop that has never heard of
@@ -43,12 +43,12 @@ RUN apt-get update \
 
 COPY --from=builder /opt/venv /opt/venv
 
-RUN useradd --system --uid 10001 --create-home panicmap \
-    && mkdir -p /var/lib/panicmap/evidence \
-    && chown -R panicmap:panicmap /var/lib/panicmap
+RUN useradd --system --uid 10001 --create-home mokosh \
+    && mkdir -p /var/lib/mokosh/evidence \
+    && chown -R mokosh:mokosh /var/lib/mokosh
 
-USER panicmap
-WORKDIR /home/panicmap
+USER mokosh
+WORKDIR /home/mokosh
 
 EXPOSE 8000
 

@@ -14,18 +14,18 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DATA_DIR="${PANICMAP_PGDATA:-$ROOT/.direnv/pgdata}"
-SOCKET_DIR="${PANICMAP_PGSOCK:-$ROOT/.direnv/pgsock}"
+DATA_DIR="${MOKOSH_PGDATA:-${PANICMAP_PGDATA:-$ROOT/.direnv/pgdata}}"
+SOCKET_DIR="${MOKOSH_PGSOCK:-${PANICMAP_PGSOCK:-$ROOT/.direnv/pgsock}}"
 LOG_FILE="$DATA_DIR/postgres.log"
-DB_NAME="${PANICMAP_DB_NAME:-panicmap}"
-DB_USER="${PANICMAP_DB_USER:-panicmap}"
-DB_PASS="${PANICMAP_DB_PASSWORD:-panicmap}"
-NIX_PG_PORT="${PANICMAP_PG_PORT:-5433}"
+DB_NAME="${MOKOSH_DB_NAME:-${PANICMAP_DB_NAME:-mokosh}}"
+DB_USER="${MOKOSH_DB_USER:-${PANICMAP_DB_USER:-mokosh}}"
+DB_PASS="${MOKOSH_DB_PASSWORD:-${PANICMAP_DB_PASSWORD:-mokosh}}"
+NIX_PG_PORT="${MOKOSH_PG_PORT:-${PANICMAP_PG_PORT:-5433}}"
 COMPOSE=(docker compose -f "$ROOT/infra/docker-compose.yml")
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
-using_docker() { [[ ${PANICMAP_DB_BACKEND:-auto} != "nix" ]] && have docker; }
+using_docker() { [[ ${MOKOSH_DB_BACKEND:-${PANICMAP_DB_BACKEND:-auto}} != "nix" ]] && have docker; }
 
 nix_running() {
   have pg_ctl && [[ -f "$DATA_DIR/PG_VERSION" ]] && pg_ctl -D "$DATA_DIR" status >/dev/null 2>&1
@@ -67,6 +67,16 @@ EOF
   pg_ctl -D "$DATA_DIR" -l "$LOG_FILE" -o \
     "-p $NIX_PG_PORT -k $SOCKET_DIR -c listen_addresses=127.0.0.1" \
     -w start >/dev/null
+
+  # Ensure DB_USER exists if this cluster was initialized under another user name
+  if ! psql -h "$SOCKET_DIR" -p "$NIX_PG_PORT" -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" 2>/dev/null | grep -q 1; then
+    local superuser
+    superuser="$(psql -h "$SOCKET_DIR" -p "$NIX_PG_PORT" -d postgres -tAc "SELECT usename FROM pg_user WHERE usesuper LIMIT 1" 2>/dev/null || true)"
+    if [[ -n $superuser ]]; then
+      psql -h "$SOCKET_DIR" -p "$NIX_PG_PORT" -U "$superuser" -d postgres -c \
+        "CREATE ROLE ${DB_USER} WITH SUPERUSER LOGIN PASSWORD '${DB_PASS}'" >/dev/null 2>&1 || true
+    fi
+  fi
 
   psql -h "$SOCKET_DIR" -p "$NIX_PG_PORT" -U "$DB_USER" -d postgres -tAc \
     "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1 ||

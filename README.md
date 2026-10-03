@@ -1,4 +1,4 @@
-# PanicMap
+# Mokosh
 
 A map that looks like a map.
 
@@ -212,7 +212,7 @@ and it is inferred from the Metro host, which is usually right.
   "Idę do niej" button — is what opens the app onto the call or the alarm. A real
   full-screen intent needs a native module or a config plugin, which is more than
   a demo should carry.
-- **A friend's phone with PanicMap killed gets the channel, not the app.** The
+- **A friend's phone with Mokosh killed gets the channel, not the app.** The
   siren, the fake call UI and the acknowledgements all need the app running; what
   the push does on its own is make noise and offer a button.
 - **Alert delivery is Expo push, not the WebSocket.** Push reaches a phone with
