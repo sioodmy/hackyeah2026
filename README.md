@@ -35,8 +35,9 @@ phones, tells them it is over, and finalises the recording.
 
 ### Why it is unremarkable from a distance
 
-- The OSM raster style is desaturated and dimmed (`raster-saturation: -0.45`), so
-  the map is quiet and grey-brown.
+- The raster basemap is desaturated and dimmed (`raster-saturation: 0` on the CARTO
+  dark tiles, `-0.92` on the daylight OSM fallback, `raster-brightness-max` between
+  0.58 and 1), so the map is quiet and grey-brown.
 - The slider is the only saturated element, and it only becomes saturated once
   you commit to a level.
 - There is no word like "REC" or "ALARM" on screen. The recording indicator is a
@@ -64,6 +65,45 @@ Two platform facts, neither fixable from JavaScript:
   not lying on a table — not anything clever.
 - `expo-audio` cannot route playback to the earpiece, so the ringtone plays at
   `volume 0.15` to keep it out of the recording.
+
+---
+
+## The danger heatmap
+
+The slider is for *your* emergency. The heatmap is for the city: reported
+aggression across Kraków, drawn as translucent cells that get hotter the more
+incidents land in them.
+
+Privacy rules are the whole design, and they are enforced server-side rather than
+by the client:
+
+- **Reads are grid-snapped.** `GET /api/v1/incidents/heatmap` returns ~200 m cells
+  with counts and weights, never a point and never a person. There is no
+  `user_id` anywhere in the response.
+- **Reports are anonymous, reads are not.** `POST /api/v1/incidents` accepts a
+  report without a session — a stranger being followed should not have to sign up
+  to file one — but all three read endpoints require a valid token.
+- **Your own reports stay yours.** `GET /api/v1/incidents` returns only the
+  caller's, so a device can show "you reported this" without ever exposing anyone
+  else's.
+- **Weight is server-derived.** A client-supplied weight is ignored; severity
+  comes from the category, and coordinates outside the Kraków bounding box are
+  rejected.
+
+The seed data is **invented** — 45 fabricated reports on real Kraków streets —
+and is therefore off by default. Without `HY_SEED_DEMO_INCIDENTS=1` a fresh
+database shows an empty heatmap, which means "nobody has reported anything", not
+"the seed broke". Turn it on for a demo; leave it off for anything real, because
+invented rows are indistinguishable from real ones once they are in the table.
+
+## Profile
+
+Name, an emoji avatar and one of six signature auras, set in Settings. The friend
+map marker shows all three, and the same fields travel in the alert push, so the
+call request that lands on a friend's phone reads "Kasia" rather than a raw user
+id. Clamped and validated server-side; `PATCH /api/v1/users/me` distinguishes
+"field omitted" from "field explicitly null", so clearing a name does not wipe the
+avatar next to it.
 
 ---
 
@@ -190,6 +230,21 @@ and it is inferred from the Metro host, which is usually right.
 - **No Docker output from the flake.** A nix store path cannot be meaningfully
   flattened into a container layer, so the image is built by `infra/Dockerfile`,
   which resolves dependencies with `uv` and needs no nix at all.
+- **No migrations.** The schema is created with `Base.metadata.create_all` on
+  boot, on the grounds that a hackathon does not need Alembic. The consequence is
+  that any schema change against an existing database is a manual
+  `DROP SCHEMA public CASCADE`. Fine until the first one, which is why it is
+  written down here.
+- **No rate limiting.** Nothing stops anyone from POSTing to
+  `/api/v1/incidents` in a loop. Reports are bounded by a category whitelist, the
+  Kraków bounding box and server-derived weight, but not by volume.
+- **The evidence manifest has no screen.** Segments upload, digests verify and the
+  chain-of-custody manifest freezes, and six endpoints expose all of it — none of
+  which the app reads. The recorder is wired up; the playback view is not built.
+- **The API surface is wider than the app.** Roughly six routes and five client
+  methods have no caller on either side. They were built so the demo had room to
+  grow, not because something uses them.
+- **No iOS build.** The release workflow builds Android only.
 
 ---
 
@@ -228,13 +283,21 @@ src/hy/
 ├── evidence.py      chunk store, digests, chain-of-custody manifest
 ├── realtime.py      connection registry and fan-out
 ├── ws.py            the /ws/locations protocol
-└── routers/         devices, friends, alerts, authorities, locations, evidence
+└── routers/         users, devices, friends, alerts, authorities, locations,
+                     evidence, incidents
 ```
 
-127 tests cover the level semantics, escalation re-notifying friends,
+131 tests cover the level semantics, escalation re-notifying friends,
 acknowledgements, evidence upload idempotency and digest verification, the
-WebSocket fan-out and its privacy boundary, the signed QR payloads, and the mock
-dispatch.
+WebSocket fan-out and its privacy boundary, the signed QR payloads, the mock
+dispatch, and the heatmap's authorisation boundary.
+
+There are no tests on the app side. That is the largest gap in the repository and
+it is not subtle: `theme/levels.ts` and `lib/avatar.ts` are pure, and
+`useSmoothedLocations` even takes an injectable clock so it *can* be tested. It
+matters because the fractional-level slider bug that shipped as PR #6 — where
+releasing the knob passed `0.37` to a state machine and an API field typed
+`int` — is exactly the class of bug a twenty-line unit test catches.
 
 ---
 
@@ -244,6 +307,7 @@ dispatch.
 | --- | --- | --- |
 | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | `app/.env` | Clerk publishable key |
 | `EXPO_PUBLIC_API_URL` | `app/.env` | Backend URL; inferred if unset |
+| `EXPO_PUBLIC_EAS_PROJECT_ID` | `app/.env` | EAS project id, or read from `extra.eas.projectId` |
 | `EXPO_PUBLIC_OSM_TILE_URL` | `app/.env` | Tile template |
 | `DATABASE_URL` | `backend/.env` | SQLAlchemy URL |
 | `CLERK_JWT_KEY` | `backend/.env` | PEM public key, networkless verification |
@@ -251,3 +315,38 @@ dispatch.
 | `INVITE_SIGNING_KEY` | `backend/.env` | HMAC key for QR invites — **change it** |
 | `EVIDENCE_DIR` | `backend/.env` | Where audio segments land |
 | `EXPO_ACCESS_TOKEN` | `backend/.env` | Required for production push |
+| `HY_SEED_DEMO_INCIDENTS` | `backend/.env` | Fill the heatmap with invented demo reports |
+
+---
+
+## Releasing
+
+Push a `v*` tag and the `release` workflow builds a release APK and attaches it to
+the GitHub Release. It derives `expo.version` and `android.versionCode` from the
+tag (`major*10000 + minor*100 + patch`, so v0.3.0 → 300) so a build always installs
+over the last one.
+
+```bash
+gh secret  set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY   # pk_…   — gates the build
+gh variable set EAS_PROJECT_ID        --body "<uuid>"     # gates the build
+gh variable set EXPO_PUBLIC_API_URL   --body "https://…"  # gates the build
+
+git tag v0.3.0 && git push origin v0.3.0
+```
+
+All three are **hard gates**, not defaults, and each one fails a build that would
+otherwise install cleanly and then break at runtime:
+
+| Missing | What the APK does instead |
+| --- | --- |
+| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Installs, then the app throws at import and nobody can sign in |
+| `EAS_PROJECT_ID` | Installs, then cannot mint a push token — so the account can never alert a friend |
+| `EXPO_PUBLIC_API_URL` | Installs, then points at nothing and every screen that needs data fails |
+
+`EAS_PROJECT_ID` is injected into `extra.eas.projectId` before prebuild rather
+than read from a local `.env`, so a release never depends on one developer's
+machine. If push registration is silently broken, `usePushRegistration` now logs
+the reason instead of swallowing it.
+
+The APK is signed with the **debug key**. That is fine for judges sideloading it
+and wrong for the Play Store.

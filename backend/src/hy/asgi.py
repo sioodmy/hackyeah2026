@@ -84,10 +84,16 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # `allow_credentials=True` with a wildcard origin is not a permissive default,
+    # it is an invalid one: the spec says a credentialed response may not carry
+    # `Access-Control-Allow-Origin: *`, so a browser drops it. `allow_credentials`
+    # is therefore only switched on when the origins are actually enumerated —
+    # which a native app does not need, because it is not subject to CORS at all.
+    credentialed = settings.cors_origins != ["*"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
-        allow_credentials=True,
+        allow_credentials=credentialed,
         allow_methods=["*"],
         allow_headers=["*"],
     )

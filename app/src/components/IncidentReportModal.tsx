@@ -78,12 +78,16 @@ export function IncidentReportModal({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fallbackCoords = { lat: 50.0617, lng: 19.9373 }; // Kraków Rynek
-  const coords = userCoords ? { lat: userCoords[1], lng: userCoords[0] } : fallbackCoords;
+  // A report is only useful if it says where it happened. Without a fix there is
+  // nothing truthful to send, and the server would happily accept a made-up point
+  // inside the Kraków bbox — poisoning the heatmap with a report nobody made.
+  const coords = userCoords ? { lat: userCoords[1], lng: userCoords[0] } : null;
+  const hasFix = coords !== null;
 
   const activeCategory = CATEGORIES.find((c) => c.id === selectedCat) ?? CATEGORIES[0]!;
 
   const handleSubmit = async () => {
+    if (!coords) return;
     try {
       setSubmitting(true);
       setError(null);
@@ -114,13 +118,21 @@ export function IncidentReportModal({
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <View>
+            <View style={styles.headerText}>
               <Text style={styles.title}>Zgłoś zagrożenie w Krakowie</Text>
               <Text style={styles.locationSubtitle}>
-                Lokalizacja: {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+                {coords
+                  ? `Lokalizacja: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`
+                  : 'Brak lokalizacji — czekam na GPS'}
               </Text>
             </View>
-            <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={12}>
+            <Pressable
+              onPress={onClose}
+              style={styles.closeBtn}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Zamknij"
+            >
               <Text style={styles.closeText}>✕</Text>
             </Pressable>
           </View>
@@ -133,6 +145,15 @@ export function IncidentReportModal({
             </View>
           ) : (
             <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+              {!hasFix ? (
+                <View style={styles.noFixBanner}>
+                  <Text style={styles.noFixText}>
+                    Nie mam jeszcze Twojej lokalizacji. Włącz usługę lokalizacji albo wyjdź na
+                    zewnątrz — nie zgłoszę zgłoszenia w miejscu, którego nie znam.
+                  </Text>
+                </View>
+              ) : null}
+
               <Text style={styles.sectionLabel}>RODZAJ ZDARZENIA</Text>
               <View style={styles.categoriesGrid}>
                 {CATEGORIES.map((cat) => {
@@ -148,6 +169,9 @@ export function IncidentReportModal({
                         },
                       ]}
                       onPress={() => setSelectedCat(cat.id)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isSelected }}
+                      accessibilityLabel={`${cat.label}, poważność ${cat.severity} z 3`}
                     >
                       <Text style={styles.catIcon}>{cat.icon}</Text>
                       <Text
@@ -189,14 +213,19 @@ export function IncidentReportModal({
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
               <Pressable
-                style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
+                style={[styles.submitBtn, (submitting || !hasFix) && { opacity: 0.6 }]}
                 onPress={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || !hasFix}
+                accessibilityRole="button"
+                accessibilityLabel="Dodaj do mapy zagrożeń"
+                accessibilityState={{ disabled: submitting || !hasFix }}
               >
                 {submitting ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={styles.submitBtnText}>Dodaj do mapy zagrożeń</Text>
+                  <Text style={styles.submitBtnText}>
+                    {hasFix ? 'Dodaj do mapy zagrożeń' : 'Czekam na lokalizację…'}
+                  </Text>
                 )}
               </Pressable>
             </ScrollView>
@@ -229,6 +258,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: spacing.md,
+  },
+  headerText: {
+    flex: 1,
+    paddingRight: spacing.md,
   },
   title: {
     ...type.title,
@@ -302,6 +335,19 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: palette.level3,
     marginTop: spacing.sm,
+  },
+  noFixBanner: {
+    backgroundColor: 'rgba(214, 40, 40, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(214, 40, 40, 0.45)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  noFixText: {
+    ...type.caption,
+    fontSize: 12,
+    lineHeight: 17,
+    color: palette.text,
   },
   submitBtn: {
     backgroundColor: '#D32F2F',
