@@ -8,15 +8,22 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from hy.models import (
+    ACK_ANSWERED,
+    ACK_ON_THE_WAY,
+    ACK_SEEN,
     ALERT_ACTIVE,
     EVIDENCE_OPEN,
     FRIENDSHIP_ACCEPTED,
     FRIENDSHIP_PENDING,
 )
+
+#: An acknowledgement never moves backwards — see `ACK_ORDER`.
+AckAction = Literal[ACK_SEEN, ACK_ANSWERED, ACK_ON_THE_WAY]
 
 
 class CamelModel(BaseModel):
@@ -129,6 +136,17 @@ class AlertCreate(CamelModel):
     bearing: float | None = Field(default=None, ge=-360, le=360)
 
 
+class AlertAckOut(CamelModel):
+    user_id: str = Field(alias="userId")
+    display_name: str | None = Field(default=None, alias="displayName")
+    action: AckAction
+    at: datetime
+
+
+class AlertAckIn(CamelModel):
+    action: AckAction = ACK_SEEN
+
+
 class AlertOut(CamelModel):
     id: str
     user_id: str = Field(alias="userId")
@@ -143,6 +161,8 @@ class AlertOut(CamelModel):
     dispatch_case_id: str | None = Field(default=None, alias="dispatchCaseId")
     dispatch_eta_min: int | None = Field(default=None, alias="dispatchEtaMin")
     evidence_session_id: str | None = Field(default=None, alias="evidenceSessionId")
+    #: Who has responded so far. Only ever read by the alert's owner.
+    acks: list[AlertAckOut] = Field(default_factory=list)
 
 
 class AlertCreateResponse(CamelModel):

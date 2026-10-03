@@ -10,6 +10,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ApiContext } from '@/lib/ApiContext';
 import { createApiClient } from '@/lib/api';
 import { useAuthToken } from '@/lib/useAuthToken';
+import { FriendAlarmOverlay } from '@/components/FriendAlarmOverlay';
+import { useIncomingAlerts } from '@/hooks/useIncomingAlerts';
 import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { SignInScreen } from '@/screens/SignInScreen';
 import { palette } from '@/theme';
@@ -38,6 +40,7 @@ function Providers({ children }: { children: ReactNode }) {
   const api = useMemo(() => createApiClient(getToken), [getToken]);
 
   usePushRegistration({ api, enabled: signedIn, userId: user?.id ?? null });
+  useIncomingAlerts(signedIn);
 
   if (!isLoaded) {
     return (
@@ -51,7 +54,14 @@ function Providers({ children }: { children: ReactNode }) {
     return <SignInScreen />;
   }
 
-  return <ApiContext.Provider value={api}>{children}</ApiContext.Provider>;
+  return (
+    <ApiContext.Provider value={api}>
+      {/* Above the router: a call request or an alarm has to reach the friend
+          whatever screen they happened to be on. */}
+      <FriendAlarmOverlay />
+      {children}
+    </ApiContext.Provider>
+  );
 }
 
 export default function RootLayout() {
