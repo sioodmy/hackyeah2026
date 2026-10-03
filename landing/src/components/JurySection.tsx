@@ -12,37 +12,37 @@ const criteria: Criterion[] = [
     category: "Walor Społeczny",
     title: "Realny problem bezpieczeństwa nocnego",
     description:
-      "Większość kobiet w polskich miastach doświadcza niepokoju lub zaczepiania podczas nocnych powrotów. PanicMap przekłada poczucie bezradności na sprawczość technologiczną bez moralizowania i bez wiktymizacji.",
+      "Większość kobiet w polskich miastach odczuwa niepokój podczas nocnych powrotów. PanicMap daje narzędzie sprawczości: fałszywy telefon jako pretekst do odejścia i natychmiastowe wsparcie zaufanych osób.",
   },
   {
-    category: "UX & Psychologia",
+    category: "UX i Psychologia",
     title: "Kamuflaż zamiast czerwonych przycisków SOS",
     description:
-      "Agresor nie może zorientować się, że wzywasz pomoc. Odbarwiona mapa rastrowa CARTO/OSM, 6-pikselowa subtelna dioda i fałszywy telefon dają bezpieczną przestrzeń do odejścia.",
+      "Ktoś idący obok nie może zorientować się, że wzywasz pomoc. Odbarwiona mapa rastrowa CARTO i OSM, 6-pikselowa subtelna dioda i fałszywe połączenie dają bezpieczną przestrzeń do reakcji.",
   },
   {
     category: "Kryptografia",
     title: "Łańcuch dowodowy audio (SHA-256 Chunks)",
     description:
-      "Nagrywanie w 30-sekundowych segmentach z natychmiastowym uploadem i weryfikacją skrótów SHA-256 po stronie backendu. Zniszczenie telefonu przez sprawcę nie niszczy zabezpieczonego materiału dowodowego.",
+      "Nagrywanie w 30-sekundowych segmentach z natychmiastowym uploadem i weryfikacją sumy SHA-256 po stronie backendu. Ewentualne zniszczenie telefonu przez sprawcę nie niszczy zabezpieczonego materiału w chmurze.",
   },
   {
-    category: "Prywatność & Prawo",
+    category: "Prywatność",
     title: "Siatka PostGIS 200m zrzutowana na serwerze",
     description:
-      "Endpointy heatmapy zwracają zagregowane wagi w komórkach 200 m bez współrzędnych punktowych i bez identyfikatorów user_id. Zgłaszanie incydentów jest w pełni anonimowe.",
+      "Endpointy heatmapy zwracają zagregowane wagi w komórkach 200 m bez współrzędnych punktowych i bez identyfikatorów user_id. Zgłaszanie incydentów jest całkowicie anonimowe.",
   },
   {
     category: "Inżynieria",
     title: "Działający, przetestowany stos technologiczny",
     description:
-      "Projekt to nie makieta, lecz w pełni skompilowana aplikacja React Native / Expo z backendem FastAPI, obsługą WebSocketów, bazą PostgreSQL/PostGIS, zestawem testów pytest i pipeline CI/CD na GitHub Actions.",
+      "To nie jest statyczna makieta, tylko skompilowana aplikacja w React Native i Expo z asynchronicznym backendem FastAPI, obsługą WebSocketów, bazą PostgreSQL/PostGIS i pipeline CI/CD na GitHub Actions.",
   },
   {
-    category: "Ergonomia Stresu",
-    title: "Mechanizm „Push & Let Go”",
+    category: "Ergonomia w Stresie",
+    title: "Mechanizm Push and Let Go",
     description:
-      "W stresie precyzja motoryczna spada. Suwak wymaga przesunięcia i puszczenia — palec trzymany na ekranie nie wywołuje akcji, co całkowicie eliminuje fałszywe alarmy z torebki lub kieszeni.",
+      "W stresie precyzja motoryczna spada. Suwak wymaga przesunięcia i puszczenia: palec trzymany na ekranie nie wywołuje akcji, co całkowicie eliminuje fałszywe alarmy z torebki lub kieszeni.",
   },
 ];
 
@@ -66,7 +66,7 @@ export const JurySection: React.FC = () => {
         </p>
       </div>
 
-      {/* Grid of evaluation cards without fake scores */}
+      {/* Grid of evaluation cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
         {criteria.map((item, idx) => (
           <div
@@ -91,7 +91,7 @@ export const JurySection: React.FC = () => {
         ))}
       </div>
 
-      {/* Jury Quick Actions Bar */}
+      {/* Quick Actions Bar */}
       <div className="rounded-3xl bg-[#10111a] border border-slate-800 p-8 flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
           <h4 className="text-xl font-bold text-white mb-1">

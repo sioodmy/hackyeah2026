@@ -9,7 +9,7 @@ import {
 export const FeatureBento: React.FC = () => {
   return (
     <section
-      id="jak-to-dziala"
+      id="kamuflaz"
       className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/80"
     >
       {/* Section Header */}
@@ -18,17 +18,17 @@ export const FeatureBento: React.FC = () => {
           Kamuflaż i Zasada Działania
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-          Dlaczego tradycyjne aplikacje SOS zawodziły?
+          Dlaczego typowe aplikacje SOS nie sprawdzają się na ulicy
         </h2>
         <p className="text-slate-400 text-base leading-relaxed">
-          Większość aplikacji ratunkowych zakłada, że w chwili zagrożenia masz
-          czas odblokować telefon, wpisać PIN i nacisnąć jaskrawy przycisk.
-          PanicMap odrzuca te iluzje na rzecz radykalnego kamuflażu i
-          natychmiastowej sprawczości.
+          Większość aplikacji ratunkowych zakłada, że w sytuacji zagrożenia
+          odblokujesz telefon, przeklikasz się przez menu i naciśniesz jaskrawy
+          czerwony przycisk. PanicMap stawia na kamuflaż: telefon wygląda jak
+          zwykła mapa, a pomoc rusza w tle.
         </p>
       </div>
 
-      {/* Bento Grid with Asymmetric Rhythm */}
+      {/* Bento Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Cell 1: Large 2-column feature - Stealth First */}
         <div className="md:col-span-2 rounded-3xl bg-[#10111a] border border-slate-800 p-8 sm:p-10 flex flex-col justify-between hover:border-slate-700 transition-colors relative overflow-hidden">
@@ -40,34 +40,31 @@ export const FeatureBento: React.FC = () => {
               Koncepcja wizualna
             </div>
             <h3 className="text-2xl font-bold text-white mb-3 tracking-tight">
-              Niewidzialność z dystansu: Mapa, która wygląda jak mapa
+              Niewidzialność z dystansu: mapa, która wygląda jak mapa
             </h3>
             <p className="text-slate-400 text-sm leading-relaxed max-w-2xl mb-6">
               Rastrowa mapa bazowa jest celowo odbarwiona i przyciemniona (
               <code className="text-slate-300">raster-saturation: 0</code> na
               kaflach CARTO, <code className="text-slate-300">-0.92</code> na
-              OpenStreetMap). Na ekranie nie ma ani jednego czerwonego napisu
-              typu „ALARM” czy „SOS”. Ktokolwiek zerka przez Twoje ramię, widzi
-              jedynie zwykłą nawigację pieszą.
+              OpenStreetMap). Nie ma tu żadnych czerwonych pasków ani napisu
+              ALARM. Osoba idąca obok widzi jedynie zwykłą mapę uliczną.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6 border-t border-slate-800/80">
             <div className="text-xs text-slate-300">
               <strong className="text-white block mb-1">
-                6-pikselowa dioda kontrolna:
+                Dioda 6px w rogu ekranu:
               </strong>
-              Dyskretny wskaźnik nagrywania w rogu ekranu z niskim opacity —
-              potwierdza Tobie, że telefon rejestruje dźwięk, i nie zdradza nic
-              nikomu innemu.
+              Dyskretny punkt o niskim kryciu potwierdza Tobie, że rejestracja
+              dźwięku działa, bez zwracania uwagi osób postronnych.
             </div>
             <div className="text-xs text-slate-300">
               <strong className="text-white block mb-1">
-                Naturalny pretext fizyczny:
+                Naturalny pretekst do rozmowy:
               </strong>
-              Fałszywy telefon wymusza trzymanie aparatu przy uchu, dzięki czemu
-              systemowy wskaźnik mikrofonu w Androidzie wygląda w pełni
-              naturalnie.
+              Fałszywy telefon wymusza przyłożenie aparatu do ucha, dzięki czemu
+              wskaźnik użycia mikrofonu w systemie wygląda w 100% naturalnie.
             </div>
           </div>
         </div>
@@ -79,19 +76,19 @@ export const FeatureBento: React.FC = () => {
               <HandPointing size={24} weight="bold" />
             </div>
             <div className="text-xs font-mono uppercase tracking-wider text-amber-400 mb-2 font-semibold">
-              Ergonomia kciuka
+              Obsługa kciukiem
             </div>
             <h3 className="text-xl font-bold text-white mb-3 tracking-tight">
-              Zasada „Push &amp; Let Go”
+              Zasada „Push and Let Go”
             </h3>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              Przesuwasz gałkę i <strong>puszczasz</strong> — nic nie dzieje
-              się, dopóki palec jest dociśnięty do szkła. Przypadkowe otarcie w
-              torebce lub kieszeni kurtki nigdy nie uruchomi fałszywego alertu.
+              Przesuwasz suwak i <strong>puszczasz</strong>: dopóki palec dotyka
+              ekranu, alert się nie odpala. Przypadkowe otarcie w torebce lub
+              kieszeni nie wywoła fałszywego alarmu.
             </p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-300 font-mono">
-            Zero przypadkowych alarmów · Anulowanie przesunięciem do 0
+            Zero pomyłek: cofnięcie suwaka do zera odwołuje akcję natychmiast
           </div>
         </div>
 
@@ -102,20 +99,19 @@ export const FeatureBento: React.FC = () => {
               <FileLock size={24} weight="bold" />
             </div>
             <div className="text-xs font-mono uppercase tracking-wider text-rose-400 mb-2 font-semibold">
-              Dowodowość
+              Bezpieczeństwo danych
             </div>
             <h3 className="text-xl font-bold text-white mb-3 tracking-tight">
-              Pakiety audio SHA-256
+              Kawałki audio po 30 sekund
             </h3>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              W Poziomie 3 telefon rejestruje dźwięk w 30-sekundowych
-              fragmentach i wysyła je na serwer w chwili zamknięcia każdego z
-              nich. Gdyby sprawca zniszczył urządzenie, nagranie jest już
-              bezpieczne w chmurze.
+              W Poziomie 3 telefon rejestruje dźwięk w 30-sekundowych paczkach i
+              wrzuca je od razu na serwer. Nawet jeśli telefon zostanie
+              zniszczony, dowód jest już bezpiecznie zapisany w chmurze.
             </p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-300 font-mono">
-            Chain of custody · Sumy SHA-256 · Znaczniki pozycji
+            Suma SHA-256 dla każdej paczki, timestampy i pozycja GPS
           </div>
         </div>
 
@@ -129,20 +125,20 @@ export const FeatureBento: React.FC = () => {
               Szybkie parowanie
             </div>
             <h3 className="text-2xl font-bold text-white mb-3 tracking-tight">
-              Krąg Sióstr sparowany kodem QR w 3 sekundy
+              Dołączenie do kręgu kodem QR w 3 sekundy
             </h3>
             <p className="text-slate-400 text-sm leading-relaxed max-w-2xl mb-6">
-              Wychodzicie razem z klubu, imprezy lub biblioteki? Jeden skan kodu
-              QR aparatem wystarczy, by dodać koleżankę do Twojej sieci czuwania
-              na czas nocnego powrotu. Bez podawania numerów, bez reklamowych
-              komunikatorów.
+              Wychodzicie razem z klubu, koncertu czy biblioteki? Wystarczy
+              jeden skan kodu QR aparatem, by dodać znajomą do kręgu czuwania na
+              czas nocnego powrotu. Bez wymieniania się numerami i bez zbędnych
+              kont.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-6 border-t border-slate-800/80">
             <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
               <div className="text-white font-semibold text-xs mb-1">
-                1. Wyświetl kod QR
+                1. Pokaż kod QR
               </div>
               <div className="text-[11px] text-slate-400">
                 Wygeneruj kod sesyjny w aplikacji
@@ -153,15 +149,15 @@ export const FeatureBento: React.FC = () => {
                 2. Zeskanuj aparatem
               </div>
               <div className="text-[11px] text-slate-400">
-                Koleżanka potwierdza gotowość
+                Druga osoba potwierdza czuwanie
               </div>
             </div>
             <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
               <div className="text-white font-semibold text-xs mb-1">
-                3. Czuwanie aktywne
+                3. Bezpieczny powrót
               </div>
               <div className="text-[11px] text-slate-400">
-                Powiadomienia i syrena działają w tle
+                Kanał alertowy działa w tle
               </div>
             </div>
           </div>

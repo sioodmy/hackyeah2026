@@ -16,16 +16,16 @@ export const ArchitectureSection: React.FC = () => {
           Stack technologiczny i architektura
         </h2>
         <p className="text-slate-400 text-base leading-relaxed">
-          Od natywnych shaderów rastrowych w MapLibre po kafelkowanie PostGIS i
-          strumieniowanie pozycji przez WebSockets — każdy komponent został
-          zaprojektowany z myślą o niezawodności w warunkach skrajnego stresu.
+          Natywne shadery rastrowe w MapLibre, PostGIS z siatką kafelkową i
+          strumieniowanie pozycji przez WebSockets. Cały stos został
+          zoptymalizowany pod niezawodność i natychmiastowy czas reakcji.
         </p>
       </div>
 
-      {/* 3 Pillars Architecture Grid */}
+      {/* 3 Pillars Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         {/* Mobile Pillar */}
-        <div className="rounded-3xl bg-[#12131c] border border-slate-800 p-6 flex flex-col justify-between">
+        <div className="rounded-3xl bg-[#10111a] border border-slate-800 p-6 flex flex-col justify-between">
           <div>
             <div className="w-10 h-10 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center mb-4">
               <DeviceMobile size={22} weight="bold" />
@@ -34,9 +34,8 @@ export const ArchitectureSection: React.FC = () => {
               Aplikacja Mobilna (Client)
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed mb-4">
-              Wydajny klient mobilny w React Native i Expo, zoptymalizowany pod
-              minimalne zużycie baterii i brak lagów przy rysowaniu wektorów
-              mapy.
+              Klient w React Native i Expo, zoptymalizowany pod minimalne
+              zużycie baterii i płynne rysowanie kafelków mapy.
             </p>
             <ul className="space-y-2 text-xs text-slate-300 font-mono">
               <li className="flex items-center gap-2">
@@ -63,17 +62,17 @@ export const ArchitectureSection: React.FC = () => {
         </div>
 
         {/* Backend Pillar */}
-        <div className="rounded-3xl bg-[#12131c] border border-slate-800 p-6 flex flex-col justify-between">
+        <div className="rounded-3xl bg-[#10111a] border border-slate-800 p-6 flex flex-col justify-between">
           <div>
             <div className="w-10 h-10 rounded-xl bg-[#ff2a85]/15 text-[#ff2a85] flex items-center justify-center mb-4">
               <Database size={22} weight="bold" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              Backend & PostGIS Engine
+              Backend i Silnik PostGIS
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed mb-4">
-              Asynchroniczne API w FastAPI z obsługą WebSocketów dla lokalizacji
-              na żywo oraz silnikiem geoprzestrzennym agregującym incydenty.
+              Asynchroniczne API w FastAPI z WebSocketami dla pozycji na żywo
+              oraz silnikiem agregującym zgłoszenia na siatce przestrzennej.
             </p>
             <ul className="space-y-2 text-xs text-slate-300 font-mono">
               <li className="flex items-center gap-2">
@@ -82,7 +81,7 @@ export const ArchitectureSection: React.FC = () => {
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#ff2a85]" />
-                WebSockets (`/ws/locations`)
+                WebSockets (/ws/locations)
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#ff2a85]" />
@@ -100,26 +99,26 @@ export const ArchitectureSection: React.FC = () => {
         </div>
 
         {/* DevOps Pillar */}
-        <div className="rounded-3xl bg-[#12131c] border border-slate-800 p-6 flex flex-col justify-between">
+        <div className="rounded-3xl bg-[#10111a] border border-slate-800 p-6 flex flex-col justify-between">
           <div>
             <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center mb-4">
               <TerminalWindow size={22} weight="bold" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              DevOps & Reproducibility
+              DevOps i Środowisko
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed mb-4">
-              Środowisko w pełni powtarzalne dzięki Nix Flakes oraz
-              zautomatyzowane pipeline&apos;y testów i kompilacji release APK.
+              Powtarzalne środowisko developerskie dzięki Nix Flakes oraz
+              pipeline testów i budowania APK.
             </p>
             <ul className="space-y-2 text-xs text-slate-300 font-mono">
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                Nix Flakes (`flake.nix`)
+                Nix Flakes (flake.nix)
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                Justfile (`just api`, `just app`)
+                Justfile (just api, just app)
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -137,10 +136,10 @@ export const ArchitectureSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Terminal Code Snippet for Hackathon Judges */}
-      <div className="rounded-2xl bg-[#090b10] border border-slate-800 p-5 font-mono text-xs overflow-x-auto shadow-2xl">
+      {/* Terminal Snippet */}
+      <div className="rounded-2xl bg-[#090b10] border border-slate-800 p-5 font-mono text-xs overflow-x-auto shadow-xl">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-3 text-slate-500 text-[11px]">
-          <span>Terminal · Uruchomienie projektu lokalnie</span>
+          <span>Terminal: Uruchomienie lokalne</span>
           <span>bash</span>
         </div>
         <pre className="text-slate-300 space-y-1">
@@ -154,23 +153,25 @@ export const ArchitectureSection: React.FC = () => {
           <div>
             <span className="text-[#ff2a85]">$</span> just setup{" "}
             <span className="text-slate-500">
-              # Instaluje uv venv + npm packages
+              # Instalacja zależności Python i JS
             </span>
           </div>
           <div>
             <span className="text-[#ff2a85]">$</span> just db-up{" "}
             <span className="text-slate-500">
-              # Uruchamia bazę PostgreSQL z PostGIS
+              # Start bazy PostgreSQL z PostGIS
             </span>
           </div>
           <div>
             <span className="text-[#ff2a85]">$</span> just api{" "}
-            <span className="text-slate-500"># Start FastAPI na :8000</span>
+            <span className="text-slate-500">
+              # Start backendu FastAPI na :8000
+            </span>
           </div>
           <div>
             <span className="text-[#ff2a85]">$</span> just app{" "}
             <span className="text-slate-500">
-              # Start klienta Expo dla deweloperów
+              # Start Expo dla aplikacji mobilnej
             </span>
           </div>
         </pre>

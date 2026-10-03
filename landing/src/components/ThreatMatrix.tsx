@@ -21,7 +21,7 @@ const zones: ZoneDetail[] = [
     phonePerspective:
       "Cicha, odbarwiona mapa uliczna OpenStreetMap (raster-saturation: 0). Brak jakichkolwiek elementów sugerujących aplikację ratunkową. W rogu ekranu znajduje się 6-pikselowy punkt o znikomym kryciu.",
     networkPerspective:
-      "Telefony osób w kręgu zaufania milczą. Brak powiadomień w tle, brak zbędnego drenażu baterii.",
+      "Telefony znajomych w kręgu milczą. Brak powiadomień w tle, brak zbędnego drenażu baterii.",
     technicalDetails: [
       "Stan spoczynkowy, do którego aplikacja wraca po odwołaniu alertu",
       "Desaturacja rastra na poziomie GPU zapobiega przyciąganiu wzroku z dystansu",
@@ -34,42 +34,42 @@ const zones: ZoneDetail[] = [
     colorClass: "text-amber-300 bg-amber-500/10 border-amber-500/30",
     accentBorder: "border-amber-500/30 hover:border-amber-500/50",
     phonePerspective:
-      "Po 10 sekundach od puszczenia suwaka telefon wyzwala realistyczny przychodzący telefon (nazwa kontaktu: „Mama” / zaufana osoba). Cichy dzwonek, wibracja. Odebranie odtwarza 30-sekundową ambientową rozmowę tła.",
+      "Po 10 sekundach od puszczenia suwaka telefon sam dzwoni (jako Mama lub inny wybrany kontakt). Cichy dzwonek i wibracja. Po odebraniu leci 30-sekundowa ambientowa rozmowa tła, dająca powód do szybkiego odejścia.",
     networkPerspective:
-      "Przyjaciółki otrzymują ciche powiadomienie systemowe (OS-level heads-up): Kasia uruchomiła pretekst wyjścia. Ekran ich telefonów nie zostaje zablokowany.",
+      "Przyjaciółki dostają ciche powiadomienie systemowe (OS-level heads-up), że uruchomiłaś pretekst wyjścia. Ekran ich telefonów nie zostaje zablokowany.",
     technicalDetails: [
-      "10-sekundowy bufor bezpieczeństwa na ewentualne cofnięcie",
+      "10-sekundowy bufor na ewentualne cofnięcie suwaka do 0",
       "Dźwięk odtwarzany na volume 0.15 z uwagi na specyfikę routing audio w urządzeniu",
     ],
   },
   {
     zone: 2,
     name: "Krąg Sióstr",
-    badge: "Priorytetowe połączenie",
+    badge: "Połączenie na żywo",
     colorClass: "text-orange-300 bg-orange-500/10 border-orange-500/30",
     accentBorder: "border-orange-500/30 hover:border-orange-500/50",
     phonePerspective:
-      "Wszystkie akcje poziomu 1, plus natychmiastowe uruchomienie transmisji bieżącej pozycji GPS przez kanał WebSocket do uprawnionych odbiorców.",
+      "Wszystko z poziomu 1, plus natychmiastowe uruchomienie transmisji pozycji GPS przez kanał WebSocket do uprawnionych odbiorców.",
     networkPerspective:
-      "Na telefonach w kręgu pojawia się pełnoekranowe wywołanie z dedykowanym przyciskiem „Odbierz”. Odebranie natychmiast łączy głosowo i zwraca u Ciebie status: Kasia rozmawia.",
+      "Na telefonach w kręgu pojawia się pełnoekranowe wywołanie z przyciskiem Odbierz. Po odebraniu rozmawiacie, a u Ciebie pojawia się status: Kasia rozmawia.",
     technicalDetails: [
       "Niskolatencyjny strumień współrzędnych (/ws/locations)",
-      "Przyjaciółka widzi przemieszczający się punkt na swojej mapie w czasie rzeczywistym",
+      "Przyjaciółka widzi poruszający się punkt na swojej mapie w czasie rzeczywistym",
     ],
   },
   {
     zone: 3,
     name: "Alarm Krytyczny",
-    badge: "112 & Rejestracja dowodowa",
+    badge: "112 i audio w chmurze",
     colorClass: "text-rose-300 bg-rose-500/10 border-rose-500/30",
     accentBorder: "border-rose-500/40 hover:border-rose-500/60",
     phonePerspective:
-      "Niewidoczna rejestracja audio w 30-sekundowych segmentach SHA-256 wysyłanych natychmiast po zamknięciu paczki. Równolegle wyzwalany mock dyspozytora 112 zwracający numer zgłoszenia.",
+      "Niewidoczne nagrywanie dźwięku w 30-sekundowych segmentach SHA-256 wysyłanych na serwer natychmiast po zamknięciu paczki. Równolegle wyzwalane zgłoszenie mock 112 zwracające numer sprawy.",
     networkPerspective:
-      "U wszystkich osób w kręgu rozlega się zapętlona syrena na maksymalnym poziomie głośności, przełamująca tryb cichy (bypassDnd). Dźwięk milknie wyłącznie po naciśnięciu „Idę do niej”.",
+      "U wszystkich w kręgu włącza się głośna syrena omijająca tryb wyciszenia (bypassDnd). Dźwięk milknie dopiero wtedy, gdy przyjaciółka kliknie przycisk: Idę do niej.",
     technicalDetails: [
-      "Pakiety audio zabezpieczone kryptograficznie (ciągłość, stemple czasowe, współrzędne)",
-      "Zniszczenie lub odebranie telefonu powoduje utratę maksymalnie ułamka ostatniego segmentu",
+      "Pakiety audio zabezpieczone sumą SHA-256, stemplami czasu i współrzędnymi start/stop",
+      "Zniszczenie lub odebranie telefonu oznacza utratę maksymalnie ułamka ostatniego segmentu",
     ],
   },
 ];
@@ -85,20 +85,19 @@ export const ThreatMatrix: React.FC = () => {
       {/* Section Header */}
       <div className="max-w-3xl mx-auto text-center mb-16">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff2a85]/10 border border-[#ff2a85]/20 text-[#ff2a85] text-xs font-semibold uppercase tracking-wider mb-4">
-          Architektura Suwaka Zagrożenia
+          Architektura Suwaka
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
           Cztery strefy. Dwie strony każdego alertu.
         </h2>
         <p className="text-slate-400 text-base leading-relaxed">
-          Suwak operuje na zasadzie <em>Push &amp; Let Go</em>: akcja zostaje
-          zatwierdzona dopiero po oderwaniu kciuka, eliminując przypadkowe
-          dotknięcia w kieszeni. Każdy poziom precyzyjnie dzieli obowiązki
-          między kamuflaż a reakcję sieci wsparcia.
+          Suwak działa w modelu <em>Push and Let Go</em>: nic się nie dzieje,
+          dopóki palec dotyka ekranu. Dopiero puszczenie aktywuje dany poziom,
+          co eliminuje przypadkowe dotknięcia w kieszeni czy torebce.
         </p>
       </div>
 
-      {/* Zone Tabs for Quick Navigation */}
+      {/* Zone Tabs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-10 max-w-4xl mx-auto">
         {zones.map((z) => (
           <button
@@ -120,7 +119,7 @@ export const ThreatMatrix: React.FC = () => {
         ))}
       </div>
 
-      {/* Selected Zone Deep Dive Display */}
+      {/* Selected Zone Display */}
       {(() => {
         const current = zones[selectedZone];
         return (
@@ -132,50 +131,48 @@ export const ThreatMatrix: React.FC = () => {
                 <span
                   className={`inline-block px-2.5 py-0.5 rounded text-xs font-mono font-semibold uppercase tracking-wider border mb-2 ${current.colorClass}`}
                 >
-                  Poziom {current.zone} · {current.badge}
+                  Poziom {current.zone}: {current.badge}
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                   Strefa {current.zone}: {current.name}
                 </h3>
               </div>
               <div className="text-xs text-slate-400 font-mono">
-                {current.zone === 0 && "Akcja: Spoczynek (Brak alertu)"}
-                {current.zone === 1 && "Akcja: Po 10s pretekst połączenia"}
-                {current.zone === 2 &&
-                  "Akcja: WebSocket GPS + Dzwonek u przyjaciółek"}
-                {current.zone === 3 &&
-                  "Akcja: Syrena full-volume + 112 + SHA-256"}
+                {current.zone === 0 && "Stan normalny (brak alertu)"}
+                {current.zone === 1 && "Po 10s: fałszywy telefon"}
+                {current.zone === 2 && "WebSocket GPS + połączenie"}
+                {current.zone === 3 && "Syrena bypassDnd + 112 + SHA-256"}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              {/* Left Column: Phone Screen */}
+              {/* Left: Phone */}
               <div className="space-y-3">
                 <div className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#ff2a85]" />
                   <span>Twój telefon (Widok kamuflażu)</span>
                 </div>
-                <div className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-sm text-slate-300 leading-relaxed min-h-[140px]">
+                <div className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-sm text-slate-300 leading-relaxed min-h-[130px]">
                   {current.phonePerspective}
                 </div>
               </div>
 
-              {/* Right Column: Support Network */}
+              {/* Right: Friends */}
               <div className="space-y-3">
                 <div className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-sky-400" />
-                  <span>Krąg zaufania (Telefony przyjaciółek)</span>
+                  <span>Krąg znajomych (Telefony przyjaciółek)</span>
                 </div>
-                <div className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-sm text-slate-300 leading-relaxed min-h-[140px]">
+                <div className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-sm text-slate-300 leading-relaxed min-h-[130px]">
                   {current.networkPerspective}
                 </div>
               </div>
             </div>
 
-            {/* Technical Highlights Bar */}
+            {/* Technical Highlights */}
             <div className="pt-6 border-t border-slate-800/80">
               <div className="text-xs font-mono uppercase tracking-wider text-slate-400 mb-3">
-                Zasady implementacyjne &amp; Rygor techniczny:
+                Szczegóły implementacji:
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {current.technicalDetails.map((detail, idx) => (
@@ -183,7 +180,7 @@ export const ThreatMatrix: React.FC = () => {
                     key={idx}
                     className="flex items-start gap-2.5 text-xs text-slate-300"
                   >
-                    <span className="text-[#ff2a85] font-bold">―</span>
+                    <span className="text-[#ff2a85] font-bold">-</span>
                     <span>{detail}</span>
                   </div>
                 ))}
