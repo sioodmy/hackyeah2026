@@ -1,6 +1,9 @@
 import {
+  bigserial,
   boolean,
   index,
+  integer,
+  jsonb,
   pgEnum,
   pgTable,
   real,
@@ -251,6 +254,192 @@ export const alerts = pgTable(
   ],
 );
 
+/**
+ * One live-location sample.
+ *
+ * Only written while an alert is open, and only ever read for friends of the
+ * person it belongs to. `id` is a bigserial so it doubles as the fan-out
+ * cursor: a socket that reconnects can ask for "anything newer than this".
+ */
+export const locationPings = pgTable(
+  'location_pings',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** The alert this sample belongs to, so pings can be scoped to one episode. */
+    alertId: uuid('alert_id').references(() => alerts.id, { onDelete: 'set null' }),
+    lat: real('lat').notNull(),
+    lng: real('lng').notNull(),
+    accuracy: real('accuracy'),
+    bearing: real('bearing'),
+    /** Client-side sequence number, so a retry is recognisable as one. */
+    seq: integer('seq'),
+    /** Client clock in seconds. Kept for ordering, never trusted for expiry. */
+    clientTs: real('client_ts'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('location_pings_user_id_idx').on(table.userId, table.id),
+    index('location_pings_alert_idx').on(table.alertId),
+  ],
+);
+
+export const EVIDENCE_SESSION_STATUSES = ['open', 'finalized'] as const;
+export const evidenceSessionStatusEnum = pgEnum(
+  'evidence_session_status',
+  EVIDENCE_SESSION_STATUSES,
+);
+
+/**
+ * One audio recording, opened automatically at threat level 3.
+ *
+ * Recording happens in short segments and each one is uploaded as it closes,
+ * so the worst case loss is a single segment rather than the whole file.
+ */
+export const evidenceSessions = pgTable(
+  'evidence_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    alertId: uuid('alert_id').references(() => alerts.id, { onDelete: 'set null' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: evidenceSessionStatusEnum('status').notNull().default('open'),
+    chunkSeconds: integer('chunk_seconds'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    chunkCount: integer('chunk_count').notNull().default(0),
+    totalBytes: integer('total_bytes').notNull().default(0),
+    durationS: real('duration_s'),
+    startLat: real('start_lat'),
+    startLng: real('start_lng'),
+    endLat: real('end_lat'),
+    endLng: real('end_lng'),
+    /** SHA-256 over the ordered chunk digests — the chain of custody. */
+    manifestSha256: varchar('manifest_sha256', { length: 64 }),
+    manifest: jsonb('manifest'),
+  },
+  (table) => [index('evidence_sessions_user_idx').on(table.userId, table.startedAt)],
+);
+
+/**
+ * One uploaded audio segment.
+ *
+ * `seq` is unique per session, which makes a retransmitted segment a no-op
+ * instead of a corruption, and `sha256` is recomputed server-side rather than
+ * trusted from the header.
+ */
+export const evidenceChunks = pgTable(
+  'evidence_chunks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => evidenceSessions.id, { onDelete: 'cascade' }),
+    seq: integer('seq').notNull(),
+    sha256: varchar('sha256', { length: 64 }).notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    mime: varchar('mime', { length: 80 }).notNull().default('audio/mp4'),
+    storagePath: text('storage_path').notNull(),
+    /** Where the segment starts within the recording, per the client. */
+    offsetS: real('offset_s'),
+    clientTs: real('client_ts'),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('evidence_chunks_session_seq_idx').on(table.sessionId, table.seq),
+    index('evidence_chunks_session_idx').on(table.sessionId, table.seq),
+  ],
+);
+
+export const INCIDENT_CATEGORIES = [
+  'harassment',
+  'sexual_assault',
+  'assault',
+  'robbery',
+  'stalking',
+  'suspicious',
+  'other',
+] as const;
+export type IncidentCategory = (typeof INCIDENT_CATEGORIES)[number];
+
+export const incidentCategoryEnum = pgEnum('incident_category', INCIDENT_CATEGORIES);
+
+export const INCIDENT_CATEGORY_LABELS: Record<IncidentCategory, string> = {
+  harassment: 'Zaczepianie / Molestowanie słowne',
+  sexual_assault: 'Próba gwałtu / Napaść na tle seksualnym',
+  assault: 'Napaść fizyczna / Pobicie',
+  robbery: 'Rozbój / Kradzież zuchwała',
+  stalking: 'Śledzenie / Stalking',
+  suspicious: 'Agresywna grupa / Zastraszanie',
+  other: 'Inne niebezpieczne zdarzenie',
+};
+
+/**
+ * Baseline weight per category, before severity scales it.
+ *
+ * A rape attempt and a verbal insult are not the same event, and a heatmap that
+ * treats them identically is worse than no heatmap.
+ */
+export const INCIDENT_DEFAULT_WEIGHTS: Record<IncidentCategory, number> = {
+  harassment: 0.55,
+  sexual_assault: 1.0,
+  assault: 0.9,
+  robbery: 0.75,
+  stalking: 0.7,
+  suspicious: 0.45,
+  other: 0.5,
+};
+
+/**
+ * A report of a dangerous situation, filed by a user or seeded.
+ *
+ * `userId` cascades on delete: an orphaned Clerk id attached to a rape report
+ * is retained personal data. Anonymous reports keep a NULL here.
+ */
+export const incidentReports = pgTable(
+  'incident_reports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    category: incidentCategoryEnum('category').notNull(),
+    severity: smallint('severity').notNull().default(2),
+    weight: real('weight').notNull().default(0.6),
+    lat: real('lat').notNull(),
+    lng: real('lng').notNull(),
+    title: varchar('title', { length: 200 }),
+    description: text('description'),
+    reportedAt: timestamp('reported_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('incident_reports_category_idx').on(table.category),
+    index('incident_reports_user_idx').on(table.userId),
+    index('incident_reports_coords_idx').on(table.lat, table.lng),
+    index('incident_reports_created_idx').on(table.createdAt),
+  ],
+);
+
+/** Audit trail for the mock emergency dispatch. */
+export const dispatchLogs = pgTable(
+  'dispatch_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    alertId: uuid('alert_id').references(() => alerts.id, { onDelete: 'set null' }),
+    userId: uuid('user_id').notNull(),
+    caseId: varchar('case_id', { length: 64 }).notNull(),
+    etaMin: integer('eta_min').notNull(),
+    lat: real('lat'),
+    lng: real('lng'),
+    evidenceSessionId: uuid('evidence_session_id'),
+    mocked: boolean('mocked').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('dispatch_logs_alert_idx').on(table.alertId)],
+);
+
 /** Levels at or above which a notification must break through do-not-disturb. */
 export function isCritical(level: AlertLevel): boolean {
   return level >= 3;
@@ -274,6 +463,11 @@ export type Device = typeof devices.$inferSelect;
 export type Alert = typeof alerts.$inferSelect;
 export type InviteCode = typeof inviteCodes.$inferSelect;
 export type FriendRequest = typeof friendRequests.$inferSelect;
+export type LocationPing = typeof locationPings.$inferSelect;
+export type EvidenceSession = typeof evidenceSessions.$inferSelect;
+export type EvidenceChunk = typeof evidenceChunks.$inferSelect;
+export type IncidentReport = typeof incidentReports.$inferSelect;
+export type DispatchLog = typeof dispatchLogs.$inferSelect;
 
 /**
  * Levels that also go out by email.
