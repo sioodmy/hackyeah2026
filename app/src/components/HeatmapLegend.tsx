@@ -41,15 +41,15 @@ export function HeatmapLegend({
         </Pressable>
       </View>
 
-      {/* The three states are kept apart on purpose. "No reports" is a claim about
+      {/* The four states are kept apart on purpose. "No reports" is a claim about
           the city and may only be made once a response has actually said so. */}
       {loading ? (
         <Text style={styles.subtitle}>Wczytywanie zgłoszeń…</Text>
       ) : error ? (
         <View>
-          <Text style={styles.errorText} numberOfLines={2}>
-            Mapa zagrożeń nie odświeżyła się: {error}.
-            {totalIncidents > 0 ? ' Dane mogą być nieaktualne.' : ''}
+          <Text style={styles.errorText} numberOfLines={3}>
+            {totalIncidents > 0 ? 'Dane mogą być nieaktualne. ' : ''}
+            Nie udało się odświeżyć mapy zagrożeń: {error}.
           </Text>
           {onRetry ? (
             <Pressable style={styles.retryBtn} onPress={onRetry} accessibilityRole="button">
