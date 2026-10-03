@@ -1,0 +1,82 @@
+{
+  "expo": {
+    "name": "Safe Call",
+    "slug": "safe-call",
+    "scheme": "safecall",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0D10"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "pl.hackyeah.safeCall",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Safe Call potrzebuje Twojej lokalizacji, żeby pokazać ją znajomym i przekazać służbom.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Safe Call potrzebuje Twojej lokalizacji w tle, żeby znajomi widzieli ją na żywo.",
+        "NSCameraUsageDescription": "Kamera służy do skanowania kodów QR znajomych.",
+        "UIBackgroundModes": ["audio", "location", "fetch"]
+      }
+    },
+    "android": {
+      "package": "pl.hackyeah.safecall",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0D10"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "POST_NOTIFICATIONS",
+        "VIBRATE",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Safe Call potrzebuje Twojej lokalizacji w tle, żeby znajomi widzieli ją na żywo."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kamera służy do skanowania kodów QR znajomych."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0B0D10",
+          "defaultChannel": "alerts"
+        }
+      ],
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-splash-screen",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "clerkPublishableKey": null
+    }
+  }
+}

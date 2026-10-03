@@ -1,0 +1,8 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+onlyBuiltDependencies:
+  - "@maplibre/maplibre-react-native"
+  - esbuild
+  - unrs-resolver

@@ -1,0 +1,26 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+build/
+web-build/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+# nix
+.direnv/
+result
+result-*
+
+# os
+.DS_Store
+Thumbs.db
+
+# runtime
+*.log
+npm-debug.log*
+pnpm-debug.log*
+coverage/
