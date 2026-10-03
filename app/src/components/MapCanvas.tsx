@@ -81,20 +81,20 @@ export function MapCanvas({ friends, level, cameraRef, onMapPress }: MapCanvasPr
           id="friends-halo"
           type="circle"
           paint={{
-            'circle-radius': 13,
+            'circle-radius': 15,
             'circle-color': markerColor,
-            'circle-opacity': 0.2,
-            'circle-blur': 0.4,
+            'circle-opacity': 0.35,
+            'circle-blur': 0.45,
           }}
         />
         <Layer
           id="friends-dot"
           type="circle"
           paint={{
-            'circle-radius': 5.5,
-            'circle-color': palette.text,
+            'circle-radius': 6,
+            'circle-color': '#FFFFFF',
             'circle-stroke-color': markerColor,
-            'circle-stroke-width': 2,
+            'circle-stroke-width': 2.5,
           }}
         />
       </GeoJSONSource>

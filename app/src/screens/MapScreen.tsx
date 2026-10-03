@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { MapCanvas } from '@/components/MapCanvas';
 import { ThreatSlider } from '@/components/ThreatSlider';
@@ -17,7 +18,7 @@ import { useEvidenceRecorder } from '@/hooks/useEvidenceRecorder';
 import { useApi } from '@/lib/ApiContext';
 import { useAuthToken } from '@/lib/useAuthToken';
 import { colorForLevel, floatingShadow, palette, radii, spacing, type } from '@/theme';
-import { THREAT_FULL, THREAT_SAFE, hint, label } from '@/theme/levels';
+import { THREAT_FULL, THREAT_SAFE, hint, label, type ThreatLevel } from '@/theme/levels';
 
 /**
  * The only screen that matters.
@@ -33,6 +34,7 @@ export function MapScreen() {
   const cameraRef = useRef<CameraRef>(null);
   const centredRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewLevel, setPreviewLevel] = useState<ThreatLevel | null>(null);
 
   const evidence = useEvidenceRecorder({ api });
   const lastBroadcastRef = useRef(0);
@@ -114,13 +116,35 @@ export function MapScreen() {
   );
 
   const statusText = useMemo(() => {
+    if (previewLevel !== null) {
+      switch (previewLevel) {
+        case 0:
+          return 'Puść, aby anulować';
+        case 1:
+          return 'Poziom 1 · Telefon zadzwoni za 10 s';
+        case 2:
+          return 'Poziom 2 · Znajomi dostaną lokalizację';
+        case 3:
+          return 'Poziom 3 · Pełny alarm SOS + nagrywanie';
+      }
+    }
     if (threat.callPhase === 'waiting' && threat.countdown !== null) {
       return `Telefon zadzwoni za ${threat.countdown} s`;
     }
     if (threat.callPhase === 'ringing') return 'Połączenie przychodzące';
     if (threat.dispatch) return `Wezwano służby · ${threat.dispatch.caseId}`;
     return hint(threat.level);
-  }, [threat.callPhase, threat.countdown, threat.dispatch, threat.level]);
+  }, [previewLevel, threat.callPhase, threat.countdown, threat.dispatch, threat.level]);
+
+  const statusColor = useMemo(() => {
+    if (previewLevel !== null && previewLevel > 0) {
+      return colorForLevel(previewLevel);
+    }
+    if (threat.level > 0) {
+      return colorForLevel(threat.level);
+    }
+    return palette.textMuted;
+  }, [previewLevel, threat.level]);
 
   return (
     <View style={styles.root}>
@@ -132,14 +156,17 @@ export function MapScreen() {
         style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}
         pointerEvents="box-none"
       >
-        <View style={styles.pillGroup} pointerEvents="box-none">
+        <View style={styles.leftGroup} pointerEvents="box-none">
           {threat.level > THREAT_SAFE ? (
             <View style={[styles.statusPill, floatingShadow(6)]}>
               <View style={[styles.statusDot, { backgroundColor: colorForLevel(threat.level) }]} />
               <Text style={styles.statusText}>{label(threat.level)}</Text>
             </View>
           ) : null}
+        </View>
 
+        <View style={styles.rightGroup} pointerEvents="box-none">
+          <EvidenceIndicator active={evidence.isRecording} uploading={evidence.isUploading} />
           <Pressable
             style={[styles.iconPill, floatingShadow(6)]}
             onPress={() => router.push('/settings')}
@@ -150,8 +177,6 @@ export function MapScreen() {
             <Text style={styles.iconGlyph}>⚙</Text>
           </Pressable>
         </View>
-
-        <EvidenceIndicator active={evidence.isRecording} uploading={evidence.isUploading} />
       </View>
 
       {permission === 'denied' ? (
@@ -168,13 +193,36 @@ export function MapScreen() {
         </View>
       ) : null}
 
-      <View style={[styles.bottom, { paddingBottom: insets.bottom + spacing.lg }]}>
+      <View
+        style={[styles.bottom, { paddingBottom: insets.bottom + spacing.lg }]}
+        pointerEvents="box-none"
+      >
+        <Svg pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <Defs>
+            <LinearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#111317" stopOpacity="0" />
+              <Stop offset="0.45" stopColor="#111317" stopOpacity="0.8" />
+              <Stop offset="1" stopColor="#111317" stopOpacity="0.98" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#bottomFade)" />
+        </Svg>
+
         <View style={styles.statusRow}>
-          <Text style={styles.statusLine}>{statusText}</Text>
-          {connected ? <Text style={styles.connected}>● live</Text> : null}
+          <Text style={[styles.statusLine, { color: statusColor }]}>{statusText}</Text>
+          {connected ? (
+            <View style={styles.liveIndicator}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>live</Text>
+            </View>
+          ) : null}
         </View>
 
-        <ThreatSlider onCommit={handleCommit} activeLevel={threat.level} />
+        <ThreatSlider
+          onCommit={handleCommit}
+          onDragLevelChange={setPreviewLevel}
+          activeLevel={threat.level}
+        />
       </View>
 
       <Pressable style={styles.recenter} onPress={recenter} accessibilityRole="button">
@@ -206,7 +254,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  pillGroup: {
+  leftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  rightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -216,9 +269,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    height: 36,
+    height: 40,
     borderRadius: radii.pill,
     backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
   },
   statusDot: {
     width: 8,
@@ -236,6 +291,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
   },
   iconGlyph: {
     fontSize: 19,
@@ -259,32 +316,50 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    paddingTop: spacing.xl,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.lg + 2,
+    paddingBottom: spacing.sm + 2,
   },
   statusLine: {
     ...type.caption,
-    color: palette.textMuted,
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: 0.1,
   },
-  connected: {
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: palette.success,
+  },
+  liveText: {
     ...type.caption,
     color: palette.success,
+    fontWeight: '600',
+    fontSize: 12,
   },
   recenter: {
     position: 'absolute',
     right: spacing.lg,
-    bottom: 150,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    bottom: 154,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
   },
   recenterGlyph: {
     fontSize: 18,
