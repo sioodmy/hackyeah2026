@@ -1,0 +1,91 @@
+{
+  "expo": {
+    "name": "PanicMap",
+    "slug": "panicmap",
+    "scheme": "panicmap",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#14161A"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "bundleIdentifier": "pl.hackyeah.panicmap",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Twoja lokalizacja jest udostępniana znajomym tylko wtedy, gdy zaznaczysz poziom zagrożenia.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Twoja lokalizacja jest udostępniana znajomym tylko wtedy, gdy zaznaczysz poziom zagrożenia.",
+        "NSMicrophoneUsageDescription": "Nagrywanie dźwięku aktywuje się wyłącznie przy najwyższym poziomie zagrożenia.",
+        "UIBackgroundModes": ["audio", "location", "remote-notification"],
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "pl.hackyeah.panicmap",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "RECORD_AUDIO",
+        "VIBRATE",
+        "POST_NOTIFICATIONS",
+        "USE_FULL_SCREEN_INTENT",
+        "WAKE_LOCK"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [{ "scheme": "panicmap" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "@clerk/expo",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Skanujemy kod QR znajomej, żeby połączyć konta."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Twoja lokalizacja jest udostępniana znajomym tylko przy aktywnym zagrożeniu."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Nagrywanie dźwięku aktywuje się wyłącznie przy najwyższym poziomie zagrożenia."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#D62828",
+          "defaultChannel": "default"
+        }
+      ],
+      "@maplibre/maplibre-react-native"
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

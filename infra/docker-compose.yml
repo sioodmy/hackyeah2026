@@ -1,0 +1,59 @@
+# Development database and API for PanicMap.
+#
+#   docker compose up -d          both services
+#   docker compose up -d db       postgres only
+#
+# The API runs a single uvicorn worker on purpose: the WebSocket connection
+# registry is in-process, so a second worker would only be handed sockets it
+# could not fan out from. See the repo README before scaling this.
+
+name: panicmap
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-panicmap}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-panicmap}
+      POSTGRES_DB: ${POSTGRES_DB:-panicmap}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-panicmap} -d ${POSTGRES_DB:-panicmap}",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-panicmap}:${POSTGRES_PASSWORD:-panicmap}@db:5432/${POSTGRES_DB:-panicmap}
+      EVIDENCE_DIR: /var/lib/panicmap/evidence
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-}
+      INVITE_SIGNING_KEY: ${INVITE_SIGNING_KEY:-dev-invite-key-change-me}
+      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - evidence:/var/lib/panicmap/evidence
+
+volumes:
+  pgdata:
+  evidence:

@@ -1,0 +1,43 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds & native projects
+app/.expo/
+app/dist/
+app/web-build/
+app/android/
+app/ios/
+result
+result-*
+
+# env — .env.example files are committed, real ones are not
+.env
+.env.local
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# local dev database created by scripts/db.sh
+.direnv/
+
+# nix
+.direnv/
+
+# editors / os
+.DS_Store
+.idea/
+*.swp
+
+# logs
+*.log
+npm-debug.log*
+
+# tool caches
+.ruff_cache/
+.expo/

@@ -1,0 +1,217 @@
+import { useUser } from '@clerk/expo';
+import { router } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { palette, radii, spacing, type } from '@/theme';
+import { useApi } from '@/lib/ApiContext';
+import type { Friend } from '@/lib/api';
+
+/**
+ * Friends: connect by QR, or by typing six characters.
+ *
+ * The QR payload is signed server-side, so a code cannot be forged to add an
+ * arbitrary person; the short code is deliberately *not* signed and only
+ * proposes a link that the other side still has to accept.
+ */
+export function FriendsScreen() {
+  const api = useApi();
+  const { user } = useUser();
+  const insets = useSafeAreaInsets();
+
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [requests, setRequests] = useState<Friend[]>([]);
+  const [invite, setInvite] = useState<{ payload: string; code: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [list, pending, mine] = await Promise.all([
+        api.friends(),
+        api.friendRequests(),
+        api.myInvite(),
+      ]);
+      setFriends(list);
+      setRequests(pending);
+      setInvite(mine);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nie udało się pobrać znajomych.');
+    } finally {
+      setLoading(false);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const accept = useCallback(
+    async (id: string) => {
+      try {
+        await api.acceptFriend(id);
+        await refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Nie udało się zaakceptować.');
+      }
+    },
+    [api, refresh],
+  );
+
+  const remove = useCallback(
+    async (id: string) => {
+      try {
+        await api.removeFriend(id);
+        await refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Nie udało się usunąć.');
+      }
+    },
+    [api, refresh],
+  );
+
+  return (
+    <View style={styles.root}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl },
+        ]}
+      >
+        <Header onBack={() => router.back()} />
+
+        {requests.length > 0 ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Prośby</Text>
+            {requests.map((friend) => (
+              <View key={friend.id} style={styles.row}>
+                <Text style={styles.rowLabel}>{friend.displayName ?? friend.id.slice(0, 8)}</Text>
+                <Pressable
+                  style={styles.smallButton}
+                  onPress={() => accept(friend.id)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.smallButtonText}>Akceptuj</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Twoje QR</Text>
+          <Text style={styles.note}>
+            Znajoma skanuje ten kod w swoim telefonie, albo wpisuje sześć znaków.
+          </Text>
+          {invite ? (
+            <View style={styles.qrBox}>
+              <QRCode value={invite.payload} size={200} backgroundColor={palette.text} />
+              <Text style={styles.code}>{invite.code}</Text>
+            </View>
+          ) : (
+            <ActivityIndicator color={palette.textMuted} style={styles.spinner} />
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Znajomi</Text>
+          {loading ? (
+            <ActivityIndicator color={palette.textMuted} style={styles.spinner} />
+          ) : friends.length === 0 ? (
+            <Text style={styles.note}>Jeszcze nikogo nie ma. Pokaż swój kod.</Text>
+          ) : (
+            friends.map((friend) => (
+              <View key={friend.id} style={styles.row}>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowLabel}>{friend.displayName ?? friend.id.slice(0, 8)}</Text>
+                  <Text style={styles.rowSub}>{friend.id.slice(0, 18)}</Text>
+                </View>
+                <Pressable onPress={() => remove(friend.id)} accessibilityRole="button" hitSlop={8}>
+                  <Text style={styles.remove}>Usuń</Text>
+                </Pressable>
+              </View>
+            ))
+          )}
+        </View>
+
+        <Pressable
+          style={styles.scanButton}
+          onPress={() => router.push('/friends/scan')}
+          accessibilityRole="button"
+        >
+          <Text style={styles.scanButtonText}>Skanuj kod znajomej</Text>
+        </Pressable>
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Text style={styles.footnote}>Zalogowano jako {user?.id ?? '—'}</Text>
+      </ScrollView>
+    </View>
+  );
+}
+
+function Header({ onBack }: { onBack: () => void }) {
+  return (
+    <View style={styles.header}>
+      <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Wróć">
+        <Text style={styles.back}>‹</Text>
+      </Pressable>
+      <Text style={styles.title}>Znajomi</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: palette.surfaceSolid },
+  content: { paddingHorizontal: spacing.lg, gap: spacing.lg },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm },
+  back: { fontSize: 32, color: palette.text, lineHeight: 34 },
+  title: { ...type.title },
+  card: {
+    borderRadius: radii.card,
+    backgroundColor: palette.surfaceRaised,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  cardTitle: { ...type.label, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.8 },
+  note: { ...type.caption, lineHeight: 18 },
+  qrBox: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
+  code: {
+    ...type.title,
+    fontFamily: 'monospace',
+    letterSpacing: 6,
+    fontSize: 26,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    gap: spacing.md,
+  },
+  rowText: { flex: 1 },
+  rowLabel: { ...type.body, fontSize: 15 },
+  rowSub: { ...type.caption, fontFamily: 'monospace', fontSize: 11 },
+  smallButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: palette.level2,
+  },
+  smallButtonText: { ...type.caption, color: '#FFFFFF', fontWeight: '700' },
+  remove: { ...type.caption, color: palette.level3 },
+  scanButton: {
+    paddingVertical: spacing.lg,
+    borderRadius: radii.card,
+    alignItems: 'center',
+    backgroundColor: palette.surfaceRaised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+  },
+  scanButtonText: { ...type.body, fontWeight: '600' },
+  spinner: { paddingVertical: spacing.lg },
+  error: { ...type.caption, color: palette.level3 },
+  footnote: { ...type.caption, fontFamily: 'monospace', fontSize: 10 },
+});
