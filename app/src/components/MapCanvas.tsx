@@ -99,7 +99,13 @@ export function MapCanvas({
 
       <UserLocation animated accuracy heading={false} />
 
-      {/* Kraków danger heatmap: yellow (few) -> crimson (many). */}
+      {/* Kraków danger heatmap: yellow (few) -> crimson (many).
+
+        The stops follow the densities MapLibre can actually reach for these
+        weights (`weight * intensity * 0.3989`): 0.33 for the quietest reported
+        cell at zoom 15 and 0.94 for the busiest, so the ramp starts to colour at
+        0.08 rather than 0.15 and every reported street is drawn, not only the
+        ones that happen to share a cell. `HeatmapLegend` mirrors these stops. */}
       {showHeatmap && heatmapData && heatmapData.features && heatmapData.features.length > 0 && (
         <GeoJSONSource id="danger-heatmap-source" data={heatmapData}>
           <Layer
@@ -116,11 +122,11 @@ export function MapCanvas({
                 ['heatmap-density'],
                 0,
                 'rgba(0, 0, 0, 0)',
-                0.15,
-                'rgba(255, 235, 59, 0.55)',
-                0.35,
-                'rgba(255, 193, 7, 0.70)',
-                0.55,
+                0.08,
+                'rgba(255, 235, 59, 0.50)',
+                0.25,
+                'rgba(255, 193, 7, 0.68)',
+                0.5,
                 'rgba(255, 112, 67, 0.82)',
                 0.75,
                 'rgba(244, 67, 54, 0.92)',

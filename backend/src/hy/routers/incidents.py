@@ -53,6 +53,17 @@ MAX_OWN_REPORTS = 100
 
 SEVERITY_FACTOR = {1: 0.7, 2: 1.0, 3: 1.3}
 
+# MapLibre paints a heatmap cell from an absolute kernel value
+# (`weight * intensity * 0.3989`), not from a value rescaled to the busiest cell,
+# so a cell's weight decides both the size and the opacity of its blob. Dividing by
+# a fixed constant therefore made what you saw depend on how many reports happened
+# to share a cell rather than on how dangerous it is: a cell holding a single
+# report came out at 0.1-0.2 and was painted as a barely visible haze, while cells
+# that happened to stack up filled the ramp. Weights are scaled against the
+# heaviest cell that was actually reported instead, and this floor keeps a cell
+# with one report drawn rather than fading into the transparent end of the ramp.
+WEIGHT_FLOOR = 0.35
+
 
 def snap(lat: float, lng: float) -> tuple[float, float]:
     """Round a coordinate to the centre of its grid cell."""
@@ -72,6 +83,20 @@ def _severity_weight(category: str, severity: int) -> float:
     return round(min(1.0, max(0.1, base * SEVERITY_FACTOR.get(severity, 1.0))), 2)
 
 
+def _cell_weight(cell_weight: float, heaviest: float) -> float:
+    """Scale one cell's accumulated weight into the 0..1 the client paints with.
+
+    `heaviest` is the weight of the busiest cell in this same response, so the
+    order between cells is exactly the order of the reported data and the ramp
+    stays in use whatever the report volume is. The floor is what stops a street
+    with one report from being drawn as if nothing had been reported there.
+    """
+    if heaviest <= 0:
+        return 0.0
+    ratio = min(1.0, cell_weight / heaviest)
+    return round(WEIGHT_FLOOR + (1.0 - WEIGHT_FLOOR) * ratio, 3)
+
+
 @router.get("/heatmap", response_model=HeatmapGeoJSON)
 def get_krakow_heatmap(
     principal: CurrentPrincipal,
@@ -84,6 +109,10 @@ def get_krakow_heatmap(
     fell in the cell, their combined weight and the worst severity seen. There is
     no per-report id, no description and no coordinate finer than the cell, so the
     response cannot be used to locate or identify anybody.
+
+    The only thing the response adds to the raw data is the relative scale of each
+    cell's weight (see `_cell_weight`); no count is invented and no cell is placed
+    where nothing was reported.
     """
     with session_scope() as session:
         query = select(IncidentReport)
@@ -114,6 +143,7 @@ def get_krakow_heatmap(
     # Heaviest cells first, so the cap drops the quietest rather than an
     # arbitrary prefix of the table.
     ranked = sorted(cells.items(), key=lambda item: item[1]["weight"], reverse=True)[:MAX_CELLS]
+    heaviest = ranked[0][1]["weight"] if ranked else 0.0
 
     features = []
     for (cell_lat, cell_lng), cell in ranked:
@@ -124,8 +154,9 @@ def get_krakow_heatmap(
                 "geometry": {"type": "Point", "coordinates": [cell_lng, cell_lat]},
                 "properties": {
                     "count": cell["count"],
-                    # Normalised back into 0..1 so MapLibre's weight ramp behaves.
-                    "weight": round(min(1.0, cell["weight"] / 3), 3),
+                    # Relative to the busiest cell in this response, so the ramp is
+                    # used in full without a report count ever being invented.
+                    "weight": _cell_weight(cell["weight"], heaviest),
                     "severity": cell["severity"],
                     "category": dominant,
                     "categoryLabel": INCIDENT_CATEGORY_LABELS.get(dominant, dominant),
