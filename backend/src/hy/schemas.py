@@ -77,6 +77,20 @@ class UserOut(CamelModel):
     last_seen_at: datetime | None = Field(default=None, alias="lastSeenAt")
 
 
+class UserProfileOut(CamelModel):
+    id: str
+    email: str | None = None
+    display_name: str | None = Field(default=None, alias="displayName")
+    avatar_url: str | None = Field(default=None, alias="avatarUrl")
+    invite_code: str | None = Field(default=None, alias="inviteCode")
+    last_seen_at: datetime | None = Field(default=None, alias="lastSeenAt")
+
+
+class UserProfileUpdate(CamelModel):
+    display_name: str | None = Field(default=None, alias="displayName", max_length=120)
+    avatar_url: str | None = Field(default=None, alias="avatarUrl", max_length=500)
+
+
 # --------------------------------------------------------------------------- #
 # alerts
 # --------------------------------------------------------------------------- #
@@ -160,6 +174,8 @@ class LocationOut(CamelModel):
     bearing: float | None = None
     seq: int | None = None
     ts: float | None = None
+    display_name: str | None = Field(default=None, alias="displayName")
+    avatar_url: str | None = Field(default=None, alias="avatarUrl")
 
 
 class LocationSnapshotOut(CamelModel):
@@ -209,4 +225,5 @@ class FriendAlias(CamelModel):
 
     id: str
     display_name: str | None = Field(default=None, alias="displayName")
+    avatar_url: str | None = Field(default=None, alias="avatarUrl")
     status: str = FRIENDSHIP_ACCEPTED

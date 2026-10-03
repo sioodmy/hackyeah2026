@@ -23,7 +23,7 @@ from sqlalchemy import text
 from hy.config import get_settings
 from hy.db import get_engine
 from hy.realtime import registry
-from hy.routers import alerts, authorities, devices, evidence, friends, locations
+from hy.routers import alerts, authorities, devices, evidence, friends, locations, users
 from hy.ws import router as ws_router
 
 logging.basicConfig(
@@ -77,6 +77,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.include_router(users.router)
     app.include_router(devices.router)
     app.include_router(friends.router)
     app.include_router(alerts.router)

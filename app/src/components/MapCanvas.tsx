@@ -1,4 +1,11 @@
-import { Camera, GeoJSONSource, Layer, Map, UserLocation } from '@maplibre/maplibre-react-native';
+import {
+  Camera,
+  GeoJSONSource,
+  Layer,
+  Map,
+  Marker,
+  UserLocation,
+} from '@maplibre/maplibre-react-native';
 import { useMemo, type RefObject } from 'react';
 import { StyleSheet } from 'react-native';
 import type {
@@ -10,10 +17,12 @@ import type { NativeSyntheticEvent } from 'react-native';
 
 import { palette } from '@/theme';
 import { DEFAULT_CENTER, DEFAULT_ZOOM, osmRasterStyle } from '@/theme/mapStyle';
-import type { SmoothedPoint } from '@/hooks/useSmoothedLocations';
+import { isStale, type SmoothedPoint } from '@/hooks/useSmoothedLocations';
+import { FriendMapMarker } from '@/components/FriendMapMarker';
 
 export type MapCanvasProps = {
   friends: Record<string, SmoothedPoint>;
+  staleSeconds?: Record<string, number>;
   level: number;
   cameraRef: RefObject<CameraRef | null>;
   onMapPress?: (coordinate: [number, number]) => void;
@@ -26,12 +35,10 @@ const MAP_STYLE = osmRasterStyle();
 /**
  * The fullscreen map.
  *
- * Everything about it is deliberately quiet: desaturated tiles, no chrome, no
- * labels of our own. Friend positions are small circles; the user's own
- * position is the native puck, which is the one thing on screen that already
- * moves smoothly on its own.
+ * Renders live friend locations as custom avatar pins with their chosen emoji
+ * and display name, backed by a soft glowing threat-level halo on the street.
  */
-export function MapCanvas({ friends, level, cameraRef, onMapPress }: MapCanvasProps) {
+export function MapCanvas({ friends, staleSeconds, level, cameraRef, onMapPress }: MapCanvasProps) {
   const collection = useMemo<FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
@@ -75,29 +82,35 @@ export function MapCanvas({ friends, level, cameraRef, onMapPress }: MapCanvasPr
 
       <UserLocation animated accuracy heading={false} />
 
-      {/* Two layers so the marker reads at any zoom: a soft halo, then the dot. */}
+      {/* Luminous halo on the map pavement under each friend */}
       <GeoJSONSource id="friends" data={collection}>
         <Layer
           id="friends-halo"
           type="circle"
           paint={{
-            'circle-radius': 15,
+            'circle-radius': 18,
             'circle-color': markerColor,
             'circle-opacity': 0.35,
             'circle-blur': 0.45,
           }}
         />
-        <Layer
-          id="friends-dot"
-          type="circle"
-          paint={{
-            'circle-radius': 6,
-            'circle-color': '#FFFFFF',
-            'circle-stroke-color': markerColor,
-            'circle-stroke-width': 2.5,
-          }}
-        />
       </GeoJSONSource>
+
+      {/* Rich emoji avatar and name markers */}
+      {Object.values(friends).map((point) => (
+        <Marker
+          key={point.userId}
+          id={`friend-${point.userId}`}
+          lngLat={[point.lng, point.lat]}
+          anchor="bottom"
+        >
+          <FriendMapMarker
+            point={point}
+            level={level}
+            isStale={isStale(staleSeconds?.[point.userId])}
+          />
+        </Marker>
+      ))}
     </Map>
   );
 }

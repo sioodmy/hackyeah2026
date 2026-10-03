@@ -27,6 +27,7 @@ os.environ["DISPATCH_ARTIFICIAL_DELAY_SECONDS"] = "0"
 os.environ["HY_SKIP_CREATE_ALL"] = "1"
 # Present so `Settings.clerk_configured` is truthy; actual verification is stubbed.
 os.environ["CLERK_JWT_KEY"] = "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
+os.environ["CLERK_AUTHORIZED_PARTIES"] = "[]"
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402

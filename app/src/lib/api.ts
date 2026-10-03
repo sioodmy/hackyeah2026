@@ -9,6 +9,20 @@ import Constants from 'expo-constants';
 
 export type ThreatLevel = 0 | 1 | 2 | 3;
 
+export type UserProfile = {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  inviteCode: string | null;
+  lastSeenAt: string | null;
+};
+
+export type UpdateProfilePayload = {
+  displayName?: string | null;
+  avatarUrl?: string | null;
+};
+
 export type Friend = {
   id: string;
   displayName: string | null;
@@ -148,6 +162,14 @@ export function createApiClient(getToken: TokenProvider) {
     baseUrl: base,
 
     health: () => request<{ ok: boolean; database: boolean }>('/healthz'),
+
+    myProfile: () => request<UserProfile>('/api/v1/users/me'),
+
+    updateProfile: (body: UpdateProfilePayload) =>
+      request<UserProfile>('/api/v1/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
 
     registerDevice: (expoPushToken: string, platform: string) =>
       request<{ id: string }>('/api/v1/devices', {
@@ -290,6 +312,8 @@ export type FriendLocation = {
   bearing?: number | null;
   seq?: number | null;
   ts?: number | null;
+  displayName?: string | null;
+  avatarUrl?: string | null;
 };
 
 export type FriendLocationMap = Record<string, FriendLocation>;

@@ -35,6 +35,23 @@ export function MapScreen() {
   const centredRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [previewLevel, setPreviewLevel] = useState<ThreatLevel | null>(null);
+  const [profile, setProfile] = useState<{
+    displayName: string | null;
+    avatarUrl: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .myProfile()
+      .then((p) => {
+        if (!cancelled) setProfile({ displayName: p.displayName, avatarUrl: p.avatarUrl });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
 
   const evidence = useEvidenceRecorder({ api });
   const lastBroadcastRef = useRef(0);
@@ -150,7 +167,12 @@ export function MapScreen() {
     <View style={styles.root}>
       <StatusBar hidden />
 
-      <MapCanvas friends={points} level={threat.level} cameraRef={cameraRef} />
+      <MapCanvas
+        friends={points}
+        staleSeconds={staleSeconds}
+        level={threat.level}
+        cameraRef={cameraRef}
+      />
 
       <View
         style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}
@@ -162,7 +184,26 @@ export function MapScreen() {
               <View style={[styles.statusDot, { backgroundColor: colorForLevel(threat.level) }]} />
               <Text style={styles.statusText}>{label(threat.level)}</Text>
             </View>
-          ) : null}
+          ) : (
+            <Pressable
+              style={[styles.profilePill, floatingShadow(6)]}
+              onPress={() => router.push('/settings')}
+              accessibilityRole="button"
+              accessibilityLabel="Twój profil i awatar"
+              hitSlop={8}
+            >
+              <View style={styles.profileAvatarDisc}>
+                <Text style={styles.profileAvatarEmoji}>
+                  {(profile?.avatarUrl?.includes('|')
+                    ? profile.avatarUrl.split('|')[0]
+                    : profile?.avatarUrl) || '🌸'}
+                </Text>
+              </View>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {profile?.displayName || 'Twój profil'}
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.rightGroup} pointerEvents="box-none">
@@ -263,6 +304,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  profilePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 3,
+    paddingLeft: 4,
+    paddingRight: spacing.md,
+    height: 42,
+    borderRadius: radii.pill,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  profileAvatarDisc: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#161922',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: palette.level2,
+  },
+  profileAvatarEmoji: {
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  profileName: {
+    ...type.label,
+    color: palette.text,
+    fontSize: 13,
+    fontWeight: '600',
+    maxWidth: 120,
   },
   statusPill: {
     flexDirection: 'row',

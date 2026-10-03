@@ -60,7 +60,9 @@ export function useSmoothedLocations(
         const lng = lerp(current.lng, target.lng, EASE);
 
         const moved = Math.abs(lat - current.lat) > 1e-7 || Math.abs(lng - current.lng) > 1e-7;
-        if (moved || target.seq !== current.seq) {
+        const profileChanged =
+          target.displayName !== current.displayName || target.avatarUrl !== current.avatarUrl;
+        if (moved || target.seq !== current.seq || profileChanged) {
           next[id] = {
             ...target,
             lat,

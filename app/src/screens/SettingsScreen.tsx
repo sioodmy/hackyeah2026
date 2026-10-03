@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, radii, spacing, type } from '@/theme';
 import { useApi } from '@/lib/ApiContext';
 import { resolveApiBaseUrl } from '@/lib/api';
+import { ProfileSettingsCard } from '@/components/ProfileSettingsCard';
 
 /**
  * Settings, reached from the pill in the corner.
@@ -33,6 +34,11 @@ export function SettingsScreen() {
         ]}
       >
         <Header onBack={() => router.back()} />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Twój Profil i Awatar na Mapie</Text>
+          <ProfileSettingsCard />
+        </View>
 
         <Section title="Konto">
           <Row label="Zalogowano jako" value={user?.primaryEmailAddress?.emailAddress ?? '—'} />

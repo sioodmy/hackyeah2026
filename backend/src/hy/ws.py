@@ -30,7 +30,7 @@ from hy.auth import AuthError, websocket_principal
 from hy.config import get_settings
 from hy.db import run_db
 from hy.friends import accepted_friend_ids, friends_with_profiles
-from hy.models import LocationPing
+from hy.models import LocationPing, User
 from hy.realtime import pump, registry
 from hy.routers.locations import store_ping
 from hy.schemas import LocationIn
@@ -52,6 +52,7 @@ def _load_friends(user_id: str) -> tuple[list[str], list[dict]]:
             {
                 "id": user.id,
                 "displayName": link.alias or user.display_name or user.id[:8],
+                "avatarUrl": user.avatar_url,
             }
             for user, link in friends_with_profiles(session, user_id)
         ]
@@ -67,6 +68,10 @@ def _load_replay(user_id: str, limit: int) -> list[dict]:
         friend_ids = accepted_friend_ids(session, user_id)
         if not friend_ids:
             return []
+        profile_map = {
+            user.id: (link.alias or user.display_name or user.id[:8], user.avatar_url)
+            for user, link in friends_with_profiles(session, user_id)
+        }
         rows = (
             session.query(LocationPing)
             .filter(LocationPing.user_id.in_(friend_ids))
@@ -78,6 +83,8 @@ def _load_replay(user_id: str, limit: int) -> list[dict]:
             {
                 "type": "location",
                 "userId": row.user_id,
+                "displayName": profile_map.get(row.user_id, (None, None))[0],
+                "avatarUrl": profile_map.get(row.user_id, (None, None))[1],
                 "lat": row.lat,
                 "lng": row.lng,
                 "acc": row.accuracy,
@@ -97,9 +104,12 @@ def _persist_ping(user_id: str, payload: LocationIn) -> tuple[list[str], dict]:
     def _work(session):
         store_ping(session, user_id=user_id, payload=payload)
         friend_ids = accepted_friend_ids(session, user_id)
+        user = session.get(User, user_id)
         message = {
             "type": "location",
             "userId": user_id,
+            "displayName": user.display_name if user else None,
+            "avatarUrl": user.avatar_url if user else None,
             "lat": payload.lat,
             "lng": payload.lng,
             "acc": payload.acc,
