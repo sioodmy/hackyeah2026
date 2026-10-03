@@ -94,17 +94,28 @@ CurrentPrincipal = Annotated[Principal, Depends(require_principal)]
 
 
 async def optional_principal(request: Request) -> Principal | None:
-    """FastAPI dependency for endpoints that accept both authenticated and guest callers."""
+    """FastAPI dependency for endpoints that accept both authenticated and guest callers.
+
+    Only a *missing* token means "anonymous". A token that is present but fails
+    verification is a 401 rather than a silent downgrade: otherwise an expired or
+    misconfigured session would quietly turn an authenticated reporter into an
+    anonymous one, and their report would lose the attribution that lets them find
+    and withdraw it later.
+    """
     token = _bearer_from_header(request.headers.get("authorization"))
     if not token:
         return None
     try:
         principal = authenticate_token(token)
-        request.state.principal = principal
-        _touch_last_seen(principal.user_id)
-        return principal
-    except Exception:
-        return None
+    except AuthError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+    request.state.principal = principal
+    _touch_last_seen(principal.user_id)
+    return principal
 
 
 OptionalPrincipal = Annotated[Principal | None, Depends(optional_principal)]

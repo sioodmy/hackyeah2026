@@ -6,6 +6,8 @@ import { floatingShadow, palette, radii, spacing, type } from '@/theme';
 export type HeatmapLegendProps = {
   visible: boolean;
   totalIncidents?: number;
+  /** Heaviest grid cells from the heatmap response, for the summary list. */
+  hottestCells?: { lat: number; lng: number; count: number; severity: number }[];
   onClose: () => void;
   onOpenReport: () => void;
 };
@@ -13,6 +15,7 @@ export type HeatmapLegendProps = {
 export function HeatmapLegend({
   visible,
   totalIncidents = 0,
+  hottestCells = [],
   onClose,
   onOpenReport,
 }: HeatmapLegendProps) {
@@ -53,22 +56,30 @@ export function HeatmapLegend({
         </View>
       </View>
 
-      {/* High-risk Hotspots in Krakow */}
-      <View style={styles.hotspotsSection}>
-        <Text style={styles.hotspotsHeader}>MIEJSCA O WYSOKIEJ CZĘSTOTLIWOŚCI:</Text>
-        <View style={styles.hotspotRow}>
-          <View style={[styles.dot, { backgroundColor: '#E53935' }]} />
-          <Text style={styles.hotspotText}>Stare Miasto: Szewska, Floriańska, Planty</Text>
+      {/* Heaviest cells, as reported. Coordinates are grid cells (~200 m), so this
+          deliberately shows a rounded position and a count rather than a street. */}
+      {hottestCells.length > 0 ? (
+        <View style={styles.hotspotsSection}>
+          <Text style={styles.hotspotsHeader}>NAJINTENSYWNIEJSZE STREFY (ZGŁOSZENIA):</Text>
+          {hottestCells.map((cell) => (
+            <View key={`${cell.lat},${cell.lng}`} style={styles.hotspotRow}>
+              <View
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor:
+                      cell.severity >= 3 ? '#E53935' : cell.severity === 2 ? '#F4511E' : '#FB8C00',
+                  },
+                ]}
+              />
+              <Text style={styles.hotspotText}>
+                {cell.lat.toFixed(3)}, {cell.lng.toFixed(3)} · {cell.count}{' '}
+                {cell.count === 1 ? 'zgłoszenie' : 'zgłoszeń'}
+              </Text>
+            </View>
+          ))}
         </View>
-        <View style={styles.hotspotRow}>
-          <View style={[styles.dot, { backgroundColor: '#E53935' }]} />
-          <Text style={styles.hotspotText}>Bulwary Wiślane: Kładka Bernatka, Smok</Text>
-        </View>
-        <View style={styles.hotspotRow}>
-          <View style={[styles.dot, { backgroundColor: '#F4511E' }]} />
-          <Text style={styles.hotspotText}>Dworzec Główny: Tunel Magazynowa</Text>
-        </View>
-      </View>
+      ) : null}
 
       <Pressable style={styles.reportBtn} onPress={onOpenReport}>
         <Text style={styles.reportBtnIcon}>🚨</Text>

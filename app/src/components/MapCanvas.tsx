@@ -1,4 +1,11 @@
-import { Camera, GeoJSONSource, Layer, Map, UserLocation } from '@maplibre/maplibre-react-native';
+import {
+  Camera,
+  GeoJSONSource,
+  Layer,
+  Map,
+  Marker,
+  UserLocation,
+} from '@maplibre/maplibre-react-native';
 import { useMemo, type RefObject } from 'react';
 import { StyleSheet } from 'react-native';
 import type {
@@ -10,11 +17,13 @@ import type { NativeSyntheticEvent } from 'react-native';
 
 import { palette } from '@/theme';
 import { DEFAULT_CENTER, DEFAULT_ZOOM, osmRasterStyle } from '@/theme/mapStyle';
-import type { SmoothedPoint } from '@/hooks/useSmoothedLocations';
+import { isStale, type SmoothedPoint } from '@/hooks/useSmoothedLocations';
+import { FriendMapMarker } from '@/components/FriendMapMarker';
 import type { HeatmapGeoJSON } from '@/lib/api';
 
 export type MapCanvasProps = {
   friends: Record<string, SmoothedPoint>;
+  staleSeconds?: Record<string, number>;
   level: number;
   cameraRef: RefObject<CameraRef | null>;
   onMapPress?: (coordinate: [number, number]) => void;
@@ -30,15 +39,17 @@ const MAP_STYLE = osmRasterStyle();
  * The fullscreen map.
  *
  * Everything about it is deliberately quiet: desaturated tiles, no chrome, no
- * labels of our own. Friend positions are small circles; the user's own
- * position is the native puck, which is the one thing on screen that already
- * moves smoothly on its own.
+ * labels of our own. Friend positions are avatar pins with a soft glowing
+ * threat-level halo; the user's own position is the native puck, which is the
+ * one thing on screen that already moves smoothly on its own.
  *
- * Now features a Kraków danger heatmap based on reported safety incidents
- * (harassment, sexual assaults, violent assaults, robberies).
+ * Also renders the Kraków danger heatmap. The server only ever returns grid
+ * cells (see `heatCellMeters`), never individual report coordinates, so this
+ * layer cannot pinpoint anybody.
  */
 export function MapCanvas({
   friends,
+  staleSeconds,
   level,
   cameraRef,
   onMapPress,
@@ -88,20 +99,17 @@ export function MapCanvas({
 
       <UserLocation animated accuracy heading={false} />
 
-      {/* Kraków Danger Heatmap (Red: high danger/crimes, Yellow: lower/isolated incidents) */}
+      {/* Kraków danger heatmap: yellow (few) -> crimson (many). */}
       {showHeatmap && heatmapData && heatmapData.features && heatmapData.features.length > 0 && (
-        <GeoJSONSource
-          id="danger-heatmap-source"
-          data={heatmapData as unknown as GeoJSON.FeatureCollection}
-        >
+        <GeoJSONSource id="danger-heatmap-source" data={heatmapData}>
           <Layer
             id="danger-heatmap-layer"
             type="heatmap"
-            maxzoom={17}
+            minzoom={8}
+            maxzoom={19}
             paint={{
               'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1],
               'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 9, 0.8, 13, 1.5, 16, 2.8],
-              // Color ramp: Transparent -> Yellow (low danger) -> Amber -> Red (frequent danger) -> Dark Crimson
               'heatmap-color': [
                 'interpolate',
                 ['linear'],
@@ -135,69 +143,38 @@ export function MapCanvas({
               'heatmap-opacity': 0.85,
             }}
           />
-          <Layer
-            id="danger-points-glow"
-            type="circle"
-            minzoom={13}
-            paint={{
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 6, 16, 12],
-              'circle-color': [
-                'match',
-                ['get', 'category'],
-                'sexual_assault',
-                '#E53935',
-                'assault',
-                '#F4511E',
-                'robbery',
-                '#FB8C00',
-                'harassment',
-                '#FDD835',
-                'stalking',
-                '#AB47BC',
-                '#FFB300',
-              ],
-              'circle-opacity': 0.65,
-              'circle-blur': 0.4,
-            }}
-          />
-          <Layer
-            id="danger-points-inner"
-            type="circle"
-            minzoom={13}
-            paint={{
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 3, 16, 5],
-              'circle-color': '#FFFFFF',
-              'circle-stroke-color': '#B71C1C',
-              'circle-stroke-width': 1.5,
-              'circle-opacity': 0.9,
-            }}
-          />
         </GeoJSONSource>
       )}
 
-      {/* Two layers so the marker reads at any zoom: a soft halo, then the dot. */}
+      {/* Two layers so the marker reads at any zoom: a soft halo, then the pin. */}
       <GeoJSONSource id="friends" data={collection}>
         <Layer
           id="friends-halo"
           type="circle"
           paint={{
-            'circle-radius': 15,
+            'circle-radius': 18,
             'circle-color': markerColor,
             'circle-opacity': 0.35,
             'circle-blur': 0.45,
           }}
         />
-        <Layer
-          id="friends-dot"
-          type="circle"
-          paint={{
-            'circle-radius': 6,
-            'circle-color': '#FFFFFF',
-            'circle-stroke-color': markerColor,
-            'circle-stroke-width': 2.5,
-          }}
-        />
       </GeoJSONSource>
+
+      {/* Rich emoji avatar and name markers */}
+      {Object.values(friends).map((point) => (
+        <Marker
+          key={point.userId}
+          id={`friend-${point.userId}`}
+          lngLat={[point.lng, point.lat]}
+          anchor="bottom"
+        >
+          <FriendMapMarker
+            point={point}
+            level={level}
+            isStale={isStale(staleSeconds?.[point.userId])}
+          />
+        </Marker>
+      ))}
     </Map>
   );
 }

@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     # Skip `create_all` on startup. Set when the schema is provisioned
     # elsewhere (the test suite creates it once per session).
     skip_create_all: bool = False
+    # Seed the incident table from `backend/src/hy/krakow_data.py`. Off by
+    # default: those are invented assault reports, and a database that mixes them
+    # with real ones produces a heatmap nobody can tell apart from fiction.
+    seed_demo_incidents: bool = False
 
     @property
     def verify_token_options(self) -> VerifyTokenOptions:

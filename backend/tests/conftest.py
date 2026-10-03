@@ -27,13 +27,14 @@ os.environ["DISPATCH_ARTIFICIAL_DELAY_SECONDS"] = "0"
 os.environ["HY_SKIP_CREATE_ALL"] = "1"
 # Present so `Settings.clerk_configured` is truthy; actual verification is stubbed.
 os.environ["CLERK_JWT_KEY"] = "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
+os.environ["CLERK_AUTHORIZED_PARTIES"] = "[]"
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from hy.asgi import create_app  # noqa: E402
-from hy.auth import Principal, require_principal  # noqa: E402
+from hy.auth import Principal, optional_principal, require_principal  # noqa: E402
 from hy.db import Base, get_engine, session_scope  # noqa: E402
 from hy.models import (  # noqa: E402
     Device,
@@ -139,28 +140,49 @@ def evidence_dir() -> Path:
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
-    """TestClient whose auth dependency always resolves to `user_alice`."""
+    """TestClient authenticated as `user_alice`.
+
+    Both auth dependencies are overridden, not just `require_principal`: the guest
+    endpoints (incident reporting) depend on `optional_principal`, and overriding
+    only the strict one left those routes resolving to an anonymous caller in
+    tests while production sent a real token.
+    """
     app = create_app()
 
     def _override() -> Principal:
         return Principal(user_id="user_alice")
 
+    async def _override_optional() -> Principal:
+        return Principal(user_id="user_alice")
+
     app.dependency_overrides[require_principal] = _override
+    app.dependency_overrides[optional_principal] = _override_optional
     with TestClient(app) as test_client:
         yield test_client
 
 
 @pytest.fixture
 def client_for() -> Iterator[callable]:
-    """Factory for clients authenticated as an arbitrary user id."""
-    app = create_app()
+    """Factory for clients authenticated as an arbitrary user id.
+
+    Each call builds its own app. Sharing one app across clients meant a later
+    `_make()` overwrote `dependency_overrides` for every client already handed
+    out, so an "alice" client created after a "bob" client would silently start
+    authenticating as bob.
+    """
     clients: list[TestClient] = []
 
     def _make(user_id: str) -> TestClient:
+        app = create_app()
+
         def _override() -> Principal:
             return Principal(user_id=user_id)
 
+        async def _override_optional() -> Principal:
+            return Principal(user_id=user_id)
+
         app.dependency_overrides[require_principal] = _override
+        app.dependency_overrides[optional_principal] = _override_optional
         test_client = TestClient(app)
         test_client.__enter__()
         clients.append(test_client)

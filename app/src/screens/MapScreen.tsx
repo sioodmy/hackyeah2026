@@ -19,6 +19,7 @@ import { useSmoothedLocations } from '@/hooks/useSmoothedLocations';
 import { useEvidenceRecorder } from '@/hooks/useEvidenceRecorder';
 import { useApi } from '@/lib/ApiContext';
 import { useAuthToken } from '@/lib/useAuthToken';
+import { avatarEmoji } from '@/lib/avatar';
 import type { HeatmapGeoJSON, ReportIncidentInput } from '@/lib/api';
 import { colorForLevel, floatingShadow, palette, radii, spacing, type } from '@/theme';
 import { THREAT_FULL, THREAT_SAFE, hint, label, type ThreatLevel } from '@/theme/levels';
@@ -41,6 +42,23 @@ export function MapScreen() {
   const centredRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [previewLevel, setPreviewLevel] = useState<ThreatLevel | null>(null);
+  const [profile, setProfile] = useState<{
+    displayName: string | null;
+    avatarUrl: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .myProfile()
+      .then((p) => {
+        if (!cancelled) setProfile({ displayName: p.displayName, avatarUrl: p.avatarUrl });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
 
   // Kraków danger heatmap state
   const [heatmapData, setHeatmapData] = useState<HeatmapGeoJSON | null>(null);
@@ -75,7 +93,7 @@ export function MapScreen() {
     fallbackPing: useCallback((payload) => api.pingLocation({ ...payload }), [api]),
   });
 
-  const { points } = useSmoothedLocations(locations);
+  const { points, staleSeconds } = useSmoothedLocations(locations);
 
   // Fetch heatmap data for Kraków
   const loadHeatmap = useCallback(async () => {
@@ -90,6 +108,21 @@ export function MapScreen() {
   useEffect(() => {
     void loadHeatmap();
   }, [loadHeatmap]);
+
+  // The response is one feature per ~200 m grid cell, so counting features would
+  // report the number of occupied cells as if it were the number of reports.
+  const { totalReported, hottestCells } = useMemo(() => {
+    const cells = heatmapData?.features ?? [];
+    return {
+      totalReported: cells.reduce((sum, feature) => sum + feature.properties.count, 0),
+      hottestCells: cells.slice(0, 3).map((feature) => ({
+        lat: feature.geometry.coordinates[1],
+        lng: feature.geometry.coordinates[0],
+        count: feature.properties.count,
+        severity: feature.properties.severity,
+      })),
+    };
+  }, [heatmapData]);
 
   const handleReportIncident = useCallback(
     async (data: ReportIncidentInput) => {
@@ -186,6 +219,7 @@ export function MapScreen() {
 
       <MapCanvas
         friends={points}
+        staleSeconds={staleSeconds}
         level={threat.level}
         cameraRef={cameraRef}
         showHeatmap={showHeatmap}
@@ -202,7 +236,22 @@ export function MapScreen() {
               <View style={[styles.statusDot, { backgroundColor: colorForLevel(threat.level) }]} />
               <Text style={styles.statusText}>{label(threat.level)}</Text>
             </View>
-          ) : null}
+          ) : (
+            <Pressable
+              style={[styles.profilePill, floatingShadow(6)]}
+              onPress={() => router.push('/settings')}
+              accessibilityRole="button"
+              accessibilityLabel="Twój profil i awatar"
+              hitSlop={8}
+            >
+              <View style={styles.profileAvatarDisc}>
+                <Text style={styles.profileAvatarEmoji}>{avatarEmoji(profile?.avatarUrl)}</Text>
+              </View>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {profile?.displayName || 'Twój profil'}
+              </Text>
+            </Pressable>
+          )}
 
           {/* Kraków Danger Heatmap Toggle Pill */}
           <Pressable
@@ -248,7 +297,8 @@ export function MapScreen() {
       {/* Heatmap Legend Card */}
       <HeatmapLegend
         visible={showLegend}
-        totalIncidents={heatmapData?.features.length ?? 0}
+        totalIncidents={totalReported}
+        hottestCells={hottestCells}
         onClose={() => setShowLegend(false)}
         onOpenReport={() => {
           setShowLegend(false);
@@ -349,6 +399,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  profilePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 3,
+    paddingLeft: 4,
+    paddingRight: spacing.md,
+    height: 42,
+    borderRadius: radii.pill,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  profileAvatarDisc: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#161922',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: palette.level2,
+  },
+  profileAvatarEmoji: {
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  profileName: {
+    ...type.label,
+    color: palette.text,
+    fontSize: 13,
+    fontWeight: '600',
+    maxWidth: 120,
   },
   statusPill: {
     flexDirection: 'row',

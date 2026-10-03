@@ -13,7 +13,7 @@ from sqlalchemy import select
 from hy.auth import CurrentPrincipal
 from hy.db import session_scope
 from hy.friends import accepted_friend_ids
-from hy.models import ALERT_ACTIVE, Alert, LocationPing, utcnow
+from hy.models import ALERT_ACTIVE, Alert, LocationPing, User, utcnow
 from hy.schemas import LocationIn, LocationOut, LocationSnapshotOut
 
 router = APIRouter(prefix="/api/v1/locations", tags=["locations"])
@@ -66,7 +66,10 @@ async def push_ping(payload: LocationIn, principal: CurrentPrincipal) -> dict:
             payload=payload,
             alert_id=payload.alert_id,
         )
+        user = session.get(User, principal.user_id)
         friend_ids = accepted_friend_ids(session, principal.user_id)
+        display_name = user.display_name if user else None
+        avatar_url = user.avatar_url if user else None
 
     await registry.broadcast_to_friends(
         principal.user_id,
@@ -74,6 +77,8 @@ async def push_ping(payload: LocationIn, principal: CurrentPrincipal) -> dict:
         {
             "type": "location",
             "userId": principal.user_id,
+            "displayName": display_name,
+            "avatarUrl": avatar_url,
             "lat": ping.lat,
             "lng": ping.lng,
             "acc": ping.accuracy,
@@ -104,6 +109,8 @@ def snapshot(principal: CurrentPrincipal) -> LocationSnapshotOut:
             .all()
         )
 
+        users = {u.id: u for u in session.query(User).filter(User.id.in_(friend_ids)).all()}
+
         # Keep only the newest ping per friend.
         newest: dict[str, LocationPing] = {}
         for row in rows:
@@ -118,6 +125,8 @@ def snapshot(principal: CurrentPrincipal) -> LocationSnapshotOut:
                 bearing=ping.bearing,
                 seq=ping.seq,
                 ts=ping.client_ts,
+                displayName=users[ping.user_id].display_name if ping.user_id in users else None,
+                avatarUrl=users[ping.user_id].avatar_url if ping.user_id in users else None,
             )
             for ping in newest.values()
         ]

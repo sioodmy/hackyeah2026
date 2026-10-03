@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, radii, spacing, type } from '@/theme';
 import { useApi } from '@/lib/ApiContext';
 import type { Friend } from '@/lib/api';
+import { avatarEmoji } from '@/lib/avatar';
 
 /**
  * Friends: connect by QR, or by typing six characters.
@@ -88,7 +89,12 @@ export function FriendsScreen() {
             <Text style={styles.cardTitle}>Prośby</Text>
             {requests.map((friend) => (
               <View key={friend.id} style={styles.row}>
-                <Text style={styles.rowLabel}>{friend.displayName ?? friend.id.slice(0, 8)}</Text>
+                <View style={styles.friendAvatarBadge}>
+                  <Text style={styles.friendAvatarEmoji}>{avatarEmoji(friend.avatarUrl)}</Text>
+                </View>
+                <View style={styles.friendInfo}>
+                  <Text style={styles.rowLabel}>{friend.displayName ?? friend.id.slice(0, 8)}</Text>
+                </View>
                 <Pressable
                   style={styles.smallButton}
                   onPress={() => accept(friend.id)}
@@ -125,7 +131,10 @@ export function FriendsScreen() {
           ) : (
             friends.map((friend) => (
               <View key={friend.id} style={styles.row}>
-                <View style={styles.rowText}>
+                <View style={styles.friendAvatarBadge}>
+                  <Text style={styles.friendAvatarEmoji}>{avatarEmoji(friend.avatarUrl)}</Text>
+                </View>
+                <View style={styles.friendInfo}>
                   <Text style={styles.rowLabel}>{friend.displayName ?? friend.id.slice(0, 8)}</Text>
                   <Text style={styles.rowSub}>{friend.id.slice(0, 18)}</Text>
                 </View>
@@ -191,6 +200,21 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     gap: spacing.md,
   },
+  friendAvatarBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: palette.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendAvatarEmoji: {
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  friendInfo: { flex: 1 },
   rowText: { flex: 1 },
   rowLabel: { ...type.body, fontSize: 15 },
   rowSub: { ...type.caption, fontFamily: 'monospace', fontSize: 11 },

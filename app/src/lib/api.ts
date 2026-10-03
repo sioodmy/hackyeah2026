@@ -2,8 +2,9 @@
  * Typed client for the PanicMap REST API.
  *
  * Requests carry Clerk session tokens in `Authorization: Bearer <token>` when a
- * session is active. Unauthenticated calls succeed for endpoints that do not
- * require a principal (e.g. `GET /healthz`, public invites, guest incident viewing/reporting).
+ * session is active. Unauthenticated calls succeed only for endpoints that do not
+ * require a principal (`GET /healthz`, and incident *reporting* — someone in
+ * danger should not have to log in first). Every incident read requires a session.
  */
 
 import Constants from 'expo-constants';
@@ -19,6 +20,20 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+
+export type UserProfile = {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  inviteCode: string | null;
+  lastSeenAt: string | null;
+};
+
+export type UpdateProfilePayload = {
+  displayName?: string | null;
+  avatarUrl?: string | null;
+};
 
 export type Friend = {
   id: string;
@@ -81,17 +96,10 @@ export type EvidenceSession = {
 };
 
 export type IncidentCategory =
-  | 'harassment'
-  | 'sexual_assault'
-  | 'assault'
-  | 'robbery'
-  | 'stalking'
-  | 'suspicious'
-  | 'other';
+  'harassment' | 'sexual_assault' | 'assault' | 'robbery' | 'stalking' | 'suspicious' | 'other';
 
 export type IncidentReport = {
   id: string;
-  userId?: string | null;
   category: string;
   categoryLabel: string;
   severity: number;
@@ -104,22 +112,25 @@ export type IncidentReport = {
   createdAt?: string | null;
 };
 
+/**
+ * One grid cell of the heatmap, not one report.
+ *
+ * The server buckets every report into a ~200 m cell before responding, and never
+ * includes a report id, a description or a coordinate finer than the cell — so a
+ * client cannot turn this response back into the location of a specific person.
+ */
 export type HeatmapFeature = {
   type: 'Feature';
-  id?: string;
   geometry: {
     type: 'Point';
-    coordinates: [number, number]; // [lng, lat]
+    coordinates: [number, number]; // [lng, lat] of the cell centre
   };
   properties: {
-    id: string;
-    category: string;
+    count: number;
+    weight: number; // normalised 0..1 across the busiest cell
+    severity: number; // worst severity seen in the cell
+    category: string; // most common category in the cell
     categoryLabel: string;
-    severity: number;
-    weight: number;
-    title?: string | null;
-    description?: string | null;
-    reportedAt?: string | null;
   };
 };
 
@@ -128,11 +139,18 @@ export type HeatmapGeoJSON = {
   features: HeatmapFeature[];
 };
 
+export type IncidentHotspot = {
+  lat: number;
+  lng: number;
+  count: number;
+};
+
 export type IncidentStats = {
   total: number;
   city: string;
   byCategory: Record<string, number>;
-  highRiskZones: string[];
+  /** Heaviest grid cells, derived from reported data rather than hardcoded. */
+  hotspots: IncidentHotspot[];
 };
 
 export type ReportIncidentInput = {
@@ -217,6 +235,14 @@ export function createApiClient(getToken: TokenProvider) {
 
     health: () => request<{ ok: boolean; database: boolean }>('/healthz'),
 
+    myProfile: () => request<UserProfile>('/api/v1/users/me'),
+
+    updateProfile: (body: UpdateProfilePayload) =>
+      request<UserProfile>('/api/v1/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+
     registerDevice: (expoPushToken: string, platform: string) =>
       request<{ id: string }>('/api/v1/devices', {
         method: 'POST',
@@ -291,13 +317,19 @@ export function createApiClient(getToken: TokenProvider) {
       return request<HeatmapGeoJSON>(`/api/v1/incidents/heatmap${qs ? `?${qs}` : ''}`);
     },
 
-    incidents: (category?: string, limit: number = 100) => {
+    /** The caller's own reports. The server scopes this to the authenticated user. */
+    incidents: (category?: string, limit: number = 50) => {
       const params = new URLSearchParams();
       if (category) params.append('category', category);
       params.append('limit', String(limit));
       return request<IncidentReport[]>(`/api/v1/incidents?${params.toString()}`);
     },
 
+    /**
+     * `weight` is accepted for wire compatibility but the server ignores it and
+     * derives the weight from category and severity, so a caller cannot inflate
+     * the heatmap.
+     */
     reportIncident: (input: ReportIncidentInput) =>
       request<IncidentReport>('/api/v1/incidents', {
         method: 'POST',
@@ -381,6 +413,8 @@ export type FriendLocation = {
   bearing?: number | null;
   seq?: number | null;
   ts?: number | null;
+  displayName?: string | null;
+  avatarUrl?: string | null;
 };
 
 export type FriendLocationMap = Record<string, FriendLocation>;

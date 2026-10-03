@@ -14,8 +14,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FriendLocation, FriendLocationMap, Position } from '@/lib/api';
 import { wsBaseUrl } from '@/lib/api';
 
+type FriendProfileMeta = {
+  displayName: string | null;
+  avatarUrl: string | null;
+};
+
 type Frame =
-  | { type: 'hello'; self: string; friends: { id: string; displayName: string | null }[] }
+  | {
+      type: 'hello';
+      self: string;
+      friends: { id: string; displayName: string | null; avatarUrl?: string | null }[];
+    }
   | {
       type: 'location';
       userId: string;
@@ -25,6 +34,8 @@ type Frame =
       bearing?: number | null;
       seq?: number | null;
       ts?: number | null;
+      displayName?: string | null;
+      avatarUrl?: string | null;
     }
   | { type: 'ack'; seq: number | null }
   | { type: 'ping' }
@@ -54,6 +65,7 @@ export function useLiveLocations({
   const [friendIds, setFriendIds] = useState<string[]>([]);
 
   const socketRef = useRef<WebSocket | null>(null);
+  const profilesRef = useRef<Record<string, FriendProfileMeta>>({});
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
   const seqRef = useRef(0);
@@ -129,11 +141,24 @@ export function useLiveLocations({
 
         if (frame.type === 'hello') {
           setFriendIds(frame.friends.map((f) => f.id));
+          for (const f of frame.friends) {
+            profilesRef.current[f.id] = {
+              displayName: f.displayName,
+              avatarUrl: f.avatarUrl ?? null,
+            };
+          }
           return;
         }
 
         if (frame.type === 'location') {
           if (selfId && frame.userId === selfId) return;
+          const known = profilesRef.current[frame.userId];
+          const displayName = frame.displayName ?? known?.displayName ?? null;
+          const avatarUrl = frame.avatarUrl ?? known?.avatarUrl ?? null;
+          if (frame.displayName || frame.avatarUrl) {
+            profilesRef.current[frame.userId] = { displayName, avatarUrl };
+          }
+
           const next: FriendLocation = {
             userId: frame.userId,
             lat: frame.lat,
@@ -142,6 +167,8 @@ export function useLiveLocations({
             bearing: frame.bearing ?? null,
             seq: frame.seq ?? null,
             ts: frame.ts ?? null,
+            displayName,
+            avatarUrl,
           };
           setLocations((prev) => ({ ...prev, [next.userId]: next }));
         }

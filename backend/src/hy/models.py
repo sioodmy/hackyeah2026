@@ -282,12 +282,20 @@ class IncidentReport(Base):
     __tablename__ = "incident_reports"
     __table_args__ = (
         Index("ix_incidents_category", "category"),
+        Index("ix_incidents_user", "user_id"),
         Index("ix_incidents_coords", "lat", "lng"),
         Index("ix_incidents_created", "created_at"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
-    user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # CASCADE so deleting an account also deletes the reports it filed: an
+    # orphaned Clerk id attached to a rape report is retained personal data.
+    # Anonymous reports keep a NULL here and are not affected.
+    user_id: Mapped[str | None] = mapped_column(
+        String(128),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+    )
     category: Mapped[str] = mapped_column(String(32))
     severity: Mapped[int] = mapped_column(Integer, default=2)
     weight: Mapped[float] = mapped_column(Float, default=0.6)
@@ -298,10 +306,15 @@ class IncidentReport(Base):
     reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
-    def as_public_dict(self) -> dict:
+    def as_own_dict(self) -> dict:
+        """Serialise for the reporter who filed this report.
+
+        Deliberately omits `user_id`: no response in this app should ever carry a
+        reporter identity. Coordinates here are the caller's own, so they stay
+        exact — this is the one endpoint where the user needs their real position.
+        """
         return {
             "id": self.id,
-            "userId": self.user_id,
             "category": self.category,
             "categoryLabel": INCIDENT_CATEGORY_LABELS.get(self.category, self.category),
             "severity": self.severity,
@@ -312,24 +325,4 @@ class IncidentReport(Base):
             "description": self.description,
             "reportedAt": self.reported_at.isoformat() if self.reported_at else None,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
-        }
-
-    def as_geojson_feature(self) -> dict:
-        return {
-            "type": "Feature",
-            "id": self.id,
-            "geometry": {
-                "type": "Point",
-                "coordinates": [self.lng, self.lat],
-            },
-            "properties": {
-                "id": self.id,
-                "category": self.category,
-                "categoryLabel": INCIDENT_CATEGORY_LABELS.get(self.category, self.category),
-                "severity": self.severity,
-                "weight": self.weight,
-                "title": self.title or INCIDENT_CATEGORY_LABELS.get(self.category, self.category),
-                "description": self.description,
-                "reportedAt": self.reported_at.isoformat() if self.reported_at else None,
-            },
         }

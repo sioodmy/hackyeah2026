@@ -23,7 +23,16 @@ from sqlalchemy import text
 from hy.config import get_settings
 from hy.db import get_engine
 from hy.realtime import registry
-from hy.routers import alerts, authorities, devices, evidence, friends, incidents, locations
+from hy.routers import (
+    alerts,
+    authorities,
+    devices,
+    evidence,
+    friends,
+    incidents,
+    locations,
+    users,
+)
 from hy.ws import router as ws_router
 
 logging.basicConfig(
@@ -37,7 +46,6 @@ def _init_database() -> None:
     """Create tables on boot — a hackathon does not need migration tooling."""
     from hy import models  # noqa: F401  (ensures models are registered)
     from hy.db import Base, session_scope
-    from hy.krakow_data import seed_krakow_incidents
 
     Path(get_settings().evidence_dir).expanduser().mkdir(parents=True, exist_ok=True)
 
@@ -46,8 +54,12 @@ def _init_database() -> None:
         return
 
     Base.metadata.create_all(get_engine())
-    with session_scope() as session:
-        seed_krakow_incidents(session)
+
+    if get_settings().seed_demo_incidents:
+        from hy.krakow_data import seed_krakow_incidents
+
+        with session_scope() as session:
+            seed_krakow_incidents(session)
     log.info("database ready")
 
 
@@ -80,6 +92,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.include_router(users.router)
     app.include_router(devices.router)
     app.include_router(friends.router)
     app.include_router(alerts.router)

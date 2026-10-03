@@ -171,9 +171,11 @@ def scan_invite(body: ScanRequest, principal: CurrentPrincipal) -> UserOut:
                 status_code=status.HTTP_409_CONFLICT, detail="relacja już istnieje"
             ) from exc
 
+        target = session.get(User, target_id)
         return UserOut(
             id=target_id,
-            displayName=link.alias,
+            displayName=link.alias or (target.display_name if target else None),
+            avatarUrl=target.avatar_url if target else None,
             status=link.status,
             friendshipId=link.id,
         )
@@ -192,8 +194,13 @@ def accept_friend(friend_id: str, principal: CurrentPrincipal) -> UserOut:
         link.status = FRIENDSHIP_ACCEPTED
         link.accepted_at = utcnow()
         session.flush()
+        friend = session.get(User, friend_id)
         return UserOut(
-            id=friend_id, displayName=link.alias, status=link.status, friendshipId=link.id
+            id=friend_id,
+            displayName=link.alias or (friend.display_name if friend else None),
+            avatarUrl=friend.avatar_url if friend else None,
+            status=link.status,
+            friendshipId=link.id,
         )
 
 
@@ -213,6 +220,11 @@ def friend_detail(friend_id: str, principal: CurrentPrincipal) -> UserOut:
         link = find_friendship(session, principal.user_id, friend_id)
         if link is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="brak relacji")
+        friend = session.get(User, friend_id)
         return UserOut(
-            id=friend_id, displayName=link.alias, status=link.status, friendshipId=link.id
+            id=friend_id,
+            displayName=link.alias or (friend.display_name if friend else None),
+            avatarUrl=friend.avatar_url if friend else None,
+            status=link.status,
+            friendshipId=link.id,
         )
