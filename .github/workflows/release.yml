@@ -59,6 +59,21 @@ jobs:
         env:
           VERSION: ${{ steps.tag.outputs.version }}
 
+      - name: require the Clerk publishable key
+        # An APK whose EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is empty builds
+        # successfully and installs successfully, then fails at runtime the moment
+        # anyone tries to sign in. Refusing to build is much cheaper than shipping
+        # that, so this is a hard gate rather than a default.
+        env:
+          CLERK_KEY: ${{ secrets.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$CLERK_KEY" ] || [ "${CLERK_KEY#pk_}" = "$CLERK_KEY" ]; then
+            echo "::error::EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY secret is missing or is not a pk_* key."
+            echo "Add it with: gh secret set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"
+            exit 1
+          fi
+          echo "Clerk key present (${#CLERK_KEY} chars)."
+
       - name: write .env
         # Only EXPO_PUBLIC_* values are inlined into the JS bundle, so a
         # publishable Clerk key is the only thing needed here. There is no server
