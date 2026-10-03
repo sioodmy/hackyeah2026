@@ -109,7 +109,13 @@ export type EvidenceSession = {
 };
 
 export type IncidentCategory =
-  'harassment' | 'sexual_assault' | 'assault' | 'robbery' | 'stalking' | 'suspicious' | 'other';
+  | 'harassment'
+  | 'sexual_assault'
+  | 'assault'
+  | 'robbery'
+  | 'stalking'
+  | 'suspicious'
+  | 'other';
 
 export type IncidentReport = {
   id: string;

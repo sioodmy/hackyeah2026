@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 
@@ -16,6 +17,17 @@ const CALL_CATEGORY = 'call';
 const FULL_ALERT_CHANNEL = 'full-alert';
 const FULL_ALERT_CATEGORY = 'alarm';
 const DEFAULT_CHANNEL = 'default';
+
+/**
+ * The EAS project id, read from the app config the way `expo-notifications`
+ * reads it. CI injects the real value into `extra.eas.projectId` before
+ * prebuild, so a release never depends on a developer's local `.env`.
+ */
+function easProjectIdFromConfig(): string | undefined {
+  const extra = Constants.expoConfig?.extra as { eas?: { projectId?: unknown } } | undefined;
+  const id = extra?.eas?.projectId;
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
+}
 
 /**
  * Register the two alarm categories, so a push that names one arrives with a
@@ -72,7 +84,7 @@ export function usePushRegistration({
 
         if (Platform.OS === 'android') {
           // Level 3 needs this channel to be heads-up and to bypass Do Not
-          // Disturb, which is what makes "FULL ALERT" feel different from an
+          // Disturb, which is what makes a level-3 alarm feel different from an
           // ordinary notification.
           await Notifications.setNotificationChannelAsync(FULL_ALERT_CHANNEL, {
             name: 'Pełny alarm',
@@ -114,18 +126,32 @@ export function usePushRegistration({
         // Android needs a physical device for a real push token.
         if (Platform.OS === 'android' && !Device.isDevice) return;
 
-        const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
-        const tokenResponse =
-          projectId && Device.isDevice
-            ? await Notifications.getExpoPushTokenAsync({ projectId })
-            : await Notifications.getExpoPushTokenAsync();
+        // Without an EAS project id `getExpoPushTokenAsync` cannot mint a token on
+        // a standalone Android build, and it throws rather than degrading — which
+        // used to land in the `catch` below, set `permission` to `denied`, and
+        // leave the account silently unable to alert anybody. Say so instead.
+        const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? easProjectIdFromConfig();
+        if (!projectId) {
+          console.warn(
+            '[push] no EAS project id (extra.eas.projectId in app.json, or ' +
+              'EXPO_PUBLIC_EAS_PROJECT_ID locally). Push tokens will not be ' +
+              'issued, so friends will not be alerted. Run `eas init`, or set ' +
+              'the EAS_PROJECT_ID repository variable that release.yml injects.',
+          );
+          return;
+        }
+
+        const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
 
         if (cancelled || !tokenResponse.data) return;
         setExpoPushToken(tokenResponse.data);
 
         await api.registerDevice(tokenResponse.data, Platform.OS === 'ios' ? 'ios' : 'android');
-      } catch {
-        // Push is an enhancement; the app must still work without it.
+      } catch (error) {
+        // Push is an enhancement; the app must still work without it. But a token
+        // that silently never arrives means a friend never gets told, so this is
+        // the one failure worth shouting about.
+        console.warn('[push] token registration failed', error);
         setPermission('denied');
       }
     })();

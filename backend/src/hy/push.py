@@ -34,7 +34,11 @@ log = logging.getLogger(__name__)
 PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
 LEVEL_2_TITLE = "Potrzebuję pomocy"
-LEVEL_3_TITLE = "FULL ALERT"
+#: Level 3 is the one string a friend reads with one second of attention left, and
+#: it has to be legible on a lockscreen at a glance. It used to be the English
+#: "FULL ALERT", which was the only English string in the product and did not match
+#: the channel name ("Pełny alarm") or the slider's own level-3 label.
+LEVEL_3_TITLE = "Pełny alarm"
 
 #: Android channels the client registers. Level 2 heads up without touching Do Not
 #: Disturb; only level 3 earns the bypass.

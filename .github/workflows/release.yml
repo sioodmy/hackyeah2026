@@ -59,6 +59,38 @@ jobs:
         env:
           VERSION: ${{ steps.tag.outputs.version }}
 
+      # An APK with no EAS project id installs and runs, and then cannot mint an
+      # Expo push token — so the account can never alert a friend. The build looks
+      # completely fine, which is exactly why this is a gate and not a warning.
+      - name: require the EAS project id
+        env:
+          EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
+        run: |
+          if [ -z "$EAS_PROJECT_ID" ]; then
+            echo "::error::EAS_PROJECT_ID repository variable is missing, so the APK could not register for push."
+            echo "Add it with: gh variable set EAS_PROJECT_ID --body \"<uuid from eas init>\""
+            exit 1
+          fi
+          node -e '
+            const fs = require("fs");
+            const config = JSON.parse(fs.readFileSync("app.json", "utf8"));
+            config.expo.extra = { ...config.expo.extra, eas: { projectId: process.env.EAS_PROJECT_ID } };
+            fs.writeFileSync("app.json", JSON.stringify(config, null, 2) + "\n");
+            console.log(`eas.projectId=${process.env.EAS_PROJECT_ID}`);
+          '
+
+      - name: require the backend URL
+        # Without this the APK points at nothing and every screen that needs data
+        # fails against localhost. A variable rather than a secret: it is a URL.
+        env:
+          API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "::error::EXPO_PUBLIC_API_URL repository variable is missing."
+            echo "Add it with: gh variable set EXPO_PUBLIC_API_URL --body \"https://<host>\""
+            exit 1
+          fi
+
       - name: require the Clerk publishable key
         # An APK whose EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is empty builds
         # successfully and installs successfully, then fails at runtime the moment

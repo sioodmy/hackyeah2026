@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     ws_replay_limit: int = 20
 
     # --- misc ---------------------------------------------------------------
+    # A native app is not subject to CORS, so this only matters for a browser
+    # client (Expo web) and for curl. Keep it as a list so a deployment can
+    # enumerate origins; `["*"]` disables credentials rather than granting them.
     cors_origins: list[str] = Field(default_factory=lambda: ["*"])
     dispatch_artificial_delay_seconds: float = 0.4
     # Skip `create_all` on startup. Set when the schema is provisioned
