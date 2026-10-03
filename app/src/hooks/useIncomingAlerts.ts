@@ -9,9 +9,9 @@
  *
  * * `received` fires while the app is alive, whether it is in the foreground or
  *   backgrounded, and is what starts the siren.
- * * `response` fires when the notification is tapped, which is also what happens
- *   when a full-screen intent opens the app — the one path that works with the app
- *   killed.
+ * * `response` fires when the notification is tapped or one of its buttons is
+ *   pressed — the path that works with the app killed, since the tap is what opens
+ *   it.
  */
 
 import { useEffect } from 'react';
@@ -42,8 +42,8 @@ export function useIncomingAlerts(enabled: boolean): void {
       applyIncomingPush(dataOf(response.notification));
     });
 
-    // Cold start: the app was launched *by* the notification (or by its full-screen
-    // intent), and there is no live listener to catch the event that started it.
+    // Cold start: the app was launched *by* the notification, and there is no live
+    // listener to catch the event that started it.
     let cancelled = false;
     if (!coldStartRead) {
       coldStartRead = true;
