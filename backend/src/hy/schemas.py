@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 
 from hy.models import (
     ALERT_ACTIVE,
@@ -19,7 +20,9 @@ from hy.models import (
 
 
 class CamelModel(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
+    model_config = ConfigDict(
+        populate_by_name=True, from_attributes=True, extra="ignore"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -89,6 +92,21 @@ class UserProfileOut(CamelModel):
 class UserProfileUpdate(CamelModel):
     display_name: str | None = Field(default=None, alias="displayName", max_length=120)
     avatar_url: str | None = Field(default=None, alias="avatarUrl", max_length=500)
+
+    @field_validator("display_name", "avatar_url", mode="before")
+    @classmethod
+    def _empty_to_none(cls, value: object) -> object:
+        # The mobile client sends `null` (or whitespace-only strings) when the
+        # user clears a field. Normalise both to None so the router can tell
+        # "clear this field" apart from "field not sent".
+        # Explicit None must survive validation (it means "clear"), while
+        # missing keys never reach the validator.
+        if value is None:
+            return None
+        if isinstance(value, str):
+            cleaned = value.strip()
+            return cleaned if cleaned else None
+        return value
 
 
 # --------------------------------------------------------------------------- #

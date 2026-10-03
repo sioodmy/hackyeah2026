@@ -118,12 +118,20 @@ export function ProfileSettingsCard() {
 
     try {
       const cleanName = displayName.trim();
+      if (cleanName.length > 120) {
+        setError('Imię jest za długie (maks. 120 znaków).');
+        return;
+      }
       const cleanEmoji = selectedEmoji.trim() || '🌸';
       // Store emoji with signature aura: "emoji|#HEX"
       const payloadAvatar = `${cleanEmoji}|${selectedAura}`;
+      if (payloadAvatar.length > 500) {
+        setError('Wybrany awatar jest za długi.');
+        return;
+      }
 
       await api.updateProfile({
-        displayName: cleanName || null,
+        displayName: cleanName ? cleanName : null,
         avatarUrl: payloadAvatar,
       });
 

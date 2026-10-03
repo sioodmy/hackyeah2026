@@ -30,20 +30,28 @@ def get_my_profile(principal: CurrentPrincipal) -> UserProfileOut:
 
 
 @router.patch("/me", response_model=UserProfileOut)
-def update_my_profile(body: UserProfileUpdate, principal: CurrentPrincipal) -> UserProfileOut:
-    """Update profile fields (display name, emoji / avatar icon)."""
+def update_my_profile(
+    principal: CurrentPrincipal, body: UserProfileUpdate | None = None
+) -> UserProfileOut:
+    """Update profile fields (display name, emoji / avatar icon).
+
+    PATCH semantics: only keys present in the request body are touched.
+    An explicit `null` (or whitespace-only string, normalised to None by the
+    schema) clears the field; a missing key leaves it unchanged.
+    An empty body is a no-op returning the current profile.
+    """
     with session_scope() as session:
         user = session.get(User, principal.user_id)
         if user is None:
             user = upsert_user(session, user_id=principal.user_id)
 
-        if body.display_name is not None:
-            clean_name = body.display_name.strip()
-            user.display_name = clean_name if clean_name else None
+        provided = body.model_fields_set if body is not None else set()
+        if "display_name" in provided and body is not None:
+            # Validator already stripped / normalised empty -> None.
+            user.display_name = body.display_name
 
-        if body.avatar_url is not None:
-            clean_avatar = body.avatar_url.strip()
-            user.avatar_url = clean_avatar if clean_avatar else None
+        if "avatar_url" in provided and body is not None:
+            user.avatar_url = body.avatar_url
 
         session.flush()
         code = _ensure_invite_code(session, principal.user_id)
