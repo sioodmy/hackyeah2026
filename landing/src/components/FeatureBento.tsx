@@ -20,7 +20,7 @@ export const FeatureBento: React.FC = () => {
         <p className="text-slate-400 text-base leading-relaxed">
           Większość aplikacji ratunkowych zakłada, że w sytuacji zagrożenia
           odblokujesz telefon, przeklikasz się przez menu i naciśniesz jaskrawy
-          czerwony przycisk. PanicMap stawia na kamuflaż: telefon wygląda jak
+          czerwony przycisk. Mokosh stawia na kamuflaż: telefon wygląda jak
           zwykła mapa, a pomoc rusza w tle.
         </p>
       </div>

@@ -11,7 +11,7 @@ import { promisify } from 'node:util';
 
 const run = promisify(execFile);
 
-const DB_NAME = process.env.DB_NAME ?? 'safety';
+const DB_NAME = process.env.DB_NAME ?? 'mokosh';
 
 /**
  * Homebrew's Postgres keeps its client tools in a versioned keg that is not

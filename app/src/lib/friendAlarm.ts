@@ -121,7 +121,7 @@ function asText(value: unknown): string {
  *
  * Anything below level 2 is deliberately dropped: the system notification already
  * said it, and taking over a friend's screen for it would train them to swipe
- * PanicMap away without reading. Level 0 is the opposite — it silences whatever is
+ * Mokosh away without reading. Level 0 is the opposite — it silences whatever is
  * ringing, because the person in danger is safe again and a friend still looking
  * at an alarm for an episode that ended is worse than no alarm at all.
  *

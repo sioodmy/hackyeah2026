@@ -116,7 +116,7 @@ export function SignInScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.brand}>PanicMap</Text>
+        <Text style={styles.brand}>Mokosh</Text>
         <Text style={styles.tagline}>
           Aplikacja wygląda jak mapa. Znajomi widzą, gdzie jesteś — tylko wtedy, gdy naprawdę tego
           potrzebujesz.

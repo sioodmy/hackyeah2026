@@ -1,5 +1,5 @@
 {
-  description = "PanicMap — a map that looks like a map. HackYeah 2026.";
+  description = "Mokosh — a map that looks like a map. HackYeah 2026.";
 
   inputs = {
     # 26.05 rather than unstable: unstable (26.11) has dropped x86_64-darwin,
@@ -104,7 +104,7 @@
           # below. `npm ci` happens here once rather than being repeated inside
           # each check, which would otherwise install the same tree twice.
           backendToolchain = pkgs.stdenv.mkDerivation {
-            name = "panicmap-backend-deps";
+            name = "mokosh-backend-deps";
             nativeBuildInputs = [ pkgs.nodejs_22 ];
             src = lib.fileset.toSource {
               root = ./.;
@@ -143,7 +143,7 @@
           ];
 
           backendApp = pkgs.buildNodeApplication {
-            pname = "panicmap-api";
+            pname = "mokosh-api";
             version = "0.1.0";
 
             src = lib.fileset.toSource {
@@ -179,8 +179,8 @@
             doCheck = true;
 
             meta = {
-              description = "PanicMap API — Fastify + Drizzle backend";
-              mainProgram = "panicmap-api";
+              description = "Mokosh API — Fastify + Drizzle backend";
+              mainProgram = "mokosh-api";
             };
           };
         in
@@ -188,7 +188,7 @@
           treefmt = treefmtSettings;
 
           devShells.default = pkgs.mkShell {
-            name = "panicmap-dev";
+            name = "mokosh-dev";
 
             packages =
               with pkgs;
@@ -235,7 +235,7 @@
               ''
               + ''
               echo ""
-              echo "  PanicMap devshell — $(uname -s) $(uname -m)"
+              echo "  Mokosh devshell — $(uname -s) $(uname -m)"
               echo "    just setup   install app + backend dependencies"
               echo "    just api     Fastify REST on :8000 (docs at /docs)"
               echo "    just worker  alert escalation worker"
@@ -258,7 +258,7 @@
 
           apps.default = {
             type = "app";
-            program = "${backendApp}/bin/panicmap-api";
+            program = "${backendApp}/bin/mokosh-api";
           };
 
           checks = {

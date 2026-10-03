@@ -42,3 +42,4 @@ npm-debug.log*
 # tool caches
 .ruff_cache/
 .expo/
+.vite/

@@ -1,4 +1,4 @@
-# Development database and API for PanicMap.
+# Development database and API for Mokosh.
 #
 #   docker compose up -d          both services
 #   docker compose up -d db       postgres only
@@ -8,7 +8,7 @@
 # after ESCALATE_UNSAFE_AFTER_MINUTES. They share a database, so either can be
 # restarted without losing an alert.
 
-name: panicmap
+name: mokosh
 
 x-app: &app
   build:
@@ -19,7 +19,7 @@ x-app: &app
     db:
       condition: service_healthy
   environment:
-    DATABASE_URL: postgresql://${POSTGRES_USER:-panicmap}:${POSTGRES_PASSWORD:-panicmap}@db:5432/${POSTGRES_DB:-panicmap}
+    DATABASE_URL: postgresql://${POSTGRES_USER:-mokosh}:${POSTGRES_PASSWORD:-mokosh}@db:5432/${POSTGRES_DB:-mokosh}
     CLERK_JWKS_URL: ${CLERK_JWKS_URL:-}
     CLERK_ISSUER: ${CLERK_ISSUER:-}
     # Android push (FCM HTTP v1)
@@ -49,9 +49,9 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-panicmap}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-panicmap}
-      POSTGRES_DB: ${POSTGRES_DB:-panicmap}
+      POSTGRES_USER: ${POSTGRES_USER:-mokosh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mokosh}
+      POSTGRES_DB: ${POSTGRES_DB:-mokosh}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -60,7 +60,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-panicmap} -d ${POSTGRES_DB:-panicmap}",
+          "pg_isready -U ${POSTGRES_USER:-mokosh} -d ${POSTGRES_DB:-mokosh}",
         ]
       interval: 3s
       timeout: 3s

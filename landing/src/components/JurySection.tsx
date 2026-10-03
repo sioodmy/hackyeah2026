@@ -12,7 +12,7 @@ const criteria: Criterion[] = [
     category: "Walor Społeczny",
     title: "Realny problem bezpieczeństwa nocnego",
     description:
-      "Większość kobiet w polskich miastach odczuwa niepokój podczas nocnych powrotów. PanicMap daje narzędzie sprawczości: fałszywy telefon jako pretekst do odejścia i natychmiastowe wsparcie zaufanych osób.",
+      "Większość kobiet w polskich miastach odczuwa niepokój podczas nocnych powrotów. Mokosh daje narzędzie sprawczości: fałszywy telefon jako pretekst do odejścia i natychmiastowe wsparcie zaufanych osób.",
   },
   {
     category: "UX i Psychologia",
@@ -58,7 +58,7 @@ export const JurySection: React.FC = () => {
           Założenia Projektowe
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-          Filary projektu PanicMap
+          Filary projektu Mokosh
         </h2>
         <p className="text-slate-400 text-base leading-relaxed">
           Merytoryczne założenia techniczne, projektowe i społeczne stworzone na

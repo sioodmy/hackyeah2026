@@ -25,7 +25,7 @@ function resolveDatabaseUrl(): string {
   return `postgresql://${encodeURIComponent(username)}@/${DB_NAME}?host=${socketDir}`;
 }
 
-const DB_NAME = process.env.DB_NAME ?? 'safety';
+const DB_NAME = process.env.DB_NAME ?? 'mokosh';
 
 async function main(): Promise<void> {
   const pool = new Pool({ connectionString: resolveDatabaseUrl() });

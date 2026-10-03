@@ -16,7 +16,7 @@ export const Footer: React.FC = () => {
               <ShieldCheck size={18} weight="fill" />
             </div>
             <span className="font-bold text-lg text-white tracking-tight">
-              PanicMap
+              Mokosh
             </span>
           </div>
           <p className="text-xs text-slate-400 max-w-sm leading-relaxed">

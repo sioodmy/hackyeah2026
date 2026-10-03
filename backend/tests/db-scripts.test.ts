@@ -41,7 +41,7 @@ describe('database scripts', () => {
     const result = await runScript('src/db/create.ts');
 
     expect(result.code).toBe(0);
-    expect(result.output).toMatch(/database "safety"/);
+    expect(result.output).toMatch(/database "mokosh"/);
     expect(result.output).toMatch(/pgcrypto/);
   });
 
@@ -67,7 +67,7 @@ describe('database scripts', () => {
   it('the migration created every table the schema declares', async () => {
     const { stdout } = await run(resolveTool('psql'), [
       '-d',
-      'safety',
+      'mokosh',
       '-tAc',
       "SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name",
     ]);

@@ -51,7 +51,7 @@ export function osmRasterStyle(tileUrl: string = OSM_TILE_URL): StyleSpecificati
 
   return {
     version: 8,
-    name: 'PanicMap Modern Dark OSM',
+    name: 'Mokosh Modern Dark OSM',
     sources: {
       osm: {
         type: 'raster',
