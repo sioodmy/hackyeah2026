@@ -3,7 +3,7 @@
     "name": "PanicMap",
     "slug": "panicmap",
     "scheme": "panicmap",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -29,6 +29,7 @@
     },
     "android": {
       "package": "pl.hackyeah.panicmap",
+      "versionCode": 200,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
