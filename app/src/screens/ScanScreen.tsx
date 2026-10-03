@@ -50,7 +50,7 @@ export function ScanScreen() {
         setStatus(
           friend.status === 'accepted'
             ? `Połączono z ${friend.displayName ?? 'znajomą'}!`
-            : 'Zaproszenie wysłane — poczekaj na akceptację.',
+            : 'Zaproszenie wysłane, poczekaj na akceptację.',
         );
         setTimeout(() => router.back(), 1100);
       } catch (err) {
@@ -336,7 +336,7 @@ export function ScanScreen() {
 
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>LUB WPISZ KOD RĘCZNIE</Text>
+            <Text style={styles.dividerText}>Wpisz kod ręcznie</Text>
             <View style={styles.dividerLine} />
           </View>
 

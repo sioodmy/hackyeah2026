@@ -5,22 +5,16 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { palette, radii, spacing, type } from '@/theme';
-import { useApi } from '@/lib/ApiContext';
-import { resolveApiBaseUrl } from '@/lib/api';
 import { ProfileSettingsCard } from '@/components/ProfileSettingsCard';
 
 /**
  * Settings, reached from the pill in the corner.
- *
- * Kept deliberately plain: this is the one screen where it is fine to look like
- * an app, because nobody is supposed to be reading it under pressure.
  */
 export function SettingsScreen() {
-  const api = useApi();
   const { user } = useUser();
   const insets = useSafeAreaInsets();
 
-  const [liveShare, setLiveShare] = useState(false);
+  const [liveShare, setLiveShare] = useState(true);
   const [haptics, setHaptics] = useState(true);
 
   const goToFriends = useCallback(() => router.push('/friends'), []);
@@ -35,15 +29,15 @@ export function SettingsScreen() {
       >
         <Header onBack={() => router.back()} />
 
+        {/* Konto na samej górze */}
+        <Section title="Konto">
+          <Row label="Adres e-mail" value={user?.primaryEmailAddress?.emailAddress ?? 'Brak'} />
+        </Section>
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Twój Profil i Awatar na Mapie</Text>
+          <Text style={styles.sectionTitle}>Twój profil</Text>
           <ProfileSettingsCard />
         </View>
-
-        <Section title="Konto">
-          <Row label="Zalogowano jako" value={user?.primaryEmailAddress?.emailAddress ?? '—'} />
-          <Row label="ID" value={user?.id ?? '—'} mono />
-        </Section>
 
         <Section title="Znajomi">
           <Pressable style={styles.action} onPress={goToFriends} accessibilityRole="button">
@@ -54,8 +48,8 @@ export function SettingsScreen() {
 
         <Section title="Prywatność">
           <Toggle
-            label="Udostępniaj lokalizację na żywo"
-            hint="Znajomi widzą Twoją pozycję tylko przy poziomie 2 i 3."
+            label="Udostępnianie lokalizacji"
+            hint="Znajomi widzą Twoją pozycję przy podwyższonym poziomie zagrożenia"
             value={liveShare}
             onChange={setLiveShare}
           />
@@ -64,18 +58,12 @@ export function SettingsScreen() {
 
         <Section title="Nagrywanie dowodu">
           <Text style={styles.note}>
-            Nagrywanie włącza się wyłącznie przy najwyższym poziomie zagrożenia. Telefon musi mieć
-            wcześniej przyznane uprawnienie do mikrofonu — pytamy o nie w pierwszym uruchomieniu,
-            nigdy w trakcie zagrożenia.
+            Nagrywanie włącza się wyłącznie przy najwyższym poziomie zagrożenia. Wymagane
+            uprawnienie do mikrofonu jest przyznawane podczas pierwszego uruchomienia aplikacji.
           </Text>
           <Text style={styles.noteMuted}>
-            Android pokazuje wskaźnik używania mikrofonu, dopóki trwa nagranie. Ukryć go nie da się.
+            System Android wyświetla wskaźnik użycia mikrofonu przez cały czas trwania nagrania.
           </Text>
-        </Section>
-
-        <Section title="Serwer">
-          <Row label="Adres API" value={resolveApiBaseUrl()} mono />
-          <Row label="Dokumentacja" value="/docs" />
         </Section>
       </ScrollView>
     </View>

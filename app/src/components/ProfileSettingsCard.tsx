@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useUser } from '@clerk/expo';
 
-import { colorForLevel, floatingShadow, palette, radii, spacing, type } from '@/theme';
+import { floatingShadow, palette, radii, spacing, type } from '@/theme';
 import { useApi } from '@/lib/ApiContext';
 
 type EmojiCategory = {
@@ -15,22 +15,22 @@ type EmojiCategory = {
 const CATEGORIES: EmojiCategory[] = [
   {
     id: 'cute',
-    name: '🌸 Pastel & Słodkie',
+    name: 'Pastelowe',
     emojis: ['🌸', '🌷', '✨', '💖', '🎀', '🍓', '🦋', '🧸', '🍰', '🕊️'],
   },
   {
     id: 'animals',
-    name: '🦊 Zwierzaki',
+    name: 'Zwierzęta',
     emojis: ['🦊', '🐱', '🐰', '🐼', '🐨', '🐯', '🦄', '🐣', '🐶', '🐝'],
   },
   {
     id: 'vibes',
-    name: '⚡ Moc & Bunt',
+    name: 'Symbole',
     emojis: ['⚡', '🔥', '🌙', '💅', '🎧', '🕶️', '👑', '🚀', '🔮', '🛡️'],
   },
   {
     id: 'chill',
-    name: '☕ Chill & Styl',
+    name: 'Styl',
     emojis: ['☕', '🥑', '🍒', '🌻', '🎨', '📚', '🧩', '🌿', '💎', '🤍'],
   },
 ];
@@ -58,8 +58,6 @@ export function ProfileSettingsCard() {
   const [selectedEmoji, setSelectedEmoji] = useState('🌸');
   const [selectedAura, setSelectedAura] = useState('#F472B6');
   const [activeCategory, setActiveCategory] = useState<string>('cute');
-  const [customEmoji, setCustomEmoji] = useState('');
-  const [previewLevel, setPreviewLevel] = useState<number>(0);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -105,26 +103,12 @@ export function ProfileSettingsCard() {
 
   const handleSelectEmoji = useCallback((emoji: string) => {
     setSelectedEmoji(emoji);
-    setCustomEmoji('');
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }, []);
 
   const handleSelectAura = useCallback((hex: string) => {
     setSelectedAura(hex);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-  }, []);
-
-  const handleCustomEmojiChange = useCallback((text: string) => {
-    setCustomEmoji(text);
-    const trimmed = text.trim();
-    if (trimmed) {
-      const chars = Array.from(trimmed);
-      const lastChar = chars[chars.length - 1];
-      if (lastChar) {
-        setSelectedEmoji(lastChar);
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      }
-    }
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -154,7 +138,6 @@ export function ProfileSettingsCard() {
   }, [api, displayName, selectedAura, selectedEmoji]);
 
   const currentCategory = CATEGORIES.find((c) => c.id === activeCategory) ?? CATEGORIES[0]!;
-  const previewAccentColor = previewLevel > 0 ? colorForLevel(previewLevel) : selectedAura;
 
   if (loading) {
     return (
@@ -166,96 +149,38 @@ export function ProfileSettingsCard() {
 
   return (
     <View style={styles.card}>
-      {/* Live Map Marker Preview with Emergency Level Simulator */}
+      {/* Live Map Marker Preview */}
       <View style={styles.previewBox}>
-        <View style={styles.previewHeaderRow}>
-          <Text style={styles.previewBadge}>PODGLĄD TWOJEGO ZNACZNIKA</Text>
-          <Text style={[styles.previewStatusTag, { color: previewAccentColor }]}>
-            {previewLevel === 0 ? 'Normalny' : `Poziom ${previewLevel}`}
-          </Text>
-        </View>
+        <Text style={styles.previewTitle}>Podgląd znacznika</Text>
 
         <View style={styles.previewCenter}>
           {/* Animated concentric radar halo */}
-          <View
-            style={[
-              styles.haloOuter,
-              { backgroundColor: previewAccentColor, opacity: previewLevel > 0 ? 0.22 : 0.12 },
-            ]}
-          />
-          <View
-            style={[
-              styles.haloInner,
-              { backgroundColor: previewAccentColor, opacity: previewLevel > 0 ? 0.35 : 0.25 },
-            ]}
-          />
+          <View style={[styles.haloOuter, { backgroundColor: selectedAura }]} />
+          <View style={[styles.haloInner, { backgroundColor: selectedAura }]} />
 
-          {/* Marker Component Preview */}
+          {/* Marker Component Preview without green dot */}
           <View style={[styles.previewNamePill, floatingShadow(4)]}>
-            <View
-              style={[
-                styles.previewLiveDot,
-                {
-                  backgroundColor: previewLevel > 0 ? colorForLevel(previewLevel) : palette.success,
-                },
-              ]}
-            />
             <Text style={styles.previewNameText} numberOfLines={1}>
-              {displayName.trim() || 'Twoje Imię'}
+              {displayName.trim() || 'Twoje imię'}
             </Text>
           </View>
 
           <View
-            style={[
-              styles.previewAvatarDisc,
-              { borderColor: previewAccentColor },
-              floatingShadow(8),
-            ]}
+            style={[styles.previewAvatarDisc, { borderColor: selectedAura }, floatingShadow(8)]}
           >
             <Text style={styles.previewEmoji}>{selectedEmoji}</Text>
           </View>
 
-          <View style={[styles.previewPinTip, { borderTopColor: previewAccentColor }]} />
-          <View style={[styles.previewAnchorDot, { backgroundColor: previewAccentColor }]} />
+          <View style={[styles.previewPinTip, { borderTopColor: selectedAura }]} />
+          <View style={[styles.previewAnchorDot, { backgroundColor: selectedAura }]} />
         </View>
 
-        {/* Emergency Simulator Switch */}
-        <View style={styles.simulatorRow}>
-          <Text style={styles.simulatorLabel}>Symuluj stan:</Text>
-          <View style={styles.simulatorButtons}>
-            {[0, 1, 2, 3].map((lvl) => {
-              const active = previewLevel === lvl;
-              return (
-                <Pressable
-                  key={lvl}
-                  style={[styles.simButton, active && styles.simButtonActive]}
-                  onPress={() => {
-                    setPreviewLevel(lvl);
-                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.simButtonText,
-                      active && { color: lvl === 0 ? palette.text : colorForLevel(lvl) },
-                    ]}
-                  >
-                    {lvl === 0 ? 'Baza' : `Lvl ${lvl}`}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <Text style={styles.previewCaption}>
-          Tak Twój znacznik widzą przyjaciółki na mapie wskazując Twoją lokalizację
-        </Text>
+        <Text style={styles.previewCaption}>Tak Twój znacznik widzą przyjaciółki na mapie</Text>
       </View>
 
       {/* Name Input */}
       <View style={styles.inputSection}>
-        <Text style={styles.fieldLabel}>TWOJE IMIĘ / PSEUDONIM</Text>
+        <Text style={styles.fieldLabel}>Twoje imię</Text>
         <TextInput
           style={styles.textInput}
           value={displayName}
@@ -270,8 +195,8 @@ export function ProfileSettingsCard() {
 
       {/* Signature Aura Color Selector */}
       <View style={styles.pickerSection}>
-        <Text style={styles.fieldLabel}>TWOJA POŚWIATA NA MAPIE (AURA)</Text>
-        <View style={styles.aurasRow}>
+        <Text style={styles.fieldLabel}>Kolor aury</Text>
+        <View style={styles.aurasGrid}>
           {AURAS.map((aura) => {
             const isSelected = selectedAura === aura.hex;
             return (
@@ -297,7 +222,7 @@ export function ProfileSettingsCard() {
 
       {/* Emoji Picker Section */}
       <View style={styles.pickerSection}>
-        <Text style={styles.fieldLabel}>TWOJE EMOJI / AWATAR</Text>
+        <Text style={styles.fieldLabel}>Wybierz emoji</Text>
 
         {/* Category Tabs */}
         <View style={styles.tabsRow}>
@@ -320,7 +245,7 @@ export function ProfileSettingsCard() {
           })}
         </View>
 
-        {/* Emoji Grid */}
+        {/* Symmetrical 5x2 Emoji Grid */}
         <View style={styles.emojiGrid}>
           {currentCategory.emojis.map((emoji) => {
             const isSelected = selectedEmoji === emoji;
@@ -340,19 +265,6 @@ export function ProfileSettingsCard() {
             );
           })}
         </View>
-
-        {/* Custom Emoji Input */}
-        <View style={styles.customEmojiRow}>
-          <Text style={styles.customEmojiLabel}>Wpisz dowolne własne emoji:</Text>
-          <TextInput
-            style={styles.customEmojiInput}
-            value={customEmoji}
-            onChangeText={handleCustomEmojiChange}
-            placeholder="✨"
-            placeholderTextColor={palette.textFaint}
-            maxLength={4}
-          />
-        </View>
       </View>
 
       {/* Error / Success Feedback */}
@@ -360,7 +272,7 @@ export function ProfileSettingsCard() {
       {savedNotice ? (
         <View style={styles.savedNoticeBox}>
           <Text style={styles.savedNoticeGlyph}>✓</Text>
-          <Text style={styles.savedNoticeText}>Zapisano profil pomyślnie!</Text>
+          <Text style={styles.savedNoticeText}>Zapisano profil pomyślnie</Text>
         </View>
       ) : null}
 
@@ -374,7 +286,7 @@ export function ProfileSettingsCard() {
         {saving ? (
           <ActivityIndicator color={palette.surfaceSolid} />
         ) : (
-          <Text style={styles.saveButtonText}>Zapisz profil i awatar</Text>
+          <Text style={styles.saveButtonText}>Zapisz profil</Text>
         )}
       </Pressable>
     </View>
@@ -403,26 +315,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  previewHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.xs,
-  },
-  previewBadge: {
-    ...type.label,
-    fontSize: 9,
-    letterSpacing: 1,
-    color: palette.textFaint,
-  },
-  previewStatusTag: {
+  previewTitle: {
     ...type.caption,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
     letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    color: palette.textMuted,
+    marginBottom: spacing.xs,
   },
   previewCenter: {
     alignItems: 'center',
@@ -435,30 +333,24 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
+    opacity: 0.15,
   },
   haloInner: {
     position: 'absolute',
     width: 64,
     height: 64,
     borderRadius: 32,
+    opacity: 0.28,
   },
   previewNamePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
     backgroundColor: 'rgba(17, 19, 24, 0.94)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     marginBottom: 4,
     zIndex: 2,
-  },
-  previewLiveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   previewNameText: {
     color: '#FFFFFF',
@@ -498,38 +390,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginTop: 2,
   },
-  simulatorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-  },
-  simulatorLabel: {
-    ...type.caption,
-    fontSize: 10,
-    color: palette.textFaint,
-  },
-  simulatorButtons: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  simButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.pill,
-  },
-  simButtonActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  simButtonText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: palette.textFaint,
-  },
   previewCaption: {
     ...type.caption,
     fontSize: 11,
@@ -542,10 +402,8 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     ...type.label,
-    fontSize: 11,
-    letterSpacing: 0.8,
+    fontSize: 12,
     color: palette.textMuted,
-    textTransform: 'uppercase',
   },
   textInput: {
     ...type.body,
@@ -560,17 +418,19 @@ const styles = StyleSheet.create({
   pickerSection: {
     gap: spacing.sm,
   },
-  aurasRow: {
+  aurasGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    justifyContent: 'space-between',
+    rowGap: 8,
   },
   auraPill: {
+    width: '31%',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: radii.pill,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
@@ -611,7 +471,7 @@ const styles = StyleSheet.create({
   },
   tabButtonText: {
     ...type.caption,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
     color: palette.textMuted,
   },
@@ -622,14 +482,14 @@ const styles = StyleSheet.create({
   emojiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    paddingVertical: spacing.xs,
     justifyContent: 'space-between',
+    rowGap: 10,
+    paddingVertical: spacing.xs,
   },
   emojiItem: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: '18%',
+    aspectRatio: 1,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1.5,
     borderColor: 'transparent',
@@ -638,33 +498,11 @@ const styles = StyleSheet.create({
   },
   emojiItemSelected: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    transform: [{ scale: 1.08 }],
+    transform: [{ scale: 1.05 }],
   },
   emojiItemGlyph: {
-    fontSize: 22,
-  },
-  customEmojiRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: radii.card,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  customEmojiLabel: {
-    ...type.caption,
-    color: palette.textMuted,
-    fontSize: 12,
-  },
-  customEmojiInput: {
-    ...type.body,
-    fontSize: 18,
-    color: palette.text,
+    fontSize: 24,
     textAlign: 'center',
-    minWidth: 60,
-    paddingVertical: spacing.xs,
   },
   saveButton: {
     backgroundColor: palette.text,
