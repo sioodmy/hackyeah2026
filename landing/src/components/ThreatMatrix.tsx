@@ -148,9 +148,8 @@ export const ThreatMatrix: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               {/* Left: Phone */}
               <div className="space-y-3">
-                <div className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#ff2a85]" />
-                  <span>Twój telefon (Widok kamuflażu)</span>
+                <div className="text-xs font-mono uppercase tracking-wider text-slate-400">
+                  Twój telefon (Widok kamuflażu)
                 </div>
                 <div className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-sm text-slate-300 leading-relaxed min-h-[130px]">
                   {current.phonePerspective}
@@ -159,9 +158,8 @@ export const ThreatMatrix: React.FC = () => {
 
               {/* Right: Friends */}
               <div className="space-y-3">
-                <div className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-sky-400" />
-                  <span>Krąg znajomych (Telefony przyjaciółek)</span>
+                <div className="text-xs font-mono uppercase tracking-wider text-slate-400">
+                  Krąg znajomych (Telefony przyjaciółek)
                 </div>
                 <div className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-sm text-slate-300 leading-relaxed min-h-[130px]">
                   {current.networkPerspective}

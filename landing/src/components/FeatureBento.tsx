@@ -14,9 +14,6 @@ export const FeatureBento: React.FC = () => {
     >
       {/* Section Header */}
       <div className="max-w-3xl mx-auto text-center mb-16">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff2a85]/10 border border-[#ff2a85]/20 text-[#ff2a85] text-xs font-semibold uppercase tracking-wider mb-4">
-          Kamuflaż i Zasada Działania
-        </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
           Dlaczego typowe aplikacje SOS nie sprawdzają się na ulicy
         </h2>
