@@ -40,7 +40,7 @@
             };
           };
           android = import ./nix/android-sdk.nix { pkgs = pkgsAndroid; };
-          # `nix fmt` runs treefmt, which drives prettier, ruff, alejandra,
+          # `nix fmt` runs treefmt, which drives prettier, alejandra,
           # shfmt, statix and taplo from one config.
           #
           # NOTE: treefmt matches these globs against paths relative to the
@@ -55,13 +55,11 @@
               "app/.expo"
               "app/android"
               "app/ios"
-              "*.egg-info"
               "*.png"
               "*.wav"
               "*.m4a"
               "*.mp3"
               "package-lock.json"
-              "uv.lock"
             ];
 
             # `lib.mkEnableOption` defaults to *false*, so every formatter has to be
@@ -86,18 +84,6 @@
             includes = [ "**/*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,md,yml,yaml,css}" ];
           };
 
-          # treefmt-nix exposes ruff as two modules; the `**/` prefix is
-          # needed because every Python file lives under backend/.
-          programs."ruff-format" = {
-            enable = true;
-            includes = [ "**/*.py" ];
-            lineLength = 100;
-          };
-          programs."ruff-check" = {
-            enable = true;
-            includes = [ "**/*.py" ];
-          };
-
           programs.shfmt = {
             enable = true;
             includes = [ "**/*.sh" ];
@@ -114,129 +100,87 @@
 
           isLinux = pkgs.stdenv.hostPlatform.isLinux;
 
+          # The backend with its dependencies installed, used by the checks
+          # below. `npm ci` happens here once rather than being repeated inside
+          # each check, which would otherwise install the same tree twice.
+          backendToolchain = pkgs.stdenv.mkDerivation {
+            name = "panicmap-backend-deps";
+            nativeBuildInputs = [ pkgs.nodejs_22 ];
+            src = lib.fileset.toSource {
+              root = ./.;
+              fileset = lib.fileset.unions [
+                ./backend/package.json
+                ./backend/package-lock.json
+                ./backend/tsconfig.json
+                ./backend/vitest.config.ts
+                ./backend/src
+                ./backend/tests
+                ./backend/drizzle
+              ];
+            };
+            buildPhase = ''
+              runHook preBuild
+              export HOME="$TMPDIR"
+              export npm_config_cache="$TMPDIR/npm-cache"
+              npm ci --no-audit --no-fund
+              runHook postBuild
+            '';
+            installPhase = ''
+              runHook preInstall
+              mkdir -p "$out"
+              cp -r . "$out/"
+              runHook postInstall
+            '';
+            dontFixup = true;
+          };
+
           backendFiles = lib.fileset.unions [
-            ./backend/pyproject.toml
-            ./backend/uv.lock
+            ./backend/package.json
+            ./backend/package-lock.json
+            ./backend/tsconfig.json
+            ./backend/tsconfig.build.json
             ./backend/README.md
           ];
 
-          # Dependencies are vendored with uv straight from the lockfile. No
-          # uv2nix: it would add a second lockfile to keep in sync, which is a
-          # bad trade with 36 hours left.
-          backendDeps = pkgs.python313.pkgs.buildPythonApplication {
-            pname = "panicmap-api-deps";
-            version = "0.1.0";
-            # Not a wheel: this just materialises the locked dependency set
-            # into a site-packages directory.
-            format = "other";
-
-            src = lib.fileset.toSource { root = ./.; fileset = backendFiles; };
-
-            nativeBuildInputs = [
-              pkgs.uv
-              pkgs.python313.pkgs.setuptools
-            ];
-
-            buildPhase = ''
-              runHook preBuild
-              export UV_CACHE_DIR="$TMPDIR/uv-cache"
-              export UV_NO_MODERATION=1
-              export UV_PYTHON_DOWNLOADS=never
-              # The fileset is rooted at the repo, so the project lives in
-              # backend/ inside the source tree.
-              cd backend
-              uv export --frozen --no-emit-project --no-hashes \
-                --python ${pkgs.python313}/bin/python3 \
-                --format requirements.txt --output-file requirements.txt
-              touch requirements.txt
-              runHook postBuild
-            '';
-
-            installPhase = ''
-              runHook preInstall
-              export UV_CACHE_DIR="$TMPDIR/uv-cache"
-              export UV_NO_MODERATION=1
-              export UV_PYTHON_DOWNLOADS=never
-              local site="$out/lib/python3.13/site-packages"
-              mkdir -p "$site"
-              uv pip install \
-                --python ${pkgs.python313}/bin/python3 \
-                --target "$site" \
-                --no-compile \
-                --no-cache \
-                -r requirements.txt
-              runHook postInstall
-            '';
-
-            doCheck = false;
-            pythonRelaxedDepRequires = true;
-            # The build reaches PyPI and npm-less uv has no substitute.
-            allowSubstitutes = false;
-            preferLocalBuild = true;
-          };
-
-          backendApp = pkgs.python313.pkgs.buildPythonApplication {
+          backendApp = pkgs.buildNodeApplication {
             pname = "panicmap-api";
             version = "0.1.0";
-            # Not a wheel either: buildPhase and installPhase are overridden
-            # below to use the uv virtualenv produced by `uv sync`.
-            format = "other";
 
             src = lib.fileset.toSource {
               root = ./.;
               fileset = lib.fileset.unions [
-                ./backend/pyproject.toml
-                ./backend/uv.lock
-                ./backend/README.md
+                ./backend/package.json
+                ./backend/package-lock.json
+                ./backend/tsconfig.json
+                ./backend/tsconfig.build.json
                 ./backend/src
+                ./backend/drizzle
               ];
             };
 
-            nativeBuildInputs = [
-              pkgs.uv
-              pkgs.python313.pkgs.setuptools
+            # `npm run build` is `tsc -p tsconfig.build.json`, which emits
+            # dist/ next to the sources.
+            npmBuildScript = "build";
+
+            # npm ci needs a writable HOME and npm's cache, and refuses to run
+            # as root without --unsafe-perm.
+            npmInstallFlags = [
+              "--include=dev"
+              "--no-audit"
+              "--no-fund"
             ];
 
-            # `backendDeps` is deliberately *not* propagated here: `uv sync`
-            # already produces a self-contained virtualenv, and listing both
-            # would put two copies of every dependency in the closure.
+            # Runtime env is read from a real file, so `nix run` must not
+            # inherit a developer's local backend/.env by accident.
+            makeWrapperArgs = [
+              "--set-default DATABASE_URL ''"
+            ];
 
-            buildPhase = ''
-              runHook preBuild
-              export UV_CACHE_DIR="$TMPDIR/uv-cache"
-              export UV_NO_MODERATION=1
-              export UV_PYTHON_DOWNLOADS=never
-              cd backend
-              uv sync --frozen --no-dev --no-editable
-              runHook postBuild
-            '';
-
-            installPhase = ''
-              runHook preInstall
-              local site="$out/lib/python3.13/site-packages"
-              mkdir -p "$site"
-              cp -r .venv/lib/python3.13/site-packages/. "$site/"
-
-              mkdir -p "$out/bin"
-              cat > "$out/bin/hy-api" <<EOF
-              #!${pkgs.python313}/bin/python3
-              import sys
-              sys.path.insert(0, "$site")
-              from hy.asgi import main
-              raise SystemExit(main())
-              EOF
-              chmod +x "$out/bin/hy-api"
-              runHook postInstall
-            '';
-
-            doCheck = false;
-            pythonRelaxedDepRequires = true;
-            allowSubstitutes = false;
-            preferLocalBuild = true;
+            doCheck = true;
 
             meta = {
-              description = "PanicMap API — FastAPI + WebSocket backend";
-              mainProgram = "hy-api";
+              description = "PanicMap API — Fastify + Drizzle backend";
+              mainProgram = "panicmap-api";
             };
           };
         in
@@ -257,9 +201,6 @@
                 yq
                 ripgrep
                 just
-                uv
-                python313
-                python313Packages.pip
                 # Used by scripts/db.sh when docker is unavailable.
                 postgresql
                 statix
@@ -296,10 +237,11 @@
               echo ""
               echo "  PanicMap devshell — $(uname -s) $(uname -m)"
               echo "    just setup   install app + backend dependencies"
-              echo "    just api     FastAPI (REST + /ws/locations) on :8000"
+              echo "    just api     Fastify REST on :8000 (docs at /docs)"
+              echo "    just worker  alert escalation worker"
               echo "    just app     Expo dev server (needs a development build)"
               echo "    just db:up   postgres via docker, else the nix postgres above"
-              echo "    just check   lint, typecheck, pytest, format check"
+              echo "    just check   typecheck, vitest, format check"
               echo ""
             '';
           };
@@ -307,7 +249,7 @@
           # A runnable backend closure. There is deliberately no Docker image
           # output: a nix store path cannot be meaningfully flattened into a
           # container layer, so the image is built by infra/Dockerfile instead,
-          # which resolves dependencies with uv and needs no nix at all.
+          # which resolves dependencies with npm and needs no nix at all.
           packages = {
             inherit backendApp;
             default = backendApp;
@@ -316,71 +258,29 @@
 
           apps.default = {
             type = "app";
-            program = "${backendApp}/bin/hy-api";
+            program = "${backendApp}/bin/panicmap-api";
           };
 
           checks = {
-            backend-lint =
-              pkgs.runCommand "backend-lint"
-                {
-                  nativeBuildInputs = [
-                    pkgs.python313
-                    backendDeps
-                    pkgs.ruff
-                  ];
-                }
-                ''
-                  cd ${./backend}
-                  ruff check src tests
-                  touch $out
-                '';
-
-            backend-format =
-              pkgs.runCommand "backend-format"
-                {
-                  nativeBuildInputs = [
-                    pkgs.python313
-                    backendDeps
-                    pkgs.ruff
-                  ];
-                }
-                ''
-                  cd ${./backend}
-                  ruff format --check src tests
-                  touch $out
-                '';
-
-            # Runs the suite against a Postgres started inside the build, so
-            # `nix flake check` needs nothing from the host.
-            backend-pytest =
-              pkgs.runCommand "backend-pytest"
-                {
-                  nativeBuildInputs = [
-                    pkgs.python313
-                    backendDeps
-                    pkgs.python313Packages.pytest
-                    pkgs.postgresql
-                  ];
-                  PGPORT = "5440";
-                }
+            backend-typecheck =
+              pkgs.runCommand "backend-typecheck"
+                { nativeBuildInputs = [ pkgs.nodejs_22 backendToolchain ]; }
                 ''
                   export HOME="$TMPDIR"
-                  export PGDATA="$TMPDIR/pgdata"
-                  export PGSOCK="$TMPDIR/pgsock"
-                  mkdir -p "$PGSOCK"
+                  cd ${backendToolchain}
+                  npx tsc --noEmit
+                  touch $out
+                '';
 
-                  initdb -D "$PGDATA" -U panicmap --auth=trust >/dev/null
-                  pg_ctl -D "$PGDATA" \
-                    -o "-p $PGPORT -k $PGSOCK -c listen_addresses=127.0.0.1" \
-                    -w start >/dev/null
-                  trap 'pg_ctl -D "$PGDATA" -m immediate stop >/dev/null 2>&1 || true' EXIT
-
-                  createdb -h "$PGSOCK" -p "$PGPORT" -U panicmap panicmap_test
-
-                  cd ${./backend}
-                  export PYTHONPATH="$PWD/src"
-                  export TEST_DATABASE_URL="postgresql+psycopg://panicmap@127.0.0.1:$PGPORT/panicmap_test"
-                  pytest -q tests
+            # The suite runs on PGlite, an in-process Postgres, so this needs
+            # nothing from the host — no initdb, no port, no socket.
+            backend-vitest =
+              pkgs.runCommand "backend-vitest"
+                { nativeBuildInputs = [ pkgs.nodejs_22 backendToolchain ]; }
+                ''
+                  export HOME="$TMPDIR"
+                  cd ${backendToolchain}
+                  npx vitest run
                   touch $out
                 '';
 

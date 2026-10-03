@@ -3,11 +3,46 @@
 #   docker compose up -d          both services
 #   docker compose up -d db       postgres only
 #
-# The API runs a single uvicorn worker on purpose: the WebSocket connection
-# registry is in-process, so a second worker would only be handed sockets it
-# could not fan out from. See the repo README before scaling this.
+# The API and the escalation worker run as two services off one image, because
+# the API records alerts and the worker is what promotes an unacknowledged one
+# after ESCALATE_UNSAFE_AFTER_MINUTES. They share a database, so either can be
+# restarted without losing an alert.
 
 name: panicmap
+
+x-app: &app
+  build:
+    context: ..
+    dockerfile: infra/Dockerfile
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+  environment:
+    DATABASE_URL: postgresql://${POSTGRES_USER:-panicmap}:${POSTGRES_PASSWORD:-panicmap}@db:5432/${POSTGRES_DB:-panicmap}
+    CLERK_JWKS_URL: ${CLERK_JWKS_URL:-}
+    CLERK_ISSUER: ${CLERK_ISSUER:-}
+    # Android push (FCM HTTP v1)
+    FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+    FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-}
+    FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY:-}
+    # iOS push (APNs .p8 key, newlines escaped as \n)
+    APNS_KEY_ID: ${APNS_KEY_ID:-}
+    APNS_TEAM_ID: ${APNS_TEAM_ID:-}
+    APNS_BUNDLE_ID: ${APNS_BUNDLE_ID:-com.example.safety}
+    APNS_PRIVATE_KEY: ${APNS_PRIVATE_KEY:-}
+    APNS_USE_SANDBOX: ${APNS_USE_SANDBOX:-true}
+    # Email for danger alerts; blank SMTP_HOST disables it
+    SMTP_HOST: ${SMTP_HOST:-}
+    SMTP_PORT: ${SMTP_PORT:-587}
+    SMTP_USER: ${SMTP_USER:-}
+    SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    EMAIL_FROM: ${EMAIL_FROM:-Safety Alert <alerts@safetyapp.example>}
+    PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+    APP_LINK_SCHEME: ${APP_LINK_SCHEME:-safetyapp}
+    ESCALATE_UNSAFE_AFTER_MINUTES: ${ESCALATE_UNSAFE_AFTER_MINUTES:-15}
+    ESCALATE_DANGER_AFTER_MINUTES: ${ESCALATE_DANGER_AFTER_MINUTES:-5}
+    LOG_LEVEL: ${LOG_LEVEL:-info}
 
 services:
   db:
@@ -33,27 +68,15 @@ services:
       start_period: 5s
 
   api:
-    build:
-      context: ..
-      dockerfile: infra/Dockerfile
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-panicmap}:${POSTGRES_PASSWORD:-panicmap}@db:5432/${POSTGRES_DB:-panicmap}
-      EVIDENCE_DIR: /var/lib/panicmap/evidence
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
-      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
-      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-}
-      INVITE_SIGNING_KEY: ${INVITE_SIGNING_KEY:-dev-invite-key-change-me}
-      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN:-}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    <<: *app
+    command: ["node", "dist/server.js"]
     ports:
       - "${API_PORT:-8000}:8000"
-    volumes:
-      - evidence:/var/lib/panicmap/evidence
+
+  worker:
+    <<: *app
+    # No port: the worker only sweeps the alerts table.
+    command: ["node", "dist/worker.js"]
 
 volumes:
   pgdata:
-  evidence:

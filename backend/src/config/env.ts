@@ -27,7 +27,10 @@ const schema = z
       ['fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const,
       'info',
     ),
-    PORT: z.coerce.number().int().positive().default(3000),
+    // 8000, not 3000: the Expo client derives the API address from the Metro
+    // host and appends this port, and every README and emulator note assumes
+    // 8000. Changing it silently breaks `just api` for anyone following the docs.
+    PORT: z.coerce.number().int().positive().default(8000),
     API_PREFIX: z.string().default('/api/v1'),
 
     // Local Postgres runs under your own macOS role over a Unix socket, so the

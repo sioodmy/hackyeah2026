@@ -244,7 +244,7 @@ export function createApiClient(getToken: TokenProvider) {
       if (typeof detailRaw === 'string') {
         detail = detailRaw;
       } else if (Array.isArray(detailRaw)) {
-        // FastAPI validation errors: [{ loc, msg, ... }] -> readable message.
+        placeholder
         const parts = detailRaw
           .map((e) => {
             if (typeof e === 'string') return e;

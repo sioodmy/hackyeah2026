@@ -1,8 +1,8 @@
 name: checks
 
-# Mirrors `just check`: typecheck, prettier, ruff, and the pytest suite against a
-# throwaway Postgres. There was no CI before, which is how a PR that unauthenticated
-# an endpoint full of assault reports reached main.
+# Mirrors `just check`: typecheck, prettier, and the vitest suite. There was no
+# CI before, which is how a PR that unauthenticated an endpoint full of assault
+# reports reached main.
 on:
   pull_request:
   push:
@@ -31,34 +31,21 @@ jobs:
       - run: npx prettier --check "src/**/*.{ts,tsx}"
 
   backend:
-    name: backend (ruff, pytest)
+    name: backend (typecheck, vitest)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: panicmap
-          POSTGRES_DB: panicmap_test
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    # No Postgres service: the suite runs on PGlite, an in-process Postgres,
+    # so nothing has to be provisioned or torn down around it.
     steps:
       - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-node@v5
         with:
-          enable-cache: true
-      - run: uv sync --frozen
-      - run: uv run ruff check src tests
-      - run: uv run ruff format --check src tests
-      - name: pytest
-        env:
-          PYTHONPATH: src
-          TEST_DATABASE_URL: postgresql+psycopg://panicmap@127.0.0.1:5432/panicmap_test
-        run: uv run pytest -q tests
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx prettier --check "src/**/*.ts" "tests/**/*.ts"
+      - run: npm test

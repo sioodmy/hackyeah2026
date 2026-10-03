@@ -10,23 +10,37 @@ default:
 # setup
 # ---------------------------------------------------------------------------
 
-# Install everything: python venv, JS dependencies, create app/.env.
+# Install everything: backend node_modules, app node_modules, create app/.env.
 setup:
-    cd backend && uv sync
+    cd backend && npm install
     cd app && npm install
     @if [ ! -f app/.env ]; then cp app/.env.example app/.env; echo "created app/.env — fill in the Clerk key"; fi
+    @if [ ! -f backend/.env ]; then cp backend/.env.example backend/.env; echo "created backend/.env — fill in CLERK_JWKS_URL"; fi
 
 # ---------------------------------------------------------------------------
 # run
 # ---------------------------------------------------------------------------
 
-# FastAPI on :8000 — REST plus /ws/locations.
+# Fastify on :8000 — REST plus OpenAPI docs at /docs.
 api:
-    cd backend && uv run uvicorn hy.asgi:app --reload --host 0.0.0.0 --port 8000
+    cd backend && npm run dev
 
-# Same, without auto-reload.
+# Same, without auto-reload. Run `just build-api` first.
 api-prod:
-    cd backend && uv run uvicorn hy.asgi:app --host 0.0.0.0 --port 8000 --workers 1
+    cd backend && npm start
+
+# Compile the backend to backend/dist.
+build-api:
+    cd backend && npm run build
+
+# The escalation worker: promotes a level-2 alert nobody has acknowledged.
+# Must run alongside `just api` — the API records, this promotes.
+worker:
+    cd backend && npm run worker
+
+# Create the database if missing and apply migrations.
+db-setup:
+    cd backend && npm run setup
 
 # Expo dev server for a development build (MapLibre and Clerk need one).
 app *args:
@@ -83,13 +97,13 @@ db-psql *args:
 # Drop and recreate every table (development only).
 db-reset:
     ./scripts/db.sh psql -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' || true
-    cd backend && uv run python -c "from hy.asgi import _init_database; _init_database(); print('schema recreated')"
+    cd backend && npm run db:migrate
 
 # ---------------------------------------------------------------------------
 # checks
 # ---------------------------------------------------------------------------
 
-# Format everything in place (treefmt: prettier, ruff, alejandra, shfmt).
+# Format everything in place (treefmt: prettier, alejandra, shfmt, taplo).
 fmt:
     nix fmt
 
@@ -98,14 +112,14 @@ fmt-check:
     nix fmt -- --fail-on-change
 
 lint:
-    cd backend && uv run ruff check src tests
+    cd backend && npm run typecheck
     cd app && npx tsc --noEmit
 
 # Everything that gates a commit.
 check: lint backend-test fmt-check
 
 backend-test:
-    cd backend && uv run pytest -q
+    cd backend && npm test
 
 typecheck:
     cd app && npx tsc --noEmit
@@ -115,7 +129,7 @@ typecheck:
 # ---------------------------------------------------------------------------
 
 # Build the backend as a runnable nix closure. Needs network at build time
-# (uv resolves PyPI), so on Linux the sandbox must be relaxed for this one.
+# (npm registry), so on Linux the sandbox must be relaxed for this one.
 nix-build:
     nix build .#api --option sandbox false
 
