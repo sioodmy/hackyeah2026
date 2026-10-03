@@ -64,10 +64,11 @@ export function usePushRegistration({
 
     void (async () => {
       try {
-        // Deliberately outside the block below: a category that fails to register
-        // costs the friend a button, while a failure anywhere in there costs the
-        // phone its push token, and with it every alert this account ever sends.
-        await registerAlarmCategories().catch(() => {});
+        // Deliberately not awaited, and not in the block below: a category that
+        // fails to register — or a native call that never returns — costs the friend
+        // a button, while any of that inside the block below would cost this phone
+        // its push token, and with it every alert this account ever sends.
+        void registerAlarmCategories().catch(() => {});
 
         if (Platform.OS === 'android') {
           // Level 3 needs this channel to be heads-up and to bypass Do Not

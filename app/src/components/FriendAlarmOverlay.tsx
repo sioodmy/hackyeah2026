@@ -3,10 +3,11 @@
  *
  * Two screens, one per level that takes over the phone:
  *
- * * **level 2 — the call request.** The push's `call` category makes Android open
- *   the app full-screen, so this reads as a phone ringing with the person in danger
- *   on the other end: ringtone, haptics, answer and decline. Answering is the thing
- *   the victim asked for, so answering reports `answered` back to her.
+ * * **level 2 — the call request.** The push arrives on its own heads-up channel
+ *   with an "Odbierz" button; the tap that opens the app lands here, so this reads
+ *   as a phone ringing with the person in danger on the other end: ringtone,
+ *   haptics, answer and decline. Answering is the thing the victim asked for, so
+ *   answering reports `answered` back to her.
  * * **level 3 — the alarm.** A looping siren at full volume that only stops when the
  *   friend says what they are doing about it, and the answer lands on the victim's
  *   screen as "Kasia wie" / "Kasia idzie".
