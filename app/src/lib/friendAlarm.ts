@@ -43,20 +43,23 @@ const listeners = new Set<() => void>();
 /**
  * What each alert has already done on this phone.
  *
- * Two jobs. `seen` swallows a notification that Expo or FCM delivers twice, so a
- * friend does not get a second siren for the same push. `resolved` outlives the
- * overlay on purpose: once an alert has been resolved, a level-2 or level-3 push
- * that was already on the wire must not be able to re-open a call screen for it,
- * and that has to hold even after the overlay has been dismissed.
+ * Two jobs, with very different costs to forgetting. `seen` swallows a notification
+ * that Expo or FCM delivers twice, so a friend does not get a second siren for the
+ * same push; losing an entry is survivable, the duplicate just rings again. `resolved`
+ * outlives the overlay on purpose: once an alert has been resolved, a level-2 or
+ * level-3 push that was already on the wire must not be able to re-open a call
+ * screen for it, and that has to hold long after the overlay was dismissed. So the
+ * two are bounded very differently — losing a `resolved` entry is the one bug that
+ * lets a stale alarm ring at 3am, and it is the one we keep far more of.
  */
 const seen = new Map<string, { sentAt: number; level: number }>();
 const resolved = new Map<string, number>();
 
-/** Keep the bookkeeping bounded on a phone that never restarts. */
-const REMEMBERED_ALERTS = 8;
+const SEEN_LIMIT = 8;
+const RESOLVED_LIMIT = 128;
 
-function remember<T>(store: Map<string, T>, key: string, value: T): void {
-  if (!store.has(key) && store.size >= REMEMBERED_ALERTS) {
+function remember<T>(store: Map<string, T>, key: string, value: T, limit: number): void {
+  if (!store.has(key) && store.size >= limit) {
     const oldest = store.keys().next();
     if (!oldest.done) store.delete(oldest.value);
   }
@@ -80,7 +83,7 @@ function isFresh(alertId: string, sentAt: number, level: number): boolean {
     if (sentAt === previous.sentAt && level <= previous.level) return false;
   }
 
-  remember(seen, alertId, { sentAt, level });
+  remember(seen, alertId, { sentAt, level }, SEEN_LIMIT);
   return true;
 }
 
@@ -138,7 +141,7 @@ export function applyIncomingPush(data: unknown): void {
     if (!alertId) return;
     const alreadyResolved = resolved.get(alertId);
     if (alreadyResolved === undefined || sentAt > alreadyResolved) {
-      remember(resolved, alertId, sentAt);
+      remember(resolved, alertId, sentAt, RESOLVED_LIMIT);
     }
     if (current?.alertId === alertId) emit(null);
     return;

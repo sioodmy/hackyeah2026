@@ -20,7 +20,7 @@ import { useSmoothedLocations } from '@/hooks/useSmoothedLocations';
 import { useEvidenceRecorder } from '@/hooks/useEvidenceRecorder';
 import { useApi } from '@/lib/ApiContext';
 import { useAuthToken } from '@/lib/useAuthToken';
-import type { AlertAck, HeatmapGeoJSON, ReportIncidentInput } from '@/lib/api';
+import { ApiError, type AlertAck, type HeatmapGeoJSON, type ReportIncidentInput } from '@/lib/api';
 import { colorForLevel, floatingShadow, palette, radii, spacing, type } from '@/theme';
 import { THREAT_FULL, THREAT_SAFE, hint, label, type ThreatLevel } from '@/theme/levels';
 
@@ -36,6 +36,22 @@ function ackLine(acks: AlertAck[]): string | null {
   return acks
     .map((ack) => `${ack.displayName || 'Ktoś'} — ${ACK_LABEL[ack.action] ?? ACK_LABEL.seen}`)
     .join(' · ');
+}
+
+/**
+ * A short Polish reason for the legend.
+ *
+ * The raw message would be an English FastAPI `detail` or a `TypeError` from
+ * `fetch`, which reads as noise in a card written in Polish.
+ */
+function heatmapErrorText(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 401) return 'wymagane logowanie';
+    if (err.status === 403) return 'brak dostępu';
+    if (err.status >= 500) return 'błąd serwera';
+    return `błąd ${err.status}`;
+  }
+  return 'brak połączenia z API';
 }
 
 /**
@@ -60,6 +76,7 @@ export function MapScreen() {
   // Kraków danger heatmap state
   const [heatmapData, setHeatmapData] = useState<HeatmapGeoJSON | null>(null);
   const [heatmapError, setHeatmapError] = useState<string | null>(null);
+  const [heatmapLoading, setHeatmapLoading] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -94,18 +111,27 @@ export function MapScreen() {
   const { points, staleSeconds } = useSmoothedLocations(locations);
 
   // Fetch heatmap data for Kraków
+  const heatmapRequestRef = useRef(0);
+
   const loadHeatmap = useCallback(async () => {
+    // Reloads can overlap (mount, post-report, retry), so only the newest answer is
+    // allowed to write state; a slow failure must not overwrite a fresh success.
+    const request = (heatmapRequestRef.current += 1);
+    setHeatmapLoading(true);
     try {
       const data = await api.incidentHeatmap();
+      if (request !== heatmapRequestRef.current) return;
       setHeatmapData(data);
       setHeatmapError(null);
     } catch (err) {
-      // Deliberately not silent: a failed read leaves the map unpainted, and an
-      // unpainted map reads as "nobody reported anything here". The reason is kept
-      // and the legend is opened, so the layer is visibly unavailable rather than
-      // silently implying safety.
-      setHeatmapError(err instanceof Error ? err.message : 'Nie udało się pobrać danych');
+      if (request !== heatmapRequestRef.current) return;
+      // Deliberately not silent: an unpainted map reads as "nobody reported
+      // anything here", which is the one thing this layer must never imply. The
+      // reason is kept and the legend is opened so it can say so.
+      setHeatmapError(heatmapErrorText(err));
       setShowLegend(true);
+    } finally {
+      if (request === heatmapRequestRef.current) setHeatmapLoading(false);
     }
   }, [api]);
 
@@ -297,6 +323,8 @@ export function MapScreen() {
         totalIncidents={totalReported}
         hottestCells={hottestCells}
         error={heatmapError}
+        loading={heatmapLoading}
+        onRetry={() => void loadHeatmap()}
         onClose={() => setShowLegend(false)}
         onOpenReport={() => {
           setShowLegend(false);
