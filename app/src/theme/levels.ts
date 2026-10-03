@@ -14,6 +14,14 @@ export type ThreatLevel = 0 | 1 | 2 | 3;
 
 export const MAX_LEVEL: ThreatLevel = THREAT_FULL;
 
+/** Every level in ascending order — the stops the slider snaps between. */
+export const STOP_LEVELS: readonly ThreatLevel[] = [
+  THREAT_SAFE,
+  THREAT_HINT,
+  THREAT_HELP,
+  THREAT_FULL,
+] as const;
+
 /** Slider zones. `from` is inclusive, `to` is exclusive except for the last. */
 export const ZONES: ReadonlyArray<{ level: ThreatLevel; from: number; to: number }> = [
   { level: THREAT_SAFE, from: 0, to: 0.18 },
@@ -22,7 +30,7 @@ export const ZONES: ReadonlyArray<{ level: ThreatLevel; from: number; to: number
   { level: THREAT_FULL, from: 0.85, to: 1 },
 ] as const;
 
-/** Where the knob snaps to when released in each zone. */
+/** Where the knob snaps to when released in each zone, as a fraction of travel. */
 export const DETENTS: Record<ThreatLevel, number> = {
   [THREAT_SAFE]: 0,
   [THREAT_HINT]: 0.34,
@@ -49,10 +57,6 @@ export function levelForProgress(progress: number): ThreatLevel {
     if (clamped < zone.to) return zone.level;
   }
   return MAX_LEVEL;
-}
-
-export function isBeyondSafe(progress: number): boolean {
-  return progress >= (ZONES[THREAT_HINT]?.from ?? 0.18);
 }
 
 /** Detent for a level, with a total function so it is always safe to index. */
