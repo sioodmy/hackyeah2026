@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
   Easing,
+  Extrapolation,
   interpolate,
   interpolateColor,
   runOnJS,
@@ -19,7 +20,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import * as Haptics from 'expo-haptics';
 
-import { LEVEL_GRADIENT, floatingShadow, palette, radii } from '@/theme';
+import { LEVEL_GRADIENT, floatingShadow, palette, radii, spacing } from '@/theme';
 import {
   detentFor,
   MAX_LEVEL,
@@ -56,19 +57,26 @@ export type ThreatSliderProps = {
   onCommit: (level: ThreatLevel) => void;
   /** Level currently live, used for the resting tint and the top-level pulse. */
   activeLevel: ThreatLevel;
+  /** Live zone feedback while the finger is actively sliding. */
+  onDragLevelChange?: (level: ThreatLevel | null) => void;
   disabled?: boolean;
 };
 
 /**
- * The control the whole app is built around.
+ * Minimalist, tactile, non-transparent threat slider.
  *
- * Design intent: from across a room this should read as an ordinary slider on a
- * map. The knob has to be pushed past the yellow zone and *released* to do
- * anything, and colour — not a label — carries the meaning. Once an action
- * fires, the knob slides back to grey while the map quietly does the real work.
+ * Solid dark-mode track with precision micro-notches, understated affordance text,
+ * and a tactile physical knob. Pure, clean product design with zero visual clutter.
  */
-export function ThreatSlider({ onCommit, activeLevel, disabled = false }: ThreatSliderProps) {
+export function ThreatSlider({
+  onCommit,
+  activeLevel,
+  onDragLevelChange,
+  disabled = false,
+}: ThreatSliderProps) {
   const [trackWidth, setTrackWidth] = useState(0);
+  const [dragZone, setDragZone] = useState<ThreatLevel>(THREAT_SAFE);
+  const [isDragging, setIsDragging] = useState(false);
 
   const width = trackWidth || 1;
   const travel = Math.max(0, width - KNOB_SIZE);
@@ -84,10 +92,30 @@ export function ThreatSlider({ onCommit, activeLevel, disabled = false }: Threat
     travelSV.value = travel;
   }, [travel, travelSV]);
 
-  const onZoneCrossed = useCallback(() => {
-    // The tactile cue that tells the user, without looking, how far they pushed.
-    Haptics.selectionAsync().catch(() => {});
-  }, []);
+  const handleZoneCrossed = useCallback(
+    (zone: ThreatLevel) => {
+      setDragZone(zone);
+      onDragLevelChange?.(zone);
+      Haptics.selectionAsync().catch(() => {});
+    },
+    [onDragLevelChange],
+  );
+
+  const handleDragBegin = useCallback(() => {
+    setIsDragging(true);
+    setDragZone(THREAT_SAFE);
+    onDragLevelChange?.(THREAT_SAFE);
+  }, [onDragLevelChange]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+    onDragLevelChange?.(null);
+  }, [onDragLevelChange]);
+
+  const resetDragZone = useCallback(() => {
+    setDragZone(THREAT_SAFE);
+    onDragLevelChange?.(null);
+  }, [onDragLevelChange]);
 
   const commit = useCallback(
     (level: ThreatLevel) => {
@@ -105,11 +133,11 @@ export function ThreatSlider({ onCommit, activeLevel, disabled = false }: Threat
     () =>
       Gesture.Pan()
         .enabled(!disabled)
-        // Track from the first touch: a quick flick must not read as a tap.
         .minDistance(0)
         .onBegin(() => {
           pressed.value = withSpring(1, KNOB_SPRING);
           cancelAnimation(progress);
+          runOnJS(handleDragBegin)();
         })
         .onUpdate((event) => {
           const maxTravel = travelSV.value || 1;
@@ -124,27 +152,25 @@ export function ThreatSlider({ onCommit, activeLevel, disabled = false }: Threat
           const zone = levelForProgress(progress.value);
           if (zone !== zoneAnim.value) {
             zoneAnim.value = withTiming(zone, { duration: 160 });
-            runOnJS(onZoneCrossed)();
+            runOnJS(handleZoneCrossed)(zone);
           }
         })
         .onFinalize(() => {
           pressed.value = withSpring(0, KNOB_SPRING);
+          runOnJS(handleDragEnd)();
 
           const snapped = zoneAnim.value as ThreatLevel;
           const detent = detentFor(snapped);
 
           if (snapped === THREAT_SAFE) {
-            // Never even reached yellow: just spring home, no action.
             progress.value = withSpring(detent, SNAP_SPRING);
             zoneAnim.value = withTiming(THREAT_SAFE, { duration: 200 });
+            runOnJS(resetDragZone)();
             return;
           }
 
-          // The action fires immediately — the visual reset must never be the
-          // thing the user is waiting on.
           runOnJS(commit)(snapped);
 
-          // Pop onto the zone's detent, then slide home to grey.
           progress.value = withSequence(
             withSpring(detent, SNAP_SPRING),
             withTiming(0, { duration: RESET_DURATION_MS, easing: Easing.out(Easing.cubic) }),
@@ -156,12 +182,23 @@ export function ThreatSlider({ onCommit, activeLevel, disabled = false }: Threat
               easing: Easing.out(Easing.cubic),
             }),
           );
+          runOnJS(resetDragZone)();
         }),
-    [commit, disabled, onZoneCrossed, pressed, progress, travelSV, zoneAnim],
+    [
+      commit,
+      disabled,
+      handleDragBegin,
+      handleDragEnd,
+      handleZoneCrossed,
+      pressed,
+      progress,
+      resetDragZone,
+      travelSV,
+      zoneAnim,
+    ],
   );
 
-  // The gradient is revealed by animating a second rect's width rather than
-  // scaling one, so the colours stay exactly where the design put them.
+  // Gradient fill revealed smoothly up to the knob position
   const fillProps = useAnimatedProps<AnimatedRectProps>(() => ({
     width: Math.max(0, Math.min(1, progress.value) * width),
   }));
@@ -169,17 +206,27 @@ export function ThreatSlider({ onCommit, activeLevel, disabled = false }: Threat
   const knobStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: Math.max(0, progress.value) * travelSV.value },
-      { scale: interpolate(pressed.value, [0, 1], [1, 1.12]) },
+      { scale: interpolate(pressed.value, [0, 1], [1, 1.08]) },
     ],
   }));
 
-  const knobCoreStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(zoneAnim.value, [0, 1, 2, 3], LEVEL_COLORS),
-    transform: [{ scale: interpolate(zoneAnim.value, [0, 3], [1, 1.15]) }],
+  const knobCoreStyle = useAnimatedStyle(() => {
+    const effectiveZone = pressed.value > 0 ? zoneAnim.value : activeLevel;
+    return {
+      backgroundColor: interpolateColor(effectiveZone, [0, 1, 2, 3], LEVEL_COLORS),
+      transform: [{ scale: interpolate(effectiveZone, [0, 3], [1, 1.1]) }],
+    };
+  });
+
+  const promptStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.14], [0.75, 0], Extrapolation.CLAMP),
+    transform: [
+      { translateX: interpolate(progress.value, [0, 0.14], [0, 10], Extrapolation.CLAMP) },
+    ],
   }));
 
   const glowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(zoneAnim.value, [0, 1, 2, 3], [0, 0.22, 0.32, 0.45]),
+    opacity: interpolate(zoneAnim.value, [0, 1, 2, 3], [0, 0.25, 0.38, 0.5]),
     shadowColor: interpolateColor(zoneAnim.value, [0, 1, 2, 3], LEVEL_COLORS),
   }));
 
@@ -215,6 +262,20 @@ export function ThreatSlider({ onCommit, activeLevel, disabled = false }: Threat
     [activeLevel, commit],
   );
 
+  const displayedZone = isDragging ? dragZone : activeLevel;
+  const glyphText = useMemo(() => {
+    switch (displayedZone) {
+      case 1:
+        return '1';
+      case 2:
+        return '2';
+      case 3:
+        return 'SOS';
+      default:
+        return '››';
+    }
+  }, [displayedZone]);
+
   return (
     <View
       style={styles.wrapper}
@@ -236,6 +297,13 @@ export function ThreatSlider({ onCommit, activeLevel, disabled = false }: Threat
 
           <Svg width={width} height={TRACK_HEIGHT} style={styles.svg} pointerEvents="none">
             <Defs>
+              {/* Opaque tactile solid dark gradient for track base */}
+              <LinearGradient id="trackBg" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#191C23" />
+                <Stop offset="1" stopColor="#111317" />
+              </LinearGradient>
+
+              {/* Threat level gradient */}
               <LinearGradient id="threat" x1="0" y1="0" x2="1" y2="0">
                 {LEVEL_GRADIENT.map(([offset, color]) => (
                   <Stop key={offset} offset={offset} stopColor={color} />
@@ -243,27 +311,62 @@ export function ThreatSlider({ onCommit, activeLevel, disabled = false }: Threat
               </LinearGradient>
             </Defs>
 
-            {/* Empty track: deliberately neutral so it reads as "nothing happening". */}
+            {/* Solid, non-transparent track background */}
             <Rect
               x={0}
               y={0}
               width={width}
               height={TRACK_HEIGHT}
               rx={radii.track}
-              fill="rgba(255,255,255,0.07)"
-            />
-            <Rect
-              x={0}
-              y={0}
-              width={width}
-              height={TRACK_HEIGHT}
-              rx={radii.track}
-              fill="none"
-              stroke="rgba(255,255,255,0.09)"
-              strokeWidth={1}
+              fill="url(#trackBg)"
             />
 
-            {/* Filled portion: the gradient, revealed up to the knob. */}
+            {/* Crisp outer border */}
+            <Rect
+              x={0.75}
+              y={0.75}
+              width={width - 1.5}
+              height={TRACK_HEIGHT - 1.5}
+              rx={radii.track}
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.12)"
+              strokeWidth={1.5}
+            />
+
+            {/* Detent micro-notches indicating level detents */}
+            {travel > 0 ? (
+              <>
+                {/* Level 1 detent notch */}
+                <Rect
+                  x={KNOB_SIZE / 2 + 0.34 * travel - 1}
+                  y={TRACK_HEIGHT / 2 - 5}
+                  width={2}
+                  height={10}
+                  rx={1}
+                  fill="rgba(255, 255, 255, 0.18)"
+                />
+                {/* Level 2 detent notch */}
+                <Rect
+                  x={KNOB_SIZE / 2 + 0.66 * travel - 1}
+                  y={TRACK_HEIGHT / 2 - 5}
+                  width={2}
+                  height={10}
+                  rx={1}
+                  fill="rgba(255, 255, 255, 0.18)"
+                />
+                {/* Level 3 detent notch */}
+                <Rect
+                  x={KNOB_SIZE / 2 + 1.0 * travel - 1.5}
+                  y={TRACK_HEIGHT / 2 - 7}
+                  width={3}
+                  height={14}
+                  rx={1.5}
+                  fill="rgba(214, 40, 40, 0.4)"
+                />
+              </>
+            ) : null}
+
+            {/* Filled portion: the gradient revealed smoothly up to knob */}
             <AnimatedRect
               animatedProps={fillProps}
               x={0}
@@ -274,8 +377,19 @@ export function ThreatSlider({ onCommit, activeLevel, disabled = false }: Threat
             />
           </Svg>
 
-          <Animated.View style={[styles.knob, knobStyle, floatingShadow(10)]} pointerEvents="none">
-            <Animated.View style={[styles.knobCore, knobCoreStyle]} />
+          {/* Understated affordance prompt on track when idle */}
+          <Animated.View style={[styles.promptRow, promptStyle]} pointerEvents="none">
+            <Text style={styles.promptText}>Przesuń w razie zagrożenia</Text>
+            <Text style={styles.promptChevrons}>››</Text>
+          </Animated.View>
+
+          {/* Tactile knob handle */}
+          <Animated.View style={[styles.knob, knobStyle, floatingShadow(8)]} pointerEvents="none">
+            <Animated.View style={[styles.knobCore, knobCoreStyle]}>
+              <Text style={[styles.knobGlyph, glyphText === 'SOS' ? styles.knobGlyphSOS : null]}>
+                {glyphText}
+              </Text>
+            </Animated.View>
           </Animated.View>
         </View>
       </GestureDetector>
@@ -290,11 +404,13 @@ const styles = StyleSheet.create({
   hitArea: {
     height: TRACK_HEIGHT,
     justifyContent: 'center',
+    borderRadius: radii.track,
   },
   svg: {
     position: 'absolute',
     left: 0,
     top: 0,
+    borderRadius: radii.track,
   },
   glow: {
     position: 'absolute',
@@ -320,6 +436,26 @@ const styles = StyleSheet.create({
     borderColor: palette.level3,
     backgroundColor: 'transparent',
   },
+  promptRow: {
+    position: 'absolute',
+    left: KNOB_SIZE + spacing.md,
+    right: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  promptText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.42)',
+    letterSpacing: 0.2,
+  },
+  promptChevrons: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.32)',
+    letterSpacing: 1,
+  },
   knob: {
     position: 'absolute',
     left: 0,
@@ -327,13 +463,28 @@ const styles = StyleSheet.create({
     width: KNOB_SIZE,
     height: KNOB_SIZE,
     borderRadius: KNOB_SIZE / 2,
-    backgroundColor: 'rgba(18, 20, 24, 0.94)',
+    backgroundColor: '#1E222A',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   knobCore: {
-    width: KNOB_SIZE - 22,
-    height: KNOB_SIZE - 22,
-    borderRadius: (KNOB_SIZE - 22) / 2,
+    width: KNOB_SIZE - 18,
+    height: KNOB_SIZE - 18,
+    borderRadius: (KNOB_SIZE - 18) / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  knobGlyph: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  knobGlyphSOS: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
 });
