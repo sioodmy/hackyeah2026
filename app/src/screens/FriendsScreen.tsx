@@ -1,4 +1,3 @@
-import { useUser } from '@clerk/expo';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -8,18 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, radii, spacing, type } from '@/theme';
 import { useApi } from '@/lib/ApiContext';
 import type { Friend } from '@/lib/api';
-import { avatarEmoji } from '@/lib/avatar';
+import { parseAvatar } from '@/lib/avatar';
 
 /**
  * Friends: connect by QR, or by typing six characters.
- *
- * The QR payload is signed server-side, so a code cannot be forged to add an
- * arbitrary person; the short code is deliberately *not* signed and only
- * proposes a link that the other side still has to accept.
  */
 export function FriendsScreen() {
   const api = useApi();
-  const { user } = useUser();
   const insets = useSafeAreaInsets();
 
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -86,31 +80,35 @@ export function FriendsScreen() {
 
         {requests.length > 0 ? (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Prośby</Text>
-            {requests.map((friend) => (
-              <View key={friend.id} style={styles.row}>
-                <View style={styles.friendAvatarBadge}>
-                  <Text style={styles.friendAvatarEmoji}>{avatarEmoji(friend.avatarUrl)}</Text>
+            <Text style={styles.cardTitle}>Oczekujące prośby</Text>
+            {requests.map((friend) => {
+              const { emoji, aura } = parseAvatar(friend.avatarUrl);
+              return (
+                <View key={friend.id} style={styles.row}>
+                  <View style={[styles.friendAvatarBadge, { borderColor: aura ?? palette.border }]}>
+                    <Text style={styles.friendAvatarEmoji}>{emoji}</Text>
+                  </View>
+                  <View style={styles.friendInfo}>
+                    <Text style={styles.rowLabel}>{friend.displayName ?? 'Znajoma'}</Text>
+                    <Text style={styles.rowSub}>Zaproszenie oczekujące</Text>
+                  </View>
+                  <Pressable
+                    style={styles.smallButton}
+                    onPress={() => accept(friend.id)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.smallButtonText}>Akceptuj</Text>
+                  </Pressable>
                 </View>
-                <View style={styles.friendInfo}>
-                  <Text style={styles.rowLabel}>{friend.displayName ?? friend.id.slice(0, 8)}</Text>
-                </View>
-                <Pressable
-                  style={styles.smallButton}
-                  onPress={() => accept(friend.id)}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.smallButtonText}>Akceptuj</Text>
-                </Pressable>
-              </View>
-            ))}
+              );
+            })}
           </View>
         ) : null}
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Twoje QR</Text>
+          <Text style={styles.cardTitle}>Twój kod QR</Text>
           <Text style={styles.note}>
-            Znajoma skanuje ten kod w swoim telefonie, albo wpisuje sześć znaków.
+            Znajoma może zeskanować ten kod lub wpisać sześć znaków ze swojego telefonu
           </Text>
           {invite ? (
             <View style={styles.qrBox}>
@@ -123,26 +121,33 @@ export function FriendsScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Znajomi</Text>
+          <Text style={styles.cardTitle}>Twoje kontakty</Text>
           {loading ? (
             <ActivityIndicator color={palette.textMuted} style={styles.spinner} />
           ) : friends.length === 0 ? (
-            <Text style={styles.note}>Jeszcze nikogo nie ma. Pokaż swój kod.</Text>
+            <Text style={styles.note}>Brak kontaktów. Pokaż swój kod znajomej.</Text>
           ) : (
-            friends.map((friend) => (
-              <View key={friend.id} style={styles.row}>
-                <View style={styles.friendAvatarBadge}>
-                  <Text style={styles.friendAvatarEmoji}>{avatarEmoji(friend.avatarUrl)}</Text>
+            friends.map((friend) => {
+              const { emoji, aura } = parseAvatar(friend.avatarUrl);
+              return (
+                <View key={friend.id} style={styles.row}>
+                  <View style={[styles.friendAvatarBadge, { borderColor: aura ?? palette.border }]}>
+                    <Text style={styles.friendAvatarEmoji}>{emoji}</Text>
+                  </View>
+                  <View style={styles.friendInfo}>
+                    <Text style={styles.rowLabel}>{friend.displayName ?? 'Znajoma'}</Text>
+                    <Text style={styles.rowSub}>Kontakt zaufania</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => remove(friend.id)}
+                    accessibilityRole="button"
+                    hitSlop={8}
+                  >
+                    <Text style={styles.remove}>Usuń</Text>
+                  </Pressable>
                 </View>
-                <View style={styles.friendInfo}>
-                  <Text style={styles.rowLabel}>{friend.displayName ?? friend.id.slice(0, 8)}</Text>
-                  <Text style={styles.rowSub}>{friend.id.slice(0, 18)}</Text>
-                </View>
-                <Pressable onPress={() => remove(friend.id)} accessibilityRole="button" hitSlop={8}>
-                  <Text style={styles.remove}>Usuń</Text>
-                </Pressable>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
 
@@ -155,7 +160,6 @@ export function FriendsScreen() {
         </Pressable>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Text style={styles.footnote}>Zalogowano jako {user?.id ?? '—'}</Text>
       </ScrollView>
     </View>
   );
@@ -205,7 +209,7 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 19,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: palette.border,
     alignItems: 'center',
     justifyContent: 'center',
@@ -215,9 +219,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   friendInfo: { flex: 1 },
-  rowText: { flex: 1 },
   rowLabel: { ...type.body, fontSize: 15 },
-  rowSub: { ...type.caption, fontFamily: 'monospace', fontSize: 11 },
+  rowSub: { ...type.caption, fontSize: 12, color: palette.textMuted },
   smallButton: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -237,5 +240,4 @@ const styles = StyleSheet.create({
   scanButtonText: { ...type.body, fontWeight: '600' },
   spinner: { paddingVertical: spacing.lg },
   error: { ...type.caption, color: palette.level3 },
-  footnote: { ...type.caption, fontFamily: 'monospace', fontSize: 10 },
 });

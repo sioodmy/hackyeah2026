@@ -239,10 +239,29 @@ export function createApiClient(getToken: TokenProvider) {
     }
 
     if (!response.ok) {
-      const detail =
-        (payload as { detail?: string } | null)?.detail ??
-        (typeof payload === 'string' ? payload : null) ??
-        `HTTP ${response.status}`;
+      const detailRaw = (payload as { detail?: unknown } | null)?.detail;
+      let detail: string | null = null;
+      if (typeof detailRaw === 'string') {
+        detail = detailRaw;
+      } else if (Array.isArray(detailRaw)) {
+        // FastAPI validation errors: [{ loc, msg, ... }] -> readable message.
+        const parts = detailRaw
+          .map((e) => {
+            if (typeof e === 'string') return e;
+            if (e && typeof e === 'object') {
+              const loc = (e as { loc?: unknown }).loc;
+              const msg = (e as { msg?: unknown }).msg;
+              const field = Array.isArray(loc) ? String(loc[loc.length - 1]) : null;
+              return field && typeof msg === 'string' ? `${field}: ${msg}` : String(msg ?? e);
+            }
+            return String(e);
+          })
+          .filter(Boolean);
+        if (parts.length > 0) detail = parts.join('; ');
+      } else if (detailRaw != null) {
+        detail = String(detailRaw);
+      }
+      detail ??= (typeof payload === 'string' ? payload : null) ?? `HTTP ${response.status}`;
       throw new ApiError(response.status, String(detail));
     }
 

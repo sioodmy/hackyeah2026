@@ -36,6 +36,10 @@ app *args:
 app-android:
     cd app && npx expo run:android
 
+# Download and install the latest release APK on a connected device via adb.
+install-release *args:
+    ./scripts/install-release.sh {{args}}
+
 app-ios:
     cd app && npx expo run:ios
 

@@ -36,6 +36,52 @@ def test_update_display_name_and_emoji_avatar(users, client: TestClient) -> None
     assert profile["avatarUrl"] == "🌸"
 
 
+def test_update_with_signature_aura(users, client: TestClient) -> None:
+    """Frontend stores emoji + aura as `emoji|#HEX` — must be accepted."""
+    patch_res = client.patch(
+        "/api/v1/users/me",
+        json={"displayName": "Kasia", "avatarUrl": "🌸|#F472B6"},
+    )
+    assert patch_res.status_code == 200, patch_res.text
+    updated = patch_res.json()
+    assert updated["displayName"] == "Kasia"
+    assert updated["avatarUrl"] == "🌸|#F472B6"
+
+
+def test_update_explicit_null_clears_field(users, client: TestClient) -> None:
+    """PATCH with explicit null clears the field; missing keys are untouched."""
+    res = client.patch(
+        "/api/v1/users/me",
+        json={"displayName": "Kasia", "avatarUrl": "🌸|#F472B6"},
+    )
+    assert res.status_code == 200
+
+    # Explicit null clears displayName but keeps avatarUrl.
+    res = client.patch("/api/v1/users/me", json={"displayName": None})
+    assert res.status_code == 200, res.text
+    assert res.json()["displayName"] is None
+    assert res.json()["avatarUrl"] == "🌸|#F472B6"
+
+    # Whitespace-only strings are normalised to None (clear).
+    res = client.patch("/api/v1/users/me", json={"avatarUrl": "   "})
+    assert res.status_code == 200, res.text
+    assert res.json()["avatarUrl"] is None
+
+    # Empty dict / empty body is a no-op returning the current profile.
+    res = client.patch("/api/v1/users/me", json={})
+    assert res.status_code == 200, res.text
+    assert res.json()["displayName"] is None
+
+
+def test_update_trims_and_ignores_extra(users, client: TestClient) -> None:
+    res = client.patch(
+        "/api/v1/users/me",
+        json={"displayName": "  Ola  ", "avatarUrl": "🦊", "extraField": "ignored"},
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["displayName"] == "Ola"
+
+
 def test_display_name_can_be_cleared(users, client: TestClient) -> None:
     """Sending an explicit null means "remove my name".
 
