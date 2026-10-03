@@ -27,8 +27,19 @@
       ];
 
       perSystem =
-        { pkgs, lib, ... }:
+        { pkgs, lib, system, ... }:
         let
+          # A separate nixpkgs instance with the Android SDK license accepted.
+          # Kept distinct from the main package set on purpose: unfree +
+          # license-accepting config should not leak into everything else.
+          pkgsAndroid = import inputs.nixpkgs {
+            inherit system;
+            config = {
+              android_sdk.accept_license = true;
+              allowUnfree = true;
+            };
+          };
+          android = import ./nix/android-sdk.nix { pkgs = pkgsAndroid; inherit system; };
           # `nix fmt` runs treefmt, which drives prettier, ruff, alejandra,
           # shfmt, statix and taplo from one config.
           #
@@ -257,14 +268,25 @@
               ++ lib.optionals isLinux [
                 docker
                 docker-compose
-                # Provides adb/fastboot. The full Android SDK is not shipped
-                # here; install it with Android Studio or the sdkmanager.
+                # Full Android SDK (platform 35 + build-tools 35.0.0, no NDK —
+                # everything native ships prebuilt). adb/fastboot come along
+                # via platform-tools; JAVA_HOME points at nixpkgs JDK 17.
+                android.sdk
+                pkgsAndroid.jdk17
                 android-tools
               ];
 
-            shellHook = ''
-              export PANICMAP_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-              export PATH="$PANICMAP_ROOT/scripts:$PATH"
+            shellHook =
+              ''
+                export PANICMAP_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+                export PATH="$PANICMAP_ROOT/scripts:$PATH"
+              ''
+              + lib.optionalString isLinux ''
+                export ANDROID_HOME="${android.env.ANDROID_HOME}"
+                export ANDROID_SDK_ROOT="${android.env.ANDROID_SDK_ROOT}"
+                export JAVA_HOME="${android.env.JAVA_HOME}"
+                export PATH="$ANDROID_HOME/platform-tools:$PATH"
+              '';
               echo ""
               echo "  PanicMap devshell — $(uname -s) $(uname -m)"
               echo "    just setup   install app + backend dependencies"

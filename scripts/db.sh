@@ -109,7 +109,13 @@ db_status() {
 }
 
 db_url() {
-  if using_docker || compose_running; then
+  # Prefer whichever backend is actually running over whichever *could* run:
+  # a docker binary with a dead daemon must not shadow a live nix postgres.
+  if compose_running; then
+    echo "postgresql+psycopg://${DB_USER}:${DB_PASS}@127.0.0.1:5432/${DB_NAME}"
+  elif nix_running; then
+    echo "postgresql+psycopg://${DB_USER}@127.0.0.1:${NIX_PG_PORT}/${DB_NAME}"
+  elif using_docker; then
     echo "postgresql+psycopg://${DB_USER}:${DB_PASS}@127.0.0.1:5432/${DB_NAME}"
   else
     echo "postgresql+psycopg://${DB_USER}@127.0.0.1:${NIX_PG_PORT}/${DB_NAME}"
