@@ -39,7 +39,7 @@
               allowUnfree = true;
             };
           };
-          android = import ./nix/android-sdk.nix { pkgs = pkgsAndroid; inherit system; };
+          android = import ./nix/android-sdk.nix { pkgs = pkgsAndroid; };
           # `nix fmt` runs treefmt, which drives prettier, ruff, alejandra,
           # shfmt, statix and taplo from one config.
           #

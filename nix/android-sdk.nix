@@ -1,7 +1,4 @@
-{
-  pkgs,
-  system,
-}: let
+{pkgs}: let
   # Minimalny zestaw pod Expo SDK 56 / RN 0.85 (compileSdk 35).
   #
   # Celowo bez NDK, cmake i emulatora: MapLibre, Reanimated i Hermes
