@@ -26,7 +26,7 @@ const CATEGORIES: EmojiCategory[] = [
   {
     id: 'vibes',
     name: 'Symbole',
-    emojis: ['⚡', '🔥', '🌙', '💅', '🎧', '🕶️', '👑', '🚀', '🔮', '🛡️'],
+    emojis: ['⚡', '💫', '🌙', '💅', '🎧', '🕶️', '👑', '🚀', '🔮', '🛡️'],
   },
   {
     id: 'chill',

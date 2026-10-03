@@ -78,7 +78,7 @@ export function label(level: ThreatLevel): string {
 export function hint(level: ThreatLevel): string {
   switch (level) {
     case THREAT_SAFE:
-      return 'Przesuń i puść, gdy coś jest nie tak';
+      return '';
     case THREAT_HINT:
       return '10 s i telefon zadzwoni';
     case THREAT_HELP:

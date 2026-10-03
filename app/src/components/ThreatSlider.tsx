@@ -379,7 +379,6 @@ export function ThreatSlider({
 
           {/* Understated affordance prompt on track when idle */}
           <Animated.View style={[styles.promptRow, promptStyle]} pointerEvents="none">
-            <Text style={styles.promptText}>Przesuń w razie zagrożenia</Text>
             <Text style={styles.promptChevrons}>››</Text>
           </Animated.View>
 
@@ -438,17 +437,10 @@ const styles = StyleSheet.create({
   },
   promptRow: {
     position: 'absolute',
-    left: KNOB_SIZE + spacing.md,
     right: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  promptText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.42)',
-    letterSpacing: 0.2,
+    justifyContent: 'flex-end',
   },
   promptChevrons: {
     fontSize: 16,

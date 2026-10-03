@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import * as Haptics from 'expo-haptics';
 
 import { MapCanvas } from '@/components/MapCanvas';
 import { ThreatSlider } from '@/components/ThreatSlider';
@@ -35,23 +36,6 @@ export function MapScreen() {
   const centredRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [previewLevel, setPreviewLevel] = useState<ThreatLevel | null>(null);
-  const [profile, setProfile] = useState<{
-    displayName: string | null;
-    avatarUrl: string | null;
-  } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .myProfile()
-      .then((p) => {
-        if (!cancelled) setProfile({ displayName: p.displayName, avatarUrl: p.avatarUrl });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [api]);
 
   const evidence = useEvidenceRecorder({ api });
   const lastBroadcastRef = useRef(0);
@@ -107,6 +91,7 @@ export function MapScreen() {
 
   const recenter = useCallback(() => {
     if (!position) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     cameraRef.current?.easeTo({ center: [position.lng, position.lat], duration: 350 });
   }, [position]);
 
@@ -184,26 +169,7 @@ export function MapScreen() {
               <View style={[styles.statusDot, { backgroundColor: colorForLevel(threat.level) }]} />
               <Text style={styles.statusText}>{label(threat.level)}</Text>
             </View>
-          ) : (
-            <Pressable
-              style={[styles.profilePill, floatingShadow(6)]}
-              onPress={() => router.push('/settings')}
-              accessibilityRole="button"
-              accessibilityLabel="Twój profil i awatar"
-              hitSlop={8}
-            >
-              <View style={styles.profileAvatarDisc}>
-                <Text style={styles.profileAvatarEmoji}>
-                  {(profile?.avatarUrl?.includes('|')
-                    ? profile.avatarUrl.split('|')[0]
-                    : profile?.avatarUrl) || '🌸'}
-                </Text>
-              </View>
-              <Text style={styles.profileName} numberOfLines={1}>
-                {profile?.displayName || 'Twój profil'}
-              </Text>
-            </Pressable>
-          )}
+          ) : null}
         </View>
 
         <View style={styles.rightGroup} pointerEvents="box-none">
@@ -250,7 +216,11 @@ export function MapScreen() {
         </Svg>
 
         <View style={styles.statusRow}>
-          <Text style={[styles.statusLine, { color: statusColor }]}>{statusText}</Text>
+          {statusText ? (
+            <Text style={[styles.statusLine, { color: statusColor }]}>{statusText}</Text>
+          ) : (
+            <View />
+          )}
           {connected ? (
             <View style={styles.liveIndicator}>
               <View style={styles.liveDot} />
@@ -266,8 +236,25 @@ export function MapScreen() {
         />
       </View>
 
-      <Pressable style={styles.recenter} onPress={recenter} accessibilityRole="button">
-        <Text style={styles.recenterGlyph}>◎</Text>
+      <Pressable
+        style={({ pressed }) => [
+          styles.recenter,
+          floatingShadow(8),
+          pressed && styles.recenterPressed,
+        ]}
+        onPress={recenter}
+        accessibilityRole="button"
+        accessibilityLabel="Wyśrodkuj na mojej lokalizacji"
+        hitSlop={8}
+      >
+        <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+          <Circle cx={12} cy={12} r={7} stroke={palette.text} strokeWidth={1.8} />
+          <Circle cx={12} cy={12} r={2.5} fill={palette.text} />
+          <Path d="M12 2V5" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+          <Path d="M12 19V22" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+          <Path d="M2 12H5" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+          <Path d="M19 12H22" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+        </Svg>
       </Pressable>
 
       <IncomingCallOverlay
@@ -305,39 +292,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  profilePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs + 3,
-    paddingLeft: 4,
-    paddingRight: spacing.md,
-    height: 42,
-    borderRadius: radii.pill,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  profileAvatarDisc: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#161922',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: palette.level2,
-  },
-  profileAvatarEmoji: {
-    fontSize: 17,
-    lineHeight: 22,
-  },
-  profileName: {
-    ...type.label,
-    color: palette.text,
-    fontSize: 13,
-    fontWeight: '600',
-    maxWidth: 120,
-  },
+
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -435,8 +390,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
   },
-  recenterGlyph: {
-    fontSize: 18,
-    color: palette.text,
+  recenterPressed: {
+    backgroundColor: palette.surfaceRaised,
+    transform: [{ scale: 0.92 }],
+    opacity: 0.9,
   },
 });
