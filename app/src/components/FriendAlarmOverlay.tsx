@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 
 import { useApi } from '@/lib/ApiContext';
@@ -44,6 +44,27 @@ export type AckAction = 'seen' | 'answered' | 'on_the_way';
 function coordinates(lat: number | null, lng: number | null): string | null {
   if (lat === null || lng === null) return null;
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+}
+
+/**
+ * Play a clip from the start, and hand back the stop function.
+ *
+ * `seekTo` resolves a tick later, so without the cancelled flag an alarm that is
+ * acknowledged during the seek would start playing after the overlay — and the
+ * siren with it — has gone away.
+ */
+function playFromStart(player: AudioPlayer): () => void {
+  let cancelled = false;
+  player
+    .seekTo(0)
+    .then(() => {
+      if (!cancelled) player.play();
+    })
+    .catch(() => {});
+  return () => {
+    cancelled = true;
+    player.pause();
+  };
 }
 
 export function FriendAlarmOverlay() {
@@ -103,19 +124,16 @@ function AlertScreen({ alert, api }: { alert: IncomingAlert; api: ApiClient }) {
     if (isAlarm || answered) return undefined;
     ringtone.loop = true;
     ringtone.volume = RINGTONE_VOLUME;
-    ringtone
-      .seekTo(0)
-      .then(() => ringtone.play())
-      .catch(() => {});
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+    const stopRingtone = playFromStart(ringtone);
 
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     const pulse = setInterval(() => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }, 2_000);
 
     return () => {
       clearInterval(pulse);
-      ringtone.pause();
+      stopRingtone();
     };
   }, [answered, isAlarm, ringtone]);
 
@@ -123,29 +141,23 @@ function AlertScreen({ alert, api }: { alert: IncomingAlert; api: ApiClient }) {
     if (!isAlarm) return undefined;
     siren.loop = true;
     siren.volume = 1;
-    siren
-      .seekTo(0)
-      .then(() => siren.play())
-      .catch(() => {});
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    const stopSiren = playFromStart(siren);
 
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     const thump = setInterval(() => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     }, 4_000);
 
     return () => {
       clearInterval(thump);
-      siren.pause();
+      stopSiren();
     };
   }, [isAlarm, siren]);
 
   useEffect(() => {
     if (!answered) return undefined;
     ringtone.pause();
-    ambience
-      .seekTo(0)
-      .then(() => ambience.play())
-      .catch(() => {});
+    const stopAmbience = playFromStart(ambience);
 
     const tick = setInterval(() => {
       setSecondsLeft((prev) => {
@@ -160,7 +172,8 @@ function AlertScreen({ alert, api }: { alert: IncomingAlert; api: ApiClient }) {
 
     return () => {
       clearInterval(tick);
-      ambience.pause();
+      ringtone.pause();
+      stopAmbience();
     };
   }, [acknowledge, ambience, answered, ringtone]);
 

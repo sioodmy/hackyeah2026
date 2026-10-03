@@ -4,13 +4,15 @@ Threat levels as implemented here, from the sender's side and the friend's:
 
 * **1** — the victim's phone fakes an incoming call, and friends get a plain
   notification. Nothing on their screen is taken over.
-* **2** — everything level 1 does, plus friends are pushed a call request whose
-  category the client turns into a full-screen incoming call, and their phones
-  start receiving live positions over the WebSocket.
+* **2** — everything level 1 does, plus friends are pushed a call request on its
+  own heads-up channel, with the notification category the client turns into a
+  full-screen incoming call, and their phones start receiving live positions over
+  the WebSocket.
 * **3** — everything level 2 does, plus an audio evidence session is opened,
   (via `/api/v1/authorities/dispatch`) the mock authorities are notified, and
-  friends' phones get the critical channel: heads-up, `time-sensitive`, full-screen
-  intent, and a looping siren their client shows until it is acknowledged.
+  friends' phones get the critical channel: heads-up, `bypassDnd`, and a category
+  that adds a button opening the app onto a looping siren, which runs until the
+  alert is acknowledged.
 
 Raising the level of an alert that is already live **notifies again**: a friend who
 only heard the level-1 notification has to hear the level-3 alarm.
@@ -267,6 +269,10 @@ def acknowledge_alert(alert_id: str, body: AlertAckIn, principal: CurrentPrincip
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="to nie jest Twój alarm"
             )
+        if alert.status != ALERT_ACTIVE:
+            # The episode is closed: the person in danger is safe and an
+            # acknowledgement from here on is about nothing.
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="alert już rozwiązany")
 
         ack = (
             session.execute(

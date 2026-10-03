@@ -9,16 +9,34 @@ import type { ApiClient } from '@/lib/api';
  * Android channel and notification-category ids.
  *
  * They match what the backend sends: a level-2 push lands on `call-request` with
- * the `call` category, a level-3 push on `full-alert` with `alarm`. The two
- * category ids are Android's own `CATEGORY_CALL`/`CATEGORY_ALARM` values on
- * purpose — the OS only promotes a notification to a full-screen intent for those,
- * which is what opens this app straight onto the call screen or the alarm.
+ * the `call` category, a level-3 push on `full-alert` with `alarm`.
  */
 const CALL_CHANNEL = 'call-request';
 const CALL_CATEGORY = 'call';
 const FULL_ALERT_CHANNEL = 'full-alert';
 const FULL_ALERT_CATEGORY = 'alarm';
 const DEFAULT_CHANNEL = 'default';
+
+/**
+ * Register the two alarm categories, so a push that names one arrives with a
+ * button that opens the app onto the right screen.
+ *
+ * Each category needs at least one action — Android's implementation rejects an
+ * empty list outright — and the button is the only thing that reaches the app when
+ * it is not running.
+ */
+async function registerAlarmCategories(): Promise<void> {
+  await Notifications.setNotificationCategoryAsync(CALL_CATEGORY, [
+    { identifier: 'answer', buttonTitle: 'Odbierz', options: { opensAppToForeground: true } },
+  ]);
+  await Notifications.setNotificationCategoryAsync(FULL_ALERT_CATEGORY, [
+    {
+      identifier: 'on_the_way',
+      buttonTitle: 'Idę do niej',
+      options: { opensAppToForeground: true },
+    },
+  ]);
+}
 
 /**
  * Push registration.
@@ -46,6 +64,11 @@ export function usePushRegistration({
 
     void (async () => {
       try {
+        // Deliberately outside the block below: a category that fails to register
+        // costs the friend a button, while a failure anywhere in there costs the
+        // phone its push token, and with it every alert this account ever sends.
+        await registerAlarmCategories().catch(() => {});
+
         if (Platform.OS === 'android') {
           // Level 3 needs this channel to be heads-up and to bypass Do Not
           // Disturb, which is what makes "FULL ALERT" feel different from an
@@ -72,12 +95,6 @@ export function usePushRegistration({
             importance: Notifications.AndroidImportance.DEFAULT,
           });
         }
-
-        // Registering the categories is what makes a push with `categoryId` render
-        // as a call or an alarm instead of an ordinary banner. The buttons are
-        // handled by the app's own overlay, so they are deliberately absent.
-        await Notifications.setNotificationCategoryAsync(CALL_CATEGORY, []);
-        await Notifications.setNotificationCategoryAsync(FULL_ALERT_CATEGORY, []);
 
         const existing = await Notifications.getPermissionsAsync();
         let status = existing.status;

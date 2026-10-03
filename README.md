@@ -25,8 +25,8 @@ phones do about it.
 | --- | --- | --- |
 | **0** | grey | Nothing. This is the resting state, and it is the state the app returns to after every action. |
 | **1** | yellow | After **10 seconds** your phone fakes an incoming call: fullscreen call UI, a quiet looping ringtone, a repeating haptic pattern, a contact name. Answer it and you get an ambient call that runs for ~30s, then returns to the map. Decline it and the screen goes back to the map. Your friends get a **notification** — the heads-up is left to the OS, and nothing takes over their screen. |
-| **2** | orange | Everything level 1 does, plus friends get a **call request**: a heads-up on its own channel, delivered with the platform's `call` category, so their phone opens fullscreen on a ringing call with your name on it. Answering it is the thing you asked for, and answering reports back to you as "Kasia rozmawia". Your phone also starts streaming position over a WebSocket so their map moves. |
-| **3** | red | Everything level 2 does, plus friends get an **alarm**: the critical channel (heads-up, `bypassDnd`, a long vibration), `time-sensitive`, and the platform's `alarm` category, so their phone opens fullscreen onto a looping siren at full volume that only stops when they say what they are doing about it. Meanwhile the mock 112 dispatch fires and returns a case number, and **audio recording starts** (see below). |
+| **2** | orange | Everything level 1 does, plus friends get a **call request**: a heads-up on its own channel with an "Odbierz" button on it. Tapping the notification or that button opens their phone fullscreen on a ringing call with your name on it. Answering is the thing you asked for, and answering reports back to you as "Kasia rozmawia". Your phone also starts streaming position over a WebSocket so their map moves. |
+| **3** | red | Everything level 2 does, plus friends get an **alarm**: the critical channel (heads-up, `bypassDnd`, a long vibration), `time-sensitive`, and an "Idę do niej" button that opens their phone onto a looping siren at full volume — which only stops when they say what they are doing about it. Meanwhile the mock 112 dispatch fires and returns a case number, and **audio recording starts** (see below). |
 
 Raising the slider again on a live alert **notifies again at the new level** — a
 friend who only heard the level-1 notification has to hear the alarm. Dragging the
@@ -149,10 +149,11 @@ and it is inferred from the Metro host, which is usually right.
    other phone gets a notification.
 5. Push it to orange. The other phone's **call request** takes over the screen.
    Answer it and the first phone's status line picks up "Kasia — rozmawia".
-6. Push it to red. The other phone's **alarm** starts — fullscreen, looping siren —
-   and stops only once the friend presses "Idę do niej", which lands on the first
-   phone as "Kasia — idzie do ciebie". `curl localhost:8000/api/v1/alerts/active`
-   shows the acks plus the case number from the mock dispatch.
+6. Push it to red. The other phone's alarm channel buzzes with an "Idę do niej"
+   button; tapping it opens their phone onto the fullscreen looping siren, which
+   stops only once the friend presses the button — which lands on the first phone
+   as "Kasia — idzie do ciebie". `curl localhost:8000/api/v1/alerts/active` shows
+   the acks plus the case number from the mock dispatch.
 
 ---
 
@@ -162,15 +163,18 @@ and it is inferred from the Metro host, which is usually right.
   generated on the phone; level 1 tells friends that you are not comfortable and
   nothing more, because a level that takes over a friend's screen for "I might need
   a minute" is a level they learn to swipe away.
-- **The full-screen intent is the load-bearing part of levels 2 and 3.** Android
-  only promotes a notification to a full-screen intent when its category is
-  `alarm` or `call`, and on Android 14+ the user has to grant "full screen
-  notifications" for PanicMap. Without it, friends get the channel's own sound and
-  vibration — which is why `bypassDnd` matters — and the in-app ring and siren
-  start when they open the notification.
-- **A friend's phone with PanicMap killed only gets the OS behaviour.** The siren,
-  the fake call UI and the acknowledgements all need the app to be running; the
-  push that wakes it up does not.
+- **There is no full-screen intent, so the notification is the wake-up call.**
+  Android would only promote a notification to a full-screen intent when its
+  category is `alarm` or `call`, and `expo-notifications` never puts the category
+  on the notification — it only looks the category up to attach buttons. So levels
+  2 and 3 are delivered as a heads-up with sound and vibration (plus `bypassDnd`
+  at level 3), and the friend's tap — on the notification or on its "Odbierz" /
+  "Idę do niej" button — is what opens the app onto the call or the alarm. A real
+  full-screen intent needs a native module or a config plugin, which is more than
+  a demo should carry.
+- **A friend's phone with PanicMap killed gets the channel, not the app.** The
+  siren, the fake call UI and the acknowledgements all need the app running; what
+  the push does on its own is make noise and offer a button.
 - **Alert delivery is Expo push, not the WebSocket.** Push reaches a phone with
   the app killed; the socket does not. Only live *positions* use the socket.
 - **A single uvicorn worker on purpose.** The WebSocket registry is in-process
