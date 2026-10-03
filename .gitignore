@@ -5,6 +5,7 @@ node_modules/
 # builds & native projects
 app/.expo/
 app/dist/
+landing/dist/
 app/web-build/
 app/android/
 app/ios/

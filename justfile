@@ -32,6 +32,15 @@ api-prod:
 app *args:
     cd app && npx expo start --dev-client {{args}}
 
+# Vite dev server for the hackathon landing page & simulator.
+landing:
+    cd landing && npm run dev
+
+# Build the landing page for production.
+landing-build:
+    cd landing && npm run build
+
+
 # Build and run on a connected Android device or emulator.
 app-android:
     cd app && npx expo run:android
