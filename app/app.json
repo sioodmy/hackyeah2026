@@ -78,7 +78,8 @@
           "defaultChannel": "default"
         }
       ],
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "./plugins/withCleartextTraffic"
     ],
     "extra": {
       "router": {

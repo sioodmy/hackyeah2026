@@ -350,3 +350,26 @@ the reason instead of swallowing it.
 
 The APK is signed with the **debug key**. That is fine for judges sideloading it
 and wrong for the Play Store.
+
+### A release APK against your own machine
+
+The tagged build refuses anything but the published server, which is right for a
+release and useless for a demo run. Locally the same gradle build can be pointed at
+the backend on your own machine:
+
+```bash
+# app/.env — emulator; a phone needs http://<lan-ip>:8000 instead
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_…
+EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+
+just app-release-apk      # prebuild + ./gradlew assembleRelease
+adb install -r app/android/app/build/outputs/apk/release/app-release.apk
+```
+
+Needs a JDK 17 and the Android SDK (`JAVA_HOME`, `ANDROID_HOME`). React Native's
+gradle plugin sets `usesCleartextTraffic=false` for release builds, so plain `http://`
+would be refused by the OS; `app/plugins/withCleartextTraffic.js` turns it back on
+for builds whose `EXPO_PUBLIC_API_URL` is `http://`, and leaves the manifest alone
+for an `https://` one. The backend already listens on `0.0.0.0` and allows any
+origin, so nothing else needs changing — just `just api` and, on a phone, being on
+the same wifi as the server.

@@ -189,6 +189,11 @@ export type ReportIncidentInput = {
  * `EXPO_PUBLIC_API_URL` wins. Otherwise we infer it from the Expo dev server
  * host, which is what you want on a physical phone on the same wifi (the Metro
  * host is already reachable from the device).
+ *
+ * A release build has no Metro, so it must set `EXPO_PUBLIC_API_URL` — for a
+ * backend on the same machine that is http://10.0.2.2:8000 (emulator) or
+ * http://<lan-ip>:8000 (phone). Without it a release build falls through to the
+ * loopback address below, which on a device means the device itself.
  */
 export function resolveApiBaseUrl(): string {
   const explicit = process.env.EXPO_PUBLIC_API_URL;

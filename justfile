@@ -79,6 +79,16 @@ app-ios:
 app-prebuild:
     cd app && npx expo prebuild --clean
 
+# Release APK wired to a backend running on this machine, rather than to the
+# published server. Point app/.env at EXPO_PUBLIC_API_URL (emulator:
+# http://10.0.2.2:8000, phone: http://<lan-ip>:8000); an http:// URL also turns
+# on Android cleartext for that build via app/plugins/withCleartextTraffic.js.
+# Needs a JDK 17 and the Android SDK on PATH. The APK lands in
+# app/android/app/build/outputs/apk/release/app-release.apk.
+app-release-apk:
+    cd app && npx expo prebuild --platform android --clean
+    cd app/android && ./gradlew assembleRelease --no-daemon
+
 # ---------------------------------------------------------------------------
 # database
 # ---------------------------------------------------------------------------
