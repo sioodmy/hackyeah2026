@@ -1,17 +1,15 @@
-import { useUser } from '@clerk/expo';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { palette, radii, spacing, type } from '@/theme';
+import { palette, radii, spacing, switchTokens, type } from '@/theme';
 import { ProfileSettingsCard } from '@/components/ProfileSettingsCard';
 
 /**
  * Settings, reached from the pill in the corner.
  */
 export function SettingsScreen() {
-  const { user } = useUser();
   const insets = useSafeAreaInsets();
 
   const [liveShare, setLiveShare] = useState(true);
@@ -28,11 +26,6 @@ export function SettingsScreen() {
         ]}
       >
         <Header onBack={() => router.back()} />
-
-        {/* Konto na samej górze */}
-        <Section title="Konto">
-          <Row label="Adres e-mail" value={user?.primaryEmailAddress?.emailAddress ?? 'Brak'} />
-        </Section>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Twój profil</Text>
@@ -54,16 +47,6 @@ export function SettingsScreen() {
             onChange={setLiveShare}
           />
           <Toggle label="Wibracje" value={haptics} onChange={setHaptics} />
-        </Section>
-
-        <Section title="Nagrywanie dowodu">
-          <Text style={styles.note}>
-            Nagrywanie włącza się wyłącznie przy najwyższym poziomie zagrożenia. Wymagane
-            uprawnienie do mikrofonu jest przyznawane podczas pierwszego uruchomienia aplikacji.
-          </Text>
-          <Text style={styles.noteMuted}>
-            System Android wyświetla wskaźnik użycia mikrofonu przez cały czas trwania nagrania.
-          </Text>
         </Section>
       </ScrollView>
     </View>
@@ -90,17 +73,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={[styles.rowValue, mono && styles.mono]} numberOfLines={1}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
+/**
+ * Przełącznik z własnym trackiem i kciukiem, a nie natywny `Switch`.
+ *
+ * Natywny wygląda inaczej na każdym systemie, a webowy podgląd pokazuje
+ * konkretny pillek — żeby było 1:1, obie strony rysują go same i czytają
+ * geometrię z `switchTokens`.
+ */
 function Toggle({
   label,
   hint,
@@ -118,12 +97,27 @@ function Toggle({
         <Text style={styles.rowLabel}>{label}</Text>
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ true: palette.level2, false: 'rgba(255,255,255,0.2)' }}
-        thumbColor={palette.text}
-      />
+      <Pressable
+        style={[
+          styles.switchTrack,
+          { backgroundColor: value ? switchTokens.on : switchTokens.off },
+        ]}
+        onPress={() => onChange(!value)}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: value }}
+        accessibilityLabel={label}
+        hitSlop={6}
+      >
+        <View
+          style={[
+            styles.switchThumb,
+            value && {
+              backgroundColor: switchTokens.thumbColor,
+              left: switchTokens.width - switchTokens.thumb - switchTokens.padding,
+            },
+          ]}
+        />
+      </Pressable>
     </View>
   );
 }
@@ -158,9 +152,22 @@ const styles = StyleSheet.create({
   },
   toggleText: { flex: 1, gap: 2 },
   rowLabel: { ...type.body, fontSize: 14 },
-  rowValue: { ...type.caption, flexShrink: 1, textAlign: 'right' },
-  mono: { fontFamily: 'monospace', fontSize: 11 },
   hint: { ...type.caption },
+  switchTrack: {
+    width: switchTokens.width,
+    height: switchTokens.height,
+    borderRadius: switchTokens.height / 2,
+    padding: switchTokens.padding,
+    justifyContent: 'center',
+  },
+  switchThumb: {
+    position: 'absolute',
+    left: switchTokens.padding,
+    width: switchTokens.thumb,
+    height: switchTokens.thumb,
+    borderRadius: switchTokens.thumb / 2,
+    backgroundColor: switchTokens.thumbColor,
+  },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -170,6 +177,4 @@ const styles = StyleSheet.create({
   },
   actionText: { ...type.body },
   chevron: { color: palette.textFaint, fontSize: 22 },
-  note: { ...type.caption, padding: spacing.lg, color: palette.textMuted, lineHeight: 18 },
-  noteMuted: { ...type.caption, padding: spacing.lg, paddingTop: 0 },
 });
