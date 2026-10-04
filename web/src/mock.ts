@@ -54,22 +54,29 @@ function mulberry32(seed: number) {
   };
 }
 
+/**
+ * Znajomi widoczni na mapie.
+ *
+ * **Kasii tu nie ma** — jest użytkowniczką telefonu z demo, więc nie może
+ * świecić na własnej mapie. Zgłoszenia w jej imieniu w `DemoPhone` zostają,
+ * bo to osobna lista „kto odebrał", a nie mapa znajomych.
+ *
+ * Pozycje dobrane empirycznie, nie z mapy: przy `DEFAULT_ZOOM = 13.5` i
+ * skalowaniu sekcji `0.72` jeden stopień długości to ~11 920 px, a jeden
+ * stopień szerokości ~18 500 px, więc kadr 283 × 613 px obejmuje okno
+ * ±0,011° lng i ±0,016° lat wokół `DEFAULT_CENTER`. Wszyscy znajomi mieszczą
+ * się w tym oknie z zapasem, więc mapa pokazuje ich od razu — bez wciskania
+ * palców, bez zmiany zooma. Po zmianie `DEFAULT_ZOOM` te delte trzeba
+ * przeliczyć.
+ */
 export const MOCK_FRIENDS: MockFriend[] = [
-  {
-    userId: "kasia",
-    displayName: "Kasia",
-    emoji: "🦊",
-    aura: "#F2761B",
-    lat: DEFAULT_CENTER[1] + 0.008,
-    lng: DEFAULT_CENTER[0] - 0.011,
-  },
   {
     userId: "mama",
     displayName: "Mama",
     emoji: "🌙",
     aura: "#8AB4F8",
-    lat: DEFAULT_CENTER[1] - 0.012,
-    lng: DEFAULT_CENTER[0] + 0.014,
+    lat: DEFAULT_CENTER[1] - 0.0065,
+    lng: DEFAULT_CENTER[0] - 0.0034,
     stale: true,
   },
   {
@@ -77,30 +84,69 @@ export const MOCK_FRIENDS: MockFriend[] = [
     displayName: "Ola",
     emoji: "⚡",
     aura: "#4CAF7D",
-    lat: DEFAULT_CENTER[1] + 0.016,
-    lng: DEFAULT_CENTER[0] + 0.006,
+    lat: DEFAULT_CENTER[1] + 0.0051,
+    lng: DEFAULT_CENTER[0] + 0.0055,
+  },
+  {
+    userId: "zuza",
+    displayName: "Zuza",
+    emoji: "🎧",
+    aura: "#C084FC",
+    lat: DEFAULT_CENTER[1] + 0.0081,
+    lng: DEFAULT_CENTER[0] - 0.0059,
   },
 ];
 
 export function mockHeatmap(): HeatmapCell[] {
   const rand = mulberry32(20261004);
   const cells: HeatmapCell[] = [];
-  // Skupiska w okolicach Rynku, Kazimierza, Dworca i Nowej Huty — gęstość jak w seedzie demo.
-  const clusters: Array<[number, number, number]> = [
-    [19.9373, 50.0617, 9],
-    [19.9445, 50.0515, 7],
-    [19.9470, 50.0685, 6],
-    [20.0, 50.07, 4],
+  /**
+   * Skupiska wokół Tauron Arena.
+   *
+   * Nazwy są realnymi miejscami w Krakowie, ale **pozycje są ściśnięte do
+   * okna widzenia mapy w demo**. Przy `DEFAULT_ZOOM = 13.5` telefon w sekcji ma
+   * 393 × 852 px, więc kadr obejmuje tylko ~±0,0058° lng i ~±0,0084° lat, czyli
+   * mniej więcej ±830 m na wschód i zachód. Realne odległości (Park Lotników
+   * ~1 km, Rondo Mogileckie ~1,9 km) wyjechałyby poza kadr, więc mock trzyma je
+   * w okolicy hali. To dane zmyślone, nie geokodowanie.
+   *
+   * Współrzędne zapisane są przesunięciami względem `DEFAULT_CENTER` wyliczonymi
+   * z px → stopnie przy 6,24 m/px (8,67 m/px × skalowanie sekcji 0,72). Dzięki
+   * temu po zmianie zoomu lub skali wystarczy przeliczyć te delty, a nie szukać
+   * współrzędnych na nowo.
+   *
+   * Rozrzut w klastrze (±0,003° lng, ±0,0026° lat ≈ 215 m) jest mniejszy niż
+   * promień warstwy heatmapy przy tym zoomie, więc każde skupisko zlewa się w
+   * jedną plamę, a nie w rozlaną mgłę.
+   *
+   * Gęstość zgłoszeń na klastrze musi być wyższa niż liczba plam: warstwa
+   * heatmapy sumuje gęstość, więc przy 26 punktach na klastrze zamiast 12
+   * pojedyncze zgłoszenia zlewają się w jedno pole z gradientem. Przy mniejszej
+   * liczbie wychodziło kilka osobnych kropek zamiast ciepłej plamy.
+   *
+   * `n` to liczba zgłoszeń, `peak` — ich wagi: sam obszar hali jest najcięższy,
+   * peryferie tylko tleją, więc demo pokazuje gradację zamiast jednego
+   * równomiernego czerwonego kółka.
+   */
+  const clusters: Array<{ name: string; lng: number; lat: number; n: number; peak: number }> = [
+    { name: "Tauron Arena", lng: 19.9689, lat: 50.0676, n: 26, peak: 9 },
+    { name: "Park Lotników", lng: 19.9641, lat: 50.0697, n: 16, peak: 6 },
+    { name: "Stadion Miejski", lng: 19.9645, lat: 50.0732, n: 13, peak: 5 },
+    { name: "Czyżyny", lng: 19.9741, lat: 50.0661, n: 14, peak: 5 },
+    { name: "Błonia", lng: 19.9713, lat: 50.0728, n: 11, peak: 4 },
   ];
   let max = 1;
-  for (const [clng, clat, n] of clusters) {
-    for (let i = 0; i < n; i++) {
+  for (const c of clusters) {
+    for (let i = 0; i < c.n; i++) {
       const cat = CATS[Math.floor(rand() * CATS.length)]!;
-      const count = 1 + Math.floor(rand() * 5);
+      // Skrajne zgłoszenia są cięższe niż środek — tak rozkładają się realne
+      // raporty, i dzięki temu plama ma miękką, nie jednokolorową obwódkę.
+      const spread = Math.abs(rand() - 0.5) * 2;
+      const count = Math.max(1, Math.round(1 + spread * (c.peak - 1) + rand() * 1.4));
       max = Math.max(max, count);
       cells.push({
-        lng: clng + (rand() - 0.5) * 0.018,
-        lat: clat + (rand() - 0.5) * 0.014,
+        lng: c.lng + (rand() - 0.5) * 0.006,
+        lat: c.lat + (rand() - 0.5) * 0.0052,
         count,
         weight: count,
         severity: cat.severity,
@@ -154,5 +200,5 @@ export const CATEGORIES = [
 export const MOCK_CONTACTS = [
   { name: "Mama", relation: "komórka" },
   { name: "Kasia", relation: "komórka" },
-  { name: "Tata", relation: "mobile" },
+  { name: "Tata", relation: "komórka" },
 ];

@@ -35,7 +35,7 @@ const IN_CALL_AMBIENCE = require('../../assets/in-call.wav');
 const ALARM = require('../../assets/alarm.wav');
 
 /** How long the answered call pretends to last. */
-const IN_CALL_SECONDS = 20;
+const IN_CALL_SECONDS = 5;
 
 /** A call is meant to be answered, so it is louder than the victim's own fake one. */
 const RINGTONE_VOLUME = 0.6;
@@ -259,7 +259,7 @@ function AlarmScreen({
           <Text style={styles.alarmName} numberOfLines={1}>
             {name}
           </Text>
-          <Text style={styles.alarmBodyText}>potrzebuje pomocy. Zadzwoń do niej.</Text>
+          <Text style={styles.alarmBodyText}>Pilnie potrzebuje pomocy. Powiadomimy Cię o aktualizacjach</Text>
           {coords ? <Text style={styles.alarmCoords}>{coords}</Text> : null}
         </View>
 
@@ -268,9 +268,9 @@ function AlarmScreen({
             style={[styles.alarmPrimary, floatingShadow(12)]}
             onPress={onOnTheWay}
             accessibilityRole="button"
-            accessibilityLabel="Pomagam"
+            accessibilityLabel="Zadzwoń"
           >
-            <Text style={styles.alarmPrimaryText}>Pomagam</Text>
+            <Text style={styles.alarmPrimaryText}>Zadzwoń</Text>
           </Pressable>
           <Pressable
             style={styles.alarmSecondary}

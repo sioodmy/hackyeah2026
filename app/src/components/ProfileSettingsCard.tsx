@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useUser } from '@clerk/expo';
 
-import { floatingShadow, palette, radii, spacing, type } from '@/theme';
+import { auras, floatingShadow, palette, radii, spacing, type } from '@/theme';
 import { useApi } from '@/lib/ApiContext';
 import { parseAvatar } from '@/lib/avatar';
 
@@ -36,20 +36,9 @@ const CATEGORIES: EmojiCategory[] = [
   },
 ];
 
-type AuraOption = {
-  id: string;
-  name: string;
-  hex: string;
-};
+type AuraOption = (typeof auras)[number];
 
-const AURAS: AuraOption[] = [
-  { id: 'fuchsia', name: 'Róż', hex: '#F472B6' },
-  { id: 'purple', name: 'Fiolet', hex: '#A78BFA' },
-  { id: 'coral', name: 'Koral', hex: '#E05624' },
-  { id: 'emerald', name: 'Mięta', hex: '#34D399' },
-  { id: 'amber', name: 'Złoto', hex: '#FBBF24' },
-  { id: 'sky', name: 'Błękit', hex: '#38BDF8' },
-];
+const AURAS = auras;
 
 export function ProfileSettingsCard() {
   const api = useApi();

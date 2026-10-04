@@ -3,10 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Tymczasowy web-only podgląd UI Mokosh — mock bez backendu, bez buildów Androida. Branch web/preview.",
+  "description": "Mokosh — demo UI: web preview (mock, bez backendu) oraz komponent DemoPhone osadzany w landingu.",
+  "main": "./src/DemoPhone.tsx",
+  "exports": {
+    ".": "./src/DemoPhone.tsx",
+    "./styles.css": "./src/styles.css"
+  },
   "scripts": {
     "dev": "vite --port 5174",
     "build": "tsc && vite build",
+    "build:lib": "tsc && vite build --mode lib",
     "preview": "vite preview --port 5174"
   },
   "dependencies": {

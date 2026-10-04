@@ -65,29 +65,53 @@ export function MapView({ friends, level, showHeatmap, heatmap, recenterTick }: 
         minzoom: 8,
         maxzoom: 19,
         paint: {
-          "heatmap-weight": ["interpolate", ["linear"], ["get", "weight"], 0, 0, 1, 1],
-          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 9, 0.8, 13, 1.5, 16, 2.8],
+          /*
+           * Krzywa wagowa jest nieliniowa, bo `weight` to znormalizowana liczba
+           * zgłoszeń: przy liniowej skali większość punktów miała wagę 0,1–0,3,
+           * gęstość poniżej progu widoczności i na mapie zostawało kilka
+           * pojedynczych kropek zamiast pola. Podbicie środka skali sprawia, że
+           * także pojedyncze zgłoszenia wypełniają plamę.
+           */
+          "heatmap-weight": [
+            "interpolate",
+            ["linear"],
+            ["get", "weight"],
+            0,
+            0,
+            0.15,
+            0.35,
+            0.45,
+            0.7,
+            1,
+            1,
+          ],
+          // Wyższa intensywność niż domyślne 1: przy `DEFAULT_ZOOM = 13.5`
+          // poprzednia wartość 1,5 dawała ledwo widoczną mgłę.
+          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 9, 1, 13, 2.2, 16, 3.4],
           // Tylko czerwień, bez żółtego: przy tej niskiej alphie żółty składał się
           // z szarości i wychodził brązowy. Zaczyna się przezroczysty pomarańcz.
+          // Przesunięte progi w dół, żeby słaba gęstość też miała kolor.
           "heatmap-color": [
             "interpolate",
             ["linear"],
             ["heatmap-density"],
             0,
             "rgba(0, 0, 0, 0)",
-            0.15,
-            "rgba(214, 87, 40, 0.16)",
-            0.35,
-            "rgba(206, 47, 32, 0.30)",
-            0.6,
-            "rgba(190, 26, 32, 0.46)",
-            0.8,
-            "rgba(160, 16, 30, 0.60)",
+            0.08,
+            "rgba(214, 87, 40, 0.20)",
+            0.25,
+            "rgba(206, 47, 32, 0.38)",
+            0.5,
+            "rgba(190, 26, 32, 0.55)",
+            0.78,
+            "rgba(160, 16, 30, 0.68)",
             1.0,
-            "rgba(122, 8, 26, 0.72)",
+            "rgba(122, 8, 26, 0.80)",
           ],
-          "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 9, 14, 12, 24, 15, 36, 17, 50],
-          "heatmap-opacity": 0.34,
+          // Szerszy promień: plamy muszą na siebie nachodzić, inaczej widać
+          // pojedyncze punkty zamiast ciągłego pola.
+          "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 9, 20, 12, 34, 15, 52, 17, 70],
+          "heatmap-opacity": 0.5,
         },
       });
       map.addSource("friends-halo", {

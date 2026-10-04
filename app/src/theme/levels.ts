@@ -42,7 +42,23 @@ export const DETENTS: Record<ThreatLevel, number> = {
 export const OVERDRAG = 0.06;
 
 /** Seconds before the fake incoming call fires at level 1+. */
-export const FAKE_CALL_DELAY_MS = 10_000;
+export const FAKE_CALL_DELAY_MS = 5_000;
+
+/**
+ * Teksty zależne od opóźnienia, liczone z niego samego.
+ *
+ * Wcześniej „10 s" było wpisane na sztywno w trzech miejscach (tu, na mapie i w
+ * webowym demo), więc zmiana stała by na trzech niezależnych ścieżkach.
+ */
+export const FAKE_CALL_DELAY_S = FAKE_CALL_DELAY_MS / 1000;
+
+export function fakeCallHint(): string {
+  return `${FAKE_CALL_DELAY_S} s i telefon zadzwoni`;
+}
+
+export function fakeCallPreview(): string {
+  return `Poziom 1 · Telefon zadzwoni za ${FAKE_CALL_DELAY_S} s`;
+}
 
 /** Upper bound on one recorded audio segment. */
 export const EVIDENCE_CHUNK_SECONDS = 30;
@@ -84,7 +100,7 @@ export function hint(level: ThreatLevel): string {
     case THREAT_SAFE:
       return '';
     case THREAT_HINT:
-      return '10 s i telefon zadzwoni';
+      return fakeCallHint();
     case THREAT_HELP:
       return 'Znajomi dostaną lokalizację';
     case THREAT_FULL:

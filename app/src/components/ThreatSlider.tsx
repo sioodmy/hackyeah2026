@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -10,7 +10,9 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
+  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -20,7 +22,16 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 
-import { colorForLevel, floatingShadow, palette, sliderTokens, spacing, type } from '@/theme';
+import {
+  colorForLevel,
+  floatingShadow,
+  palette,
+  radii,
+  sliderTokens,
+  spacing,
+  textOnLevel,
+  type,
+} from '@/theme';
 import {
   detentFor,
   label,
@@ -84,22 +95,39 @@ function magnetize(progress: number): number {
   return nearest + (progress - nearest) * (1 - pull);
 }
 
-/** Spring used while the finger is driving the knob. */
-const KNOB_SPRING = { damping: 18, stiffness: 220, mass: 0.7 } as const;
-/** Firmer spring for snapping onto a stop after release. */
-const SNAP_SPRING = { damping: 24, stiffness: 300, mass: 0.9 } as const;
+/** Dynamiczny, sprężysty spring podczas prowadzenia gałki. */
+const KNOB_SPRING = { damping: 20, stiffness: 240, mass: 0.7 } as const;
+/** Sprężyste, miękkie odskoczenie na start po anulowaniu. */
+const SNAP_SPRING = { damping: 24, stiffness: 320, mass: 0.8 } as const;
 /** Ile trwa dojazd gałki do końca i wypełnienie baru — obie animacje naraz. */
 const COMMIT_DURATION_MS = sliderTokens.commitMs;
 /** Ile wypełniony bar czeka, zanim wróci do pustego. */
 const HOLD_DURATION_MS = sliderTokens.holdMs;
 /** Powrót do pustego slidera po commicie — celowo wolny, bez wrażenia skoku. */
 const RESET_DURATION_MS = sliderTokens.resetMs;
-/** Cross-fade between two level colours. */
-const ZONE_BLEND_MS = 140;
-/** Half-period of the breathing ring while the top level is live. */
+/** Przejście koloru wypełnienia między strefami. */
+const ZONE_BLEND_MS = sliderTokens.zoneBlendMs;
+/** Półokres oddychającego pierścienia podczas aktywnego poziomu SOS. */
 const LIVE_PULSE_MS = 900;
+/** Czas odblasku (shine) po commicie. */
+const SHINE_MS = sliderTokens.shineMs;
+/** Opóźnienie startu odblasku względem commita. */
+const SHINE_DELAY_MS = Math.round(COMMIT_DURATION_MS * 0.7);
 
 const LEVEL_COLORS = [palette.level0, palette.level1, palette.level2, palette.level3];
+
+function previewTextFor(level: ThreatLevel): string {
+  switch (level) {
+    case 0:
+      return 'Puść, aby anulować';
+    case 1:
+      return 'Poziom 1 · Telefon zadzwoni za 10 s';
+    case 2:
+      return 'Poziom 2 · Znajomi dostaną lokalizację';
+    case 3:
+      return 'Poziom 3 · Pełny alarm SOS + nagrywanie';
+  }
+}
 
 export type ThreatSliderProps = {
   /** Fires the moment the knob is released on a stop. */
@@ -147,15 +175,61 @@ export function ThreatSlider({
   /** The same value, animated, so the fill colour cross-fades between stops. */
   const zoneMix = useSharedValue<number>(THREAT_SAFE);
   const live = useSharedValue(0);
+  const shineProgress = useSharedValue(-1);
+  const chevronGlance = useSharedValue(0);
+
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const isDraggingRef = useRef(false);
+
+  const clearTimers = useCallback(() => {
+    timersRef.current.forEach((t) => clearTimeout(t));
+    timersRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimers();
+  }, [clearTimers]);
 
   useEffect(() => {
     travelSV.value = travel;
   }, [travel, travelSV]);
 
+  // Subtelna zaczepka strzałek » w spoczynku — co ~3 s delikatnie drgną w prawo
+  useEffect(() => {
+    chevronGlance.value = withRepeat(
+      withSequence(
+        withDelay(
+          2800,
+          withSequence(
+            withTiming(3, { duration: 180, easing: Easing.out(Easing.quad) }),
+            withTiming(0, { duration: 240, easing: Easing.inOut(Easing.quad) }),
+          ),
+        ),
+      ),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(chevronGlance);
+  }, [chevronGlance]);
+
+  // Reset z zewnątrz (np. rozwiązanie alertu w API)
+  useEffect(() => {
+    if (activeLevel === THREAT_SAFE && !isDraggingRef.current) {
+      clearTimers();
+      setFilledLevel(null);
+      progress.value = withSpring(0, SNAP_SPRING);
+      zone.value = THREAT_SAFE;
+      zoneMix.value = withTiming(THREAT_SAFE, { duration: ZONE_BLEND_MS });
+    }
+  }, [activeLevel, clearTimers, progress, zone, zoneMix]);
+
   const handleDragBegin = useCallback(() => {
+    clearTimers();
+    isDraggingRef.current = true;
+    setFilledLevel(null);
     setPreview(THREAT_SAFE);
     onDragLevelChange?.(THREAT_SAFE);
-  }, [onDragLevelChange]);
+  }, [clearTimers, onDragLevelChange]);
 
   const handleZoneCrossed = useCallback(
     (level: ThreatLevel) => {
@@ -167,6 +241,7 @@ export function ThreatSlider({
   );
 
   const handleDragEnd = useCallback(() => {
+    isDraggingRef.current = false;
     setPreview(null);
     onDragLevelChange?.(null);
   }, [onDragLevelChange]);
@@ -186,10 +261,22 @@ export function ThreatSlider({
   /** Wpada w JS-owym stanie na czas dojazdu, żeby pokazać label w środku. */
   const showFilled = useCallback(
     (level: ThreatLevel) => {
+      clearTimers();
       setFilledLevel(level);
+
+      // Odblask po commicie
+      shineProgress.value = -1;
+      const tShine = setTimeout(() => {
+        shineProgress.value = withTiming(1, {
+          duration: SHINE_MS,
+          easing: Easing.inOut(Easing.quad),
+        });
+      }, SHINE_DELAY_MS);
+      timersRef.current.push(tShine);
+
       // Bar wraca do pustego, ale label zostaje do samego końca — kolorowy
       // pasek nigdy nie jest bez wyjaśnienia.
-      setTimeout(() => {
+      const t1 = setTimeout(() => {
         progress.value = withTiming(0, {
           duration: RESET_DURATION_MS,
           easing: Easing.inOut(Easing.quad),
@@ -199,14 +286,14 @@ export function ThreatSlider({
           duration: ZONE_BLEND_MS,
         });
       }, COMMIT_DURATION_MS + HOLD_DURATION_MS);
-      setTimeout(
-        () => {
-          setFilledLevel(null);
-        },
-        COMMIT_DURATION_MS + HOLD_DURATION_MS + RESET_DURATION_MS,
-      );
+      timersRef.current.push(t1);
+
+      const t2 = setTimeout(() => {
+        setFilledLevel(null);
+      }, COMMIT_DURATION_MS + HOLD_DURATION_MS + RESET_DURATION_MS);
+      timersRef.current.push(t2);
     },
-    [progress, zone, zoneMix],
+    [clearTimers, progress, shineProgress, zone, zoneMix],
   );
 
   const panGesture = useMemo(
@@ -217,8 +304,6 @@ export function ThreatSlider({
         .minDistance(0)
         .onBegin(() => {
           pressed.value = withSpring(1, KNOB_SPRING);
-          // Start from a known zone, so the first update always reports where
-          // the finger actually is, even if it lands on last gesture's stop.
           zone.value = THREAT_SAFE;
           zoneMix.value = THREAT_SAFE;
           cancelAnimation(progress);
@@ -236,8 +321,7 @@ export function ThreatSlider({
             raw > 1 ? 1 + (raw - 1) * (OVERDRAG / (OVERDRAG + (raw - 1))) : Math.max(0, raw);
 
           // Magnes: wciąga knobę w najbliższy detent, więc animacja jest
-          // etapowa zamiast płynnej, a przy puszczeniu jesteśmy już blisko
-          // stopa. Ta sama funkcja co `magnetize` w web/src/components.
+          // etapowa zamiast płynnej, a przy puszczeniu jesteśmy już blisko stopa.
           const next = magnetize(rubber);
 
           progress.value = Math.min(1 + OVERDRAG, next);
@@ -298,22 +382,43 @@ export function ThreatSlider({
     ],
   );
 
-  const fillStyle = useAnimatedStyle(() => ({
-    // Dojazd do 1.0 = bar wypełniony w całości (travel + KNOB_SIZE), bo przy
-    // commicie gałka dojeżdża do prawego końca i znika.
-    width: Math.max(0, Math.min(1, progress.value)) * (travelSV.value + KNOB_SIZE),
-    backgroundColor: interpolateColor(zoneMix.value, [0, 1, 2, 3], LEVEL_COLORS),
-  }));
+  const fillStyle = useAnimatedStyle(() => {
+    const p = Math.max(0, Math.min(1, progress.value));
+    // Podczas przeciągania krawędź wypełnienia sięga dokładnie prawej krawędzi
+    // gałki (p * travel + KNOB_SIZE). Przy p=0 jest schowana (width 0).
+    const fillWidth = p <= 0 ? 0 : p * travelSV.value + KNOB_SIZE;
+    return {
+      width: fillWidth,
+      backgroundColor: interpolateColor(zoneMix.value, [0, 1, 2, 3], LEVEL_COLORS),
+    };
+  });
+
+  const shineStyle = useAnimatedStyle(() => {
+    const s = shineProgress.value;
+    const maxT = travelSV.value + KNOB_SIZE;
+    return {
+      transform: [{ translateX: interpolate(s, [-1, 1], [-120, maxT + 120]) }],
+      opacity: interpolate(s, [-1, -0.6, 0.6, 1], [0, 1, 1, 0]),
+    };
+  });
 
   const knobStyle = useAnimatedStyle(() => ({
     transform: [
-      // Gałka nigdy nie wystaje poza track: gumowy overdrag dotyczy fill,
-      // nie gałki.
       { translateX: Math.max(0, Math.min(1, progress.value)) * travelSV.value },
-      { scale: interpolate(pressed.value, [0, 1], [1, 1.06]) },
+      { scale: interpolate(pressed.value, [0, 1], [1, sliderTokens.knobPressedScale]) },
     ],
-    // Podczas dojazdu na kommit gałka znika, zostaje sam kolorowy bar.
-    opacity: interpolate(progress.value, [0.98, 1], [1, 0]),
+    // Podczas dojazdu na commit gałka płynnie rozpływa się przy samym końcu
+    opacity: interpolate(progress.value, [0.94, 1], [1, 0]),
+  }));
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: chevronGlance.value }],
+  }));
+
+  // Floating drag bubble — dymek nad suwakiem podczas przeciągania
+  const bubbleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pressed.value, [0, 1], [0, 1]),
+    transform: [{ translateY: interpolate(pressed.value, [0, 1], [6, 0]) }],
   }));
 
   // Slow breathing ring while the top level is live.
@@ -351,6 +456,8 @@ export function ThreatSlider({
   );
 
   const shownLevel = preview ?? activeLevel;
+  const currentZoneLevel = preview ?? activeLevel;
+  const currentContrastText = textOnLevel(shownLevel);
 
   return (
     <View
@@ -363,8 +470,6 @@ export function ThreatSlider({
         min: THREAT_SAFE,
         max: MAX_LEVEL,
         now: activeLevel,
-        // Etykiety zniknęły z ekranu, ale nie z dostępności — czytnik nadal
-        // wymienia poziomy po polsku.
         text: label(activeLevel) || 'Bezpiecznie',
       }}
       accessibilityActions={[
@@ -373,15 +478,29 @@ export function ThreatSlider({
       ]}
       onAccessibilityAction={onAccessibilityAction}
     >
+      {/* Dymek nad sliderem — widoczny podczas przeciągania, kciuk nie zasłania stanu */}
+      <Animated.View style={[styles.bubble, bubbleStyle]} pointerEvents="none">
+        <View
+          style={[
+            styles.bubbleDot,
+            {
+              backgroundColor:
+                currentZoneLevel === THREAT_SAFE ? palette.textMuted : colorForLevel(currentZoneLevel),
+            },
+          ]}
+        />
+        <Text style={styles.bubbleText} numberOfLines={1}>
+          {previewTextFor(currentZoneLevel)}
+        </Text>
+      </Animated.View>
+
       <GestureDetector gesture={panGesture}>
         <View>
           <View style={styles.hitArea} onLayout={onLayout}>
             {/* Płytki bar: fill + stopy w środku. */}
             <View style={styles.bar} pointerEvents="none">
               <Animated.View style={[styles.fill, fillStyle]} pointerEvents="none">
-                {/* Ten sam rozświetlony wierzch, co ma gałka — dlatego pasek
-                    wygląda, jakby był z tego samego tworzywa. Web składa to
-                    w jedno `linear-gradient` z kolorem poziomu. */}
+                {/* Rozświetlony wierzch nałożony na kolor poziomu */}
                 <LinearGradient
                   colors={[
                     sliderTokens.fillSheenTop,
@@ -394,27 +513,57 @@ export function ThreatSlider({
                 />
               </Animated.View>
 
-              {/* Stopy w środku bara, pod gałką. Zero tekstu — sama skala z ticków
-                  o rosnącej wysokości. Etykiety wyglądały jak UI i psuły
-                  iluzję, że to tylko mapa. */}
+              {/* Błysk / odblask przejeżdżający raz po commicie */}
+              {filledLevel !== null && (
+                <Animated.View style={[styles.shine, shineStyle]} pointerEvents="none">
+                  <LinearGradient
+                    colors={['transparent', sliderTokens.shine, 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </Animated.View>
+              )}
+
+              {/* Stopy w środku bara, pod gałką. */}
               {travel > 0 && filledLevel === null ? (
                 <View style={styles.stopsOverlay} pointerEvents="none">
                   {STOP_LEVELS.map((level) => {
                     const highlighted = level === shownLevel;
-                    const tint = level === THREAT_SAFE ? palette.text : colorForLevel(level);
+                    const d = detentFor(level);
+                    // Czy stop jest pokryty przez wypełnienie?
+                    const covered = preview !== null && preview >= level && level > 0;
+                    const stopColor = covered
+                      ? currentContrastText
+                      : highlighted
+                        ? level === THREAT_SAFE
+                          ? palette.text
+                          : colorForLevel(level)
+                        : sliderTokens.stopLabelIdle;
+
                     return (
                       <View
                         key={level}
-                        style={[styles.stop, { left: KNOB_SIZE / 2 + detentFor(level) * travel }]}
+                        style={[styles.stop, { left: KNOB_SIZE / 2 + d * travel }]}
                       >
                         <View
                           style={[
                             styles.tick,
-                            { height: TICK_HEIGHT[level], opacity: highlighted ? 0.5 : 0.22 },
+                            {
+                              height: TICK_HEIGHT[level],
+                              backgroundColor: covered ? currentContrastText : palette.text,
+                              opacity: covered ? 0.6 : highlighted ? 0.65 : 0.22,
+                            },
                           ]}
                         />
                         <Text
-                          style={[styles.stopLabel, highlighted && { color: tint, opacity: 0.9 }]}
+                          style={[
+                            styles.stopLabel,
+                            {
+                              color: stopColor,
+                              opacity: covered ? 0.85 : highlighted ? 1 : 0.55,
+                            },
+                          ]}
                         >
                           {STOP_LABELS[level]}
                         </Text>
@@ -428,10 +577,7 @@ export function ThreatSlider({
               {filledLevel !== null && caption ? (
                 <View style={styles.captionBox} pointerEvents="none">
                   <Text
-                    style={[
-                      styles.captionText,
-                      { color: filledLevel === 1 ? '#1A1405' : '#FFFFFF' },
-                    ]}
+                    style={[styles.captionText, { color: textOnLevel(filledLevel) }]}
                     numberOfLines={1}
                   >
                     {caption}
@@ -440,15 +586,10 @@ export function ThreatSlider({
               ) : null}
             </View>
 
-            {/* Gruba gałka okalająca bar — nigdy poza obrys tracka.
-
-                Materiał jest identyczny z webowym podglądem: półprzezroczysta
-                biel z rozświetleniem u góry + rozmycie tego, co jest pod spodem
-                (tu `expo-blur`, w webie `backdrop-filter`). Gradient bierze
-                kolory z `sliderTokens`, więc nie rozjadą się. */}
+            {/* Szklana gałka okalająca bar */}
             <Animated.View style={[styles.knob, knobStyle]} pointerEvents="none">
               <BlurView
-                intensity={sliderTokens.knobBlur * 10}
+                intensity={Platform.OS === 'ios' ? 40 : 25}
                 tint="light"
                 style={StyleSheet.absoluteFill}
               />
@@ -458,22 +599,24 @@ export function ThreatSlider({
                 end={{ x: 0.5, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-              <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M6 5L12 12L6 19"
-                  stroke={sliderTokens.knobGrip}
-                  strokeWidth={2.4}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <Path
-                  d="M12 5L18 12L12 19"
-                  stroke={sliderTokens.knobGrip}
-                  strokeWidth={2.4}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
+              <Animated.View style={chevronStyle}>
+                <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M6 5L12 12L6 19"
+                    stroke={sliderTokens.knobGrip}
+                    strokeWidth={2.4}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <Path
+                    d="M12 5L18 12L12 19"
+                    stroke={sliderTokens.knobGrip}
+                    strokeWidth={2.4}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </Animated.View>
               <Animated.View style={[styles.liveRing, liveRingStyle]} />
             </Animated.View>
           </View>
@@ -486,6 +629,37 @@ export function ThreatSlider({
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: spacing.lg,
+    position: 'relative',
+  },
+  bubble: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    top: -(36 + spacing.xs),
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(26, 29, 35, 0.95)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    ...floatingShadow(6),
+    zIndex: 10,
+  },
+  bubbleDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  bubbleText: {
+    ...type.caption,
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: palette.text,
   },
   hitArea: {
     height: CONTAINER_HEIGHT,
@@ -498,10 +672,11 @@ const styles = StyleSheet.create({
     top: BAR_TOP,
     height: BAR_HEIGHT,
     borderRadius: BAR_HEIGHT / 2,
-    backgroundColor: '#191C23',
+    backgroundColor: sliderTokens.barFill,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderColor: sliderTokens.barBorder,
     overflow: 'hidden',
+    ...floatingShadow(6),
   },
   fill: {
     position: 'absolute',
@@ -510,6 +685,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: BAR_HEIGHT / 2,
   },
+  shine: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 90,
+  },
   knob: {
     position: 'absolute',
     left: 0,
@@ -517,15 +698,13 @@ const styles = StyleSheet.create({
     width: KNOB_SIZE,
     height: KNOB_SIZE,
     borderRadius: KNOB_SIZE / 2,
-    // Półprzezroczysta biel — odpowiednik gradientu `#ffffff80 → #d7dae080`
-    // i `backdrop-filter` z webowego podglądu. React Native nie ma gradientu
-    // ani blura tła bez expo-linear-gradient / expo-blur, więc zostaje sam
-    // kolor; geometria (promień = połowa wysokości) jest identyczna.
-    backgroundColor: 'rgba(255, 255, 255, 0.78)',
+    backgroundColor: sliderTokens.knobGradient[0],
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.34)',
+    borderColor: sliderTokens.knobBorder,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    ...floatingShadow(8),
   },
   liveRing: {
     position: 'absolute',
@@ -572,7 +751,6 @@ const styles = StyleSheet.create({
   tick: {
     width: TICK_WIDTH,
     borderRadius: TICK_WIDTH / 2,
-    backgroundColor: palette.text,
   },
   stopLabel: {
     marginTop: 3,
@@ -580,6 +758,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.4,
     lineHeight: 12,
-    color: 'rgba(255, 255, 255, 0.34)',
   },
 });

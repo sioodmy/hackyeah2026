@@ -18,11 +18,11 @@ export function IncomingCallOverlay({
   onDecline: () => void;
 }) {
   const [answered, setAnswered] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(30);
+  const [secondsLeft, setSecondsLeft] = useState(5);
 
   useEffect(() => {
     setAnswered(false);
-    setSecondsLeft(30);
+    setSecondsLeft(5);
   }, [contact]);
 
   useEffect(() => {
@@ -97,8 +97,11 @@ export function IncomingCallOverlay({
   );
 }
 
-/** Ulica i orientacyjna odległość — człowiek szuka miejsca, nie współrzędnych. */
-const MOCK_ADDRESS = "ul. Długa, okolice Starego Miasta";
+/**
+ * Ulica i orientacyjna odległość — człowiek szuka miejsca, nie współrzędnych.
+ * Trzyma się Tauron Arena, bo mapa demo jest wyśrodkowana na hali.
+ */
+const MOCK_ADDRESS = "Tauron Arena, ul. Unii Lubelskiej 1";
 
 export function FriendCallScreen({
   name,
@@ -110,7 +113,7 @@ export function FriendCallScreen({
   onDecline: () => void;
 }) {
   const [answered, setAnswered] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(20);
+  const [secondsLeft, setSecondsLeft] = useState(5);
 
   useEffect(() => {
     if (!answered) return;
@@ -188,12 +191,14 @@ export function FriendAlarmScreen({
       <div className="alarm-body">
         <div className="alarm-kicker">Pełny alarm</div>
         <div className="alarm-name">{name}</div>
-        <div className="alarm-text">potrzebuje pomocy. Zadzwoń do niej.</div>
+        <div className="alarm-text">
+          Pilnie potrzebuje pomocy. Powiadomimy Cię o aktualizacjach
+        </div>
         <div className="alarm-coords">{MOCK_ADDRESS}</div>
       </div>
       <div className="alarm-actions">
         <button className="alarm-primary" onClick={onOnTheWay}>
-          Pomagam
+          Zadzwoń
         </button>
         <button className="alarm-secondary" onClick={onSeen}>
           Zamknij

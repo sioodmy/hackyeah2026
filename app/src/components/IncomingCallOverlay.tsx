@@ -23,7 +23,7 @@ const RINGTONE = require('../../assets/ringtone.wav');
 const IN_CALL_AMBIENCE = require('../../assets/in-call.wav');
 
 /** How long the "conversation" pretends to last. */
-const IN_CALL_SECONDS = 30;
+const IN_CALL_SECONDS = 5;
 /** Ringtone volume: quiet enough not to leak into a level-3 recording. */
 const RINGTONE_VOLUME = 0.15;
 
@@ -32,7 +32,7 @@ type Contact = { name: string; relation: string };
 const CONTACTS: Contact[] = [
   { name: 'Mama', relation: 'komórka' },
   { name: 'Kasia', relation: 'komórka' },
-  { name: 'Tata', relation: 'mobile' },
+  { name: 'Tata', relation: 'komórka' },
 ];
 
 function pickContact(): Contact {

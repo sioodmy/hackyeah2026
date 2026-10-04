@@ -15,7 +15,7 @@ import type {
 } from '@maplibre/maplibre-react-native';
 import type { NativeSyntheticEvent } from 'react-native';
 
-import { palette } from '@/theme';
+import { colorForLevel, heatmapTokens, palette } from '@/theme';
 import { DEFAULT_CENTER, DEFAULT_ZOOM, defaultMapStyle } from '@/theme/mapStyle';
 import { isStale, type SmoothedPoint } from '@/hooks/useSmoothedLocations';
 import { FriendMapMarker } from '@/components/FriendMapMarker';
@@ -69,7 +69,7 @@ export function MapCanvas({
     [friends],
   );
 
-  const markerColor = level >= 3 ? palette.level3 : level >= 2 ? palette.level2 : palette.level1;
+  const markerColor = level > 0 ? colorForLevel(level) : 'transparent';
 
   const handlePress = useMemo(() => {
     if (!onMapPress) return undefined;
@@ -159,7 +159,7 @@ export function MapCanvas({
           paint={{
             'circle-radius': 18,
             'circle-color': markerColor,
-            'circle-opacity': 0.35,
+            'circle-opacity': level > 0 ? 0.35 : 0,
             'circle-blur': 0.45,
           }}
         />

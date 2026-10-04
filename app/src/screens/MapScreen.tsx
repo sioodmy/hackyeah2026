@@ -20,10 +20,10 @@ import { useApi } from '@/lib/ApiContext';
 import { useAuthToken } from '@/lib/useAuthToken';
 import { ApiError, type HeatmapGeoJSON } from '@/lib/api';
 import { colorForLevel, floatingShadow, palette, radii, spacing, type } from '@/theme';
-import { THREAT_FULL, THREAT_SAFE, hint, type ThreatLevel } from '@/theme/levels';
+import { THREAT_FULL, THREAT_SAFE, fakeCallPreview, hint, type ThreatLevel } from '@/theme/levels';
 
 /**
- * A short Polish reason, trafiające do bannera błędu.
+ * A short Polish reason, trafiający do bannera błędu.
  *
  * The raw message would be an English FastAPI `detail` or a `TypeError` from
  * `fetch`, which reads as noise w tekście pisanym po polsku.
@@ -247,7 +247,7 @@ export function MapScreen() {
       {permission === 'denied' ? (
         <View style={[styles.banner, { top: insets.top + 70 }]}>
           <Text style={styles.bannerText}>
-            Bez dostępu do lokalizacji znajomi nie zobaczą gdzie jesteś.
+            Bez dostępu do lokalizacji znajomi nie zobaczą, gdzie jesteś.
           </Text>
         </View>
       ) : null}
@@ -272,7 +272,7 @@ export function MapScreen() {
           caption={statusText || undefined}
         />
 
-        {/* Kotwica do góry panelu dolnego (top: -(64 + 12)), nie sztywny
+        {/* Kotwica do góry panelu dolnego (top: -(44 + 12)), nie sztywny
             offset od dołu ekranu — po zmianie slidera wysokość panelu się
             zmieniła i przycisk pływał. */}
         <Pressable
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
   recenter: {
     position: 'absolute',
     right: spacing.lg,
-    top: -(56 + spacing.md),
+    top: -(44 + spacing.md),
     width: 44,
     height: 44,
     borderRadius: 22,

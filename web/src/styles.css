@@ -14,16 +14,34 @@
   --l3: #d62828;
   --ok: #4caf7d;
 }
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-body {
+/*
+ * Reset w warstwie `base`, a nie na gołym poziomie.
+ *
+ * Ten arkusz jest importowany również przez landing (sekcja demo), więc gołe
+ * `button { background: none }` wygrywałoby ze wszystkimi utility klasami
+ * Tailwinda — te żyją w `@layer utilities`, a w kaskadzie CSS **warstwy biją
+ * zwykłe selektory niezależnie od specyficzności**. Stąd w podglądzie działa,
+ * a na landingu Tailwind po cichu przestaje działać. W `base` reset zachowuje
+ * się jak reset, a utility wygrywają.
+ */
+@layer base {
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 6px; font-size: 12px; }
+}
+
+/*
+ * Tło i font strony tylko tam, gdzie naprawdę jest podgląd. Landing ma własne
+ * tło, a ten arkusz i tak do niego trafia — `:has()` ogranicza efekt uboczny
+ * do dokumentu, który zawiera `.page`.
+ */
+:root:has(.page) body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
 }
-button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
-code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 6px; font-size: 12px; }
 
 .page {
   display: flex;
@@ -48,9 +66,18 @@ code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 6px; 
   box-shadow: 0 30px 80px rgba(0,0,0,.6);
 }
 
+/* ---------- ekran demo ---------- */
+/* W podglądzie developerskim telefon opakowuje `.phone`; w landingu ramka
+   iPhone'a opakowuje DemoPhone bezpośrednio. Ten kontener trzyma oba przypadki. */
+.demo-screen { position: absolute; inset: 0; overflow: hidden; background: var(--solid); }
+
 /* ---------- ekran mapy ---------- */
 .map-screen { position: absolute; inset: 0; background: #111317; }
-.mapview { position: absolute; inset: 0; }
+/* Wysokość jawna, a nie `inset: 0` — biblioteka maplibre dokleja do tego samego
+   kontenera klasę `maplibregl-map { position: relative }`, która przy tej samej
+   specyficzności wygrywa zależnie od kolejności importów CSS i zabija `inset`.
+   `height: 100%` działa niezależnie od tego, co zostanie w `position`. */
+.mapview { position: absolute; width: 100%; height: 100%; }
 .mapview canvas { outline: none; }
 .user-puck {
   width: 18px; height: 18px; border-radius: 50%;
@@ -100,8 +127,14 @@ code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 6px; 
   backdrop-filter: blur(8px);
 }
 
-/* ---------- slider (iOS 6 slide-to-unlock: płytki bar + gruba gałka) ---------- */
-.tslider { padding: 0 2px; }
+/* ---------- slider (iOS 6 slide-to-unlock: bar + szklana gałka) ----------
+   Materiały, geometria i czasy idą inline z sliderTokens (app/src/theme/tokens.ts).
+   Tu tylko układ, keyframes i to, czego nie da się wyrazić inline. */
+.tslider {
+  position: relative; outline: none;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.tslider:focus-visible .tslider-bar { outline: 2px solid rgba(138,180,248,.55); outline-offset: 3px; }
 .tslider-track {
   position: relative;
   touch-action: none; cursor: grab;
@@ -109,46 +142,79 @@ code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 6px; 
 .tslider-track:active { cursor: grabbing; }
 .tslider-bar {
   position: absolute; left: 0; right: 0; overflow: hidden;
-  border-radius: 999px; background: #191c23; border: 1px solid rgba(255,255,255,.1);
+  border-radius: 999px; border: 1px solid;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: box-shadow .35s ease;
 }
-.tslider-fill { position: absolute; left: 0; top: 0; bottom: 0; }
+.tslider-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; }
+.tslider-shine {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 55%;
+  transform: translateX(-110%); pointer-events: none;
+  animation-name: tshine; animation-timing-function: cubic-bezier(.4,0,.2,1);
+  animation-fill-mode: both; animation-iteration-count: 1;
+}
+@keyframes tshine { from { transform: translateX(-110%); } to { transform: translateX(200%); } }
 .tslider-caption {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 600; letter-spacing: .2px; padding: 0 8px;
+  font-size: 13px; font-weight: 600; letter-spacing: .2px; padding: 0 22px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  animation: tcaption .28s ease-out; transition: opacity .35s ease-in;
+  opacity: 0; transform: translateY(4px) scale(.98);
+  transition: opacity .18s ease, transform .18s ease;
 }
-@keyframes tcaption { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.tslider-caption.is-on {
+  opacity: 1; transform: none;
+  transition: opacity .28s ease, transform .36s cubic-bezier(.22,1,.36,1);
+}
 .tslider-stops { position: absolute; inset: 0; pointer-events: none; transition: opacity .18s; }
 .tslider-stop {
-  position: absolute; top: 0; bottom: 0; width: 44px; margin-left: -22px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  position: absolute; top: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
 }
-.tslider-tick {
-  width: 2px; border-radius: 1px; background: var(--text);
-  transition: opacity .2s;
-}
+.tslider-tick { border-radius: 1px; transition: opacity .2s, background-color .2s; }
 .tslider-stop-label {
-  font-size: 10px; font-weight: 700; letter-spacing: .4px; line-height: 1;
-  color: rgba(255,255,255,.34); transition: color .18s, opacity .18s;
+  font-weight: 700; letter-spacing: .4px; line-height: 1;
+  transition: color .18s, opacity .18s;
 }
-/* Gałka jest teraz półprzezroczysta, więc blur ma sens — to mrożone szkło
+/* Gałka jest półprzezroczysta, więc blur ma sens — to mrożone szkło
    na tle wypełniającego się baru, a nie dekoracja. */
 .tslider-knob {
-  position: absolute; left: 0; border-radius: 50%;
-  background: linear-gradient(180deg, #ffffff80, #d7dae080);
-  backdrop-filter: blur(5px) saturate(1.15);
-  -webkit-backdrop-filter: blur(5px) saturate(1.15);
-  border: 1px solid rgba(255,255,255,.34);
-  box-shadow: 0 3px 10px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.55);
+  position: absolute; left: 0; border-radius: 50%; border: 1px solid;
   display: flex; align-items: center; justify-content: center;
-  pointer-events: none; z-index: 2;
+  pointer-events: none; z-index: 2; will-change: transform;
+}
+/* „Zaczepka” w spoczynku: strzałki » drgną w prawo co kilka sekund. */
+.tslider-grip.is-hinting path { animation: tgrip 3.2s ease-in-out infinite; animation-duration: inherit; }
+.tslider-grip.is-hinting path:nth-child(2) { animation-delay: 90ms; }
+@keyframes tgrip {
+  0%, 78%, 100% { transform: none; opacity: 1; }
+  86% { transform: translateX(2.5px); opacity: .55; }
 }
 .tslider-ring {
-  position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--l3);
+  position: absolute; inset: -1px; border-radius: 50%; border: 2px solid var(--l3);
   animation: ring 1.8s ease-in-out infinite;
 }
 @keyframes ring { 0%,100% { opacity: .3; transform: scale(.92); } 50% { opacity: .85; transform: scale(1.08); } }
+/* Dymek nad sliderem podczas przeciągania — kciuk zasłania stopy. */
+.tslider-bubble {
+  position: absolute; left: 50%; bottom: calc(100% + 4px); z-index: 3;
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+  padding: 8px 14px; border-radius: 999px; white-space: nowrap;
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  background: var(--raised); border: 1px solid var(--border);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 5px 13px rgba(0,0,0,.45);
+  opacity: 0; transform: translate(-50%, 6px) scale(.96); pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.tslider-bubble.is-on {
+  opacity: 1; transform: translate(-50%, 0) scale(1);
+  transition: opacity .18s ease, transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.tslider-bubble-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; transition: background-color .16s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tslider *, .tslider *::before { animation: none !important; transition-duration: 1ms !important; transition-delay: 0ms !important; }
+}
 
 /* ---------- overlaye połączeń ---------- */
 .overlay-wrap { position: absolute; inset: 0; z-index: 50; }
@@ -350,3 +416,114 @@ code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 6px; 
 .signin-link { font-size: 12.5px; color: var(--muted); padding: 4px; }
 .signin-foot { margin: 0; font-size: 11.5px; line-height: 1.6; color: var(--faint); text-align: center; }
 .signin-mock { font-size: 10.5px; color: rgba(107,113,122,.75); text-align: center; }
+
+/* ---------- komunikat: telefon przyjaciółki ---------- */
+.friend-hint {
+  position: absolute; left: 12px; right: 12px; z-index: 44;
+  display: flex; align-items: center; gap: 10px;
+  /* `wrap`, żeby pasek postępu (`flex-basis: 100%`) spadł na własny wiersz. */
+  flex-wrap: wrap;
+  padding: 10px 10px 10px 14px;
+  border-radius: 18px;
+  background: rgba(20, 22, 26, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(10px);
+  animation: friendHintIn 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes friendHintIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.friend-hint-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  box-shadow: 0 0 10px currentColor;
+  animation: friendHintPulse 1.6s ease-in-out infinite;
+}
+@keyframes friendHintPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+.friend-hint-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.friend-hint-text strong { font-size: 12.5px; font-weight: 600; color: #F4F5F7; }
+.friend-hint-text span { font-size: 11.5px; color: #9BA1AA; }
+.friend-hint-skip {
+  flex-shrink: 0; padding: 8px 14px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; color: #FFFFFF;
+}
+.friend-hint-close {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  color: #6B717A; font-size: 12px; display: flex; align-items: center; justify-content: center;
+}
+.friend-hint-close:hover { color: #F4F5F7; background: rgba(255, 255, 255, 0.07); }
+
+/* ---------- pasek fake call pod komunikatem ---------- */
+/* Ten sam mechanizm co adnotacja na landingu: animowany `width`, czas z JS
+   (`--hint-ms`), żeby pasek szedł w tyle, ile trwa odliczanie w telefonie. */
+.friend-hint-progress {
+  position: relative; flex-basis: 100%; width: 100%; height: 4px;
+  margin-top: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.10);
+}
+.friend-hint-bar {
+  display: block; height: 100%; width: 0; border-radius: 999px;
+  background: linear-gradient(90deg, #FF2A85, #FF8AB8);
+  animation: friendHintBar var(--hint-ms, 5000ms) linear forwards;
+}
+@keyframes friendHintBar { from { width: 0; } to { width: 100%; } }
+.friend-hint-progress-label {
+  position: absolute; left: 0; top: 9px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #6B717A;
+}
+
+/* ---------- puls na maksymalnym poziomie ---------- */
+/* Warstwa nad wypełnieniem: rozjaśnia kolor poziomu, nie go zastępuje.
+   Po puszczeniu znika (opacity 0), więc nie zostaje w tle przy commicie. */
+.tslider-pulse {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  pointer-events: none; opacity: 0;
+  background: radial-gradient(120% 160% at 50% 50%, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.12) 42%, rgba(255, 255, 255, 0) 72%);
+  mix-blend-mode: screen;
+  transition: opacity 220ms ease-out;
+}
+@keyframes tsliderPulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+/* ---------- światła policyjne za labelem ---------- */
+.tslider-caption { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.tslider-caption-text { position: relative; z-index: 2; }
+.tslider-siren {
+  position: absolute; inset: 0; overflow: hidden; border-radius: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 0;
+}
+.tslider-siren-lamp {
+  position: absolute; top: 50%; width: 62%; height: 260%;
+  transform: translateY(-50%);
+  filter: blur(14px);
+  opacity: 0;
+}
+.tslider-siren-lamp.is-red {
+  left: -14%;
+  background: radial-gradient(closest-side, rgba(214, 40, 40, 0.85), rgba(214, 40, 40, 0));
+}
+.tslider-siren-lamp.is-blue {
+  right: -14%;
+  background: radial-gradient(closest-side, rgba(64, 116, 214, 0.7), rgba(64, 116, 214, 0));
+  animation-delay: 320ms;
+}
+.tslider-caption.is-on .tslider-siren-lamp { animation: sirenSweep 1360ms ease-in-out infinite; }
+@keyframes sirenSweep {
+  0% { opacity: 0; transform: translateY(-50%) translateX(-34%); }
+  22% { opacity: 0.95; }
+  50% { opacity: 0.5; transform: translateY(-50%) translateX(34%); }
+  72% { opacity: 0.95; }
+  100% { opacity: 0; transform: translateY(-50%) translateX(-34%); }
+}
+
+/* Wariant adnotacji stojącej NAD telefonem (podgląd developerski). */
+.friend-hint.is-outside {
+  position: static;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  animation: none;
+}

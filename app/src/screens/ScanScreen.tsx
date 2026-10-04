@@ -707,10 +707,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   statusTextError: {
-    color: '#FF6B6B',
+    color: palette.level3,
   },
   statusTextSuccess: {
-    color: '#4CAF7D',
+    color: palette.success,
   },
 
   // Camera View

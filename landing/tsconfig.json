@@ -14,7 +14,22 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": ["../app/src/*"],
+      "@demo": ["../web/src/DemoPhone.tsx"]
+    }
   },
-  "include": ["src"]
+  // Tylko to, co sekcja demo realnie konsumuje. Świadomie **nie** ciągniemy
+  // całego `app/src`: `theme/mapStyle.ts` czyta `process.env` z Expa, co nie
+  // istnieje w zwykłym projekcie webowym, a demo i tak go nie importuje.
+  // Gdyby kiedyś przestało być prawdą, build to zgłosi.
+  "include": [
+    "src",
+    "../web/src/**/*",
+    "../app/src/theme/tokens.ts",
+    "../app/src/theme/levels.ts",
+    "../app/src/lib/avatar.ts"
+  ]
 }
