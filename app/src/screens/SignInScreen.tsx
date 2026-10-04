@@ -1,4 +1,4 @@
-import { useSignIn, useSignUp } from '@clerk/expo';
+import { useClerk, useSignIn, useSignUp } from '@clerk/expo';
 import { useCallback, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -32,6 +32,7 @@ const MIN_PASSWORD = 8;
  */
 export function SignInScreen() {
   const insets = useSafeAreaInsets();
+  const clerk = useClerk();
   const { signIn } = useSignIn();
   const { signUp } = useSignUp();
 
@@ -46,6 +47,7 @@ export function SignInScreen() {
   const canSubmit = Boolean(email) && password.length >= MIN_PASSWORD;
 
   const submitSignIn = useCallback(async () => {
+    if (!signIn) return;
     setBusy(true);
     setError(null);
     try {
@@ -57,13 +59,41 @@ export function SignInScreen() {
         setError(signInError.message);
         return;
       }
-      setNotice('Zalogowano');
+      const sid = signIn.createdSessionId;
+      if (sid && clerk.setActive) {
+        await clerk.setActive({ session: sid });
+        setNotice('Zalogowano');
+        return;
+      }
+
+      // If status is complete or session is ready, try finalize
+      if (signIn.status === 'complete' || sid) {
+        try {
+          await signIn.finalize();
+          const finalSid = signIn.createdSessionId;
+          if (finalSid && clerk.setActive) {
+            await clerk.setActive({ session: finalSid });
+          }
+        } catch (finErr) {
+          console.warn('Finalize error', finErr);
+        }
+      }
+
+      // If clerk client has an active session, activate it
+      const firstSession = clerk.client?.sessions?.[0]?.id;
+      if (firstSession && clerk.setActive) {
+        await clerk.setActive({ session: firstSession });
+        setNotice('Zalogowano');
+        return;
+      }
+
+      setError('Logowanie nie utworzyło aktywnej sesji. Spróbuj ponownie.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się zalogować.');
     } finally {
       setBusy(false);
     }
-  }, [email, password, signIn]);
+  }, [email, password, signIn, clerk]);
 
   const submitSignUp = useCallback(async () => {
     setBusy(true);
@@ -102,16 +132,26 @@ export function SignInScreen() {
         setError(verifyError.message);
         return;
       }
-      const { error: finalizeError } = await signUp.finalize();
-      if (finalizeError) {
-        setError(finalizeError.message);
+      const sid = signUp.createdSessionId;
+      if (sid && clerk.setActive) {
+        await clerk.setActive({ session: sid });
+        return;
+      }
+      try {
+        await signUp.finalize();
+        const finalSid = signUp.createdSessionId;
+        if (finalSid && clerk.setActive) {
+          await clerk.setActive({ session: finalSid });
+        }
+      } catch (finErr) {
+        console.warn('Finalize error', finErr);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się zweryfikować kodu.');
     } finally {
       setBusy(false);
     }
-  }, [code, signUp]);
+  }, [code, signUp, clerk]);
 
   return (
     <KeyboardAvoidingView
@@ -239,21 +279,24 @@ function SegmentTab({
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
     >
-      <Text style={[styles.segmentTabText, active && styles.segmentTabTextActive]}>{label}</Text>
+      <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
     </Pressable>
   );
 }
 
 function Field({ label, ...input }: { label: string } & React.ComponentProps<typeof TextInput>) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.label}>{label}</Text>
       <TextInput
         {...input}
-        style={styles.input}
-        placeholderTextColor="rgba(155, 161, 170, 0.55)"
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={[styles.input, focused && styles.inputFocused]}
+        placeholderTextColor="rgba(155, 161, 170, 0.40)"
         autoCorrect={false}
-        accessibilityLabel={label}
       />
     </View>
   );
@@ -268,11 +311,10 @@ function Primary({
       {...rest}
       style={({ pressed }) => [
         styles.primary,
+        pressed && styles.primaryPressed,
         rest.disabled && styles.primaryDisabled,
-        pressed && !rest.disabled && styles.primaryPressed,
       ]}
       accessibilityRole="button"
-      accessibilityState={{ disabled: Boolean(rest.disabled) }}
     >
       <Text style={styles.primaryText}>{children}</Text>
     </Pressable>
@@ -283,95 +325,130 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.surfaceSolid },
   content: {
     paddingHorizontal: spacing.xl,
-    gap: spacing.xl,
+    gap: spacing.lg,
     flexGrow: 1,
     justifyContent: 'center',
   },
-
-  brandBlock: { alignItems: 'center', gap: spacing.md },
-  mark: { marginBottom: spacing.xs },
-  brand: { fontSize: 30, fontWeight: '700', color: palette.text, letterSpacing: -0.6 },
+  brandBlock: { alignItems: 'center', gap: spacing.sm },
+  mark: {
+    width: 62,
+    height: 62,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  brand: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: palette.text,
+    letterSpacing: -0.5,
+  },
   tagline: {
-    ...type.caption,
-    fontSize: 13,
+    ...type.body,
+    fontSize: 14,
     lineHeight: 20,
     color: palette.textMuted,
     textAlign: 'center',
-    maxWidth: 300,
+    maxWidth: 320,
   },
-
   card: {
-    borderRadius: 22,
-    padding: spacing.lg,
-    gap: spacing.md,
-    backgroundColor: 'rgba(26, 29, 35, 0.96)',
+    backgroundColor: palette.surfaceRaised,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.09)',
+    borderColor: 'rgba(244, 245, 247, 0.08)',
+    padding: spacing.xl,
+    gap: spacing.lg,
   },
-
   segment: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.32)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: radii.pill,
     padding: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
-  segmentTab: { flex: 1, paddingVertical: spacing.sm + 1, borderRadius: radii.pill },
-  segmentTabActive: { backgroundColor: 'rgba(255, 255, 255, 0.10)' },
-  segmentTabText: { ...type.label, fontSize: 12.5, textAlign: 'center', color: palette.textMuted },
-  segmentTabTextActive: { color: palette.text },
-
-  field: { gap: 6 },
-  fieldLabel: {
-    ...type.caption,
-    fontSize: 11,
+  segmentTab: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderRadius: radii.pill,
+  },
+  segmentTabActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  segmentText: {
+    ...type.body,
+    fontSize: 13,
     fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: palette.textFaint,
+    color: palette.textMuted,
+  },
+  segmentTextActive: {
+    color: palette.text,
+  },
+  field: { gap: 6 },
+  label: {
+    ...type.label,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: palette.textMuted,
   },
   input: {
     ...type.body,
-    fontSize: 15,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderRadius: 14,
-    color: palette.text,
-    backgroundColor: 'rgba(0, 0, 0, 0.30)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  codeInput: {
-    ...type.body,
-    fontSize: 19,
-    textAlign: 'center',
-    letterSpacing: 10,
-    paddingVertical: 15,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
     color: palette.text,
-    backgroundColor: 'rgba(0, 0, 0, 0.30)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  hint: { ...type.caption, fontSize: 12.5, color: palette.textMuted, textAlign: 'center' },
-
+  inputFocused: {
+    borderColor: 'rgba(244, 245, 247, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
   primary: {
     backgroundColor: palette.text,
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: radii.pill,
+    paddingVertical: 13,
     alignItems: 'center',
+    marginTop: spacing.xs,
   },
-  primaryPressed: { opacity: 0.86, transform: [{ scale: 0.985 }] },
-  primaryDisabled: { opacity: 0.35 },
-  primaryText: { ...type.body, fontSize: 15, fontWeight: '700', color: palette.surfaceSolid },
-  link: { ...type.caption, fontSize: 12.5, textAlign: 'center', color: palette.textMuted },
-
+  primaryPressed: { opacity: 0.8 },
+  primaryDisabled: { opacity: 0.4 },
+  primaryText: {
+    ...type.body,
+    fontWeight: '700',
+    color: palette.surfaceSolid,
+  },
+  hint: {
+    ...type.caption,
+    color: palette.textMuted,
+    textAlign: 'center',
+  },
+  codeInput: {
+    ...type.title,
+    fontSize: 28,
+    letterSpacing: 8,
+    textAlign: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 14,
+    color: palette.text,
+  },
+  link: {
+    ...type.caption,
+    textAlign: 'center',
+    color: palette.textMuted,
+    textDecorationLine: 'underline',
+  },
   foot: {
     ...type.caption,
-    fontSize: 11.5,
-    lineHeight: 18,
     color: palette.textFaint,
     textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: spacing.md,
   },
   notice: { ...type.caption, color: palette.success, textAlign: 'center' },
   error: { ...type.caption, color: palette.level3, textAlign: 'center' },

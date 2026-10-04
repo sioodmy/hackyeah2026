@@ -44,8 +44,7 @@ function heatmapErrorText(err: unknown): string {
  * Everything else is reachable by tapping the small pill in the corner, because
  * the main surface has to stay unremarkable: a map, and a slider at the bottom.
  *
- * Includes Kraków danger heatmap based on street harassment, sexual assault,
- * and dangerous situations.
+ * Includes Kraków danger heatmap rendered directly on the map.
  */
 export function MapScreen() {
   const api = useApi();
@@ -57,8 +56,8 @@ export function MapScreen() {
   const [error, setError] = useState<string | null>(null);
   const [previewLevel, setPreviewLevel] = useState<ThreatLevel | null>(null);
 
-  // Kraków danger heatmap state. Warstwa jest zawsze włączona — przełącznik
-  // zdjęty z mapy razem z przyciskami, żeby główny ekran był czysty.
+  // Kraków danger heatmap state. Warstwa jest zawsze włączona na mapie —
+  // żadnych dodatkowych kart czy przycisków w UI, czysta mapa.
   const [heatmapData, setHeatmapData] = useState<HeatmapGeoJSON | null>(null);
 
   const evidence = useEvidenceRecorder({ api });
@@ -94,7 +93,7 @@ export function MapScreen() {
   const heatmapRequestRef = useRef(0);
 
   const loadHeatmap = useCallback(async () => {
-    // Reloads can overlap (mount, post-report, retry), so only the newest answer is
+    // Reloads can overlap (mount, retry), so only the newest answer is
     // allowed to write state; a slow failure must not overwrite a fresh success.
     const request = (heatmapRequestRef.current += 1);
     try {
@@ -103,9 +102,6 @@ export function MapScreen() {
       setHeatmapData(data);
     } catch (err) {
       if (request !== heatmapRequestRef.current) return;
-      // Deliberately not silent: an unpainted map reads as "nobody reported
-      // anything here", which is the one thing this layer must never imply.
-      // Legenda zniknęła z UI, więc powód wjeżdża w istniejący banner błędu.
       setError(`Mapa zagrożeń: ${heatmapErrorText(err)}`);
     }
   }, [api]);
@@ -171,11 +167,11 @@ export function MapScreen() {
         case 0:
           return 'Puść, aby anulować';
         case 1:
-          return 'Poziom 1 · Telefon zadzwoni za 10 s';
+          return fakeCallPreview();
         case 2:
-          return 'Poziom 2 · Znajomi dostaną lokalizację';
+          return 'Udostępnij lokalizację znajomym';
         case 3:
-          return 'Poziom 3 · Pełny alarm SOS + nagrywanie';
+          return 'Wezwij pomoc i nagrywaj dowody';
       }
     }
     if (threat.callPhase === 'waiting' && threat.countdown !== null) {
@@ -195,6 +191,7 @@ export function MapScreen() {
         staleSeconds={staleSeconds}
         level={threat.level}
         cameraRef={cameraRef}
+        showHeatmap={true}
         heatmapData={heatmapData}
       />
 

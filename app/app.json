@@ -3,7 +3,7 @@
     "name": "Mokosh",
     "slug": "mokosh",
     "scheme": "mokosh",
-    "version": "0.2.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#14161A"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "bundleIdentifier": "pl.hackyeah.mokosh",
       "supportsTablet": true,
@@ -21,7 +23,11 @@
         "NSLocationWhenInUseUsageDescription": "Twoja lokalizacja jest udostępniana znajomym tylko wtedy, gdy zaznaczysz poziom zagrożenia.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Twoja lokalizacja jest udostępniana znajomym tylko wtedy, gdy zaznaczysz poziom zagrożenia.",
         "NSMicrophoneUsageDescription": "Nagrywanie dźwięku aktywuje się wyłącznie przy najwyższym poziomie zagrożenia.",
-        "UIBackgroundModes": ["audio", "location", "remote-notification"],
+        "UIBackgroundModes": [
+          "audio",
+          "location",
+          "remote-notification"
+        ],
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         }
@@ -29,7 +35,7 @@
     },
     "android": {
       "package": "pl.hackyeah.mokosh",
-      "versionCode": 200,
+      "versionCode": 10000,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -38,14 +44,28 @@
         "VIBRATE",
         "POST_NOTIFICATIONS",
         "USE_FULL_SCREEN_INTENT",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
       "intentFilters": [
         {
           "action": "VIEW",
           "autoVerify": false,
-          "data": [{ "scheme": "mokosh" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "mokosh"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -83,10 +103,14 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "caf73a06-6577-43bc-926e-155f0de3fc04"
       }
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "owner": "grajpap"
   }
 }

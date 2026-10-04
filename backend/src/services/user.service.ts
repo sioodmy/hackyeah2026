@@ -1,9 +1,9 @@
-import { eq } from 'drizzle-orm';
+import { eq } from "drizzle-orm";
 
-import type { ClerkClaims } from '../core/clerk.js';
-import { displayNameFromClaims } from '../core/clerk.js';
-import { db } from '../db/client.js';
-import { users, type User } from '../db/schema.js';
+import type { ClerkClaims } from "../core/clerk.js";
+import { displayNameFromClaims } from "../core/clerk.js";
+import { db } from "../db/client.js";
+import { users, type User } from "../db/schema.js";
 
 export interface SyncedUser {
   user: User;
@@ -13,10 +13,11 @@ export interface SyncedUser {
 /**
  * Clerk is the source of truth for identity; this table is our local mirror.
  * Called on every authenticated request, so an existing row is only patched.
+ * Atomic upsert via PostgreSQL ON CONFLICT prevents race conditions on parallel requests.
  */
-export async function upsertFromClerk(claims: ClerkClaims): Promise<SyncedUser> {
-  const existing = await db.query.users.findFirst({ where: eq(users.clerkId, claims.sub) });
-
+export async function upsertFromClerk(
+  claims: ClerkClaims,
+): Promise<SyncedUser> {
   const values = {
     email: claims.email ?? null,
     name: displayNameFromClaims(claims),
@@ -24,15 +25,13 @@ export async function upsertFromClerk(claims: ClerkClaims): Promise<SyncedUser> 
     avatarUrl: claims.picture ?? null,
   };
 
-  if (!existing) {
-    const [row] = await db.insert(users).values({ clerkId: claims.sub, ...values }).returning();
-    return { user: row!, created: true };
-  }
-
   const [row] = await db
-    .update(users)
-    .set({ ...values, updatedAt: new Date() })
-    .where(eq(users.id, existing.id))
+    .insert(users)
+    .values({ clerkId: claims.sub, ...values })
+    .onConflictDoUpdate({
+      target: users.clerkId,
+      set: { ...values, updatedAt: new Date() },
+    })
     .returning();
 
   return { user: row!, created: false };
@@ -48,22 +47,23 @@ export async function findByEmail(email: string): Promise<User | undefined> {
 
 export async function updateProfile(
   id: string,
-  changes: Partial<
-    Pick<
-      User,
-      | 'name'
-      | 'phone'
-      | 'pushEnabled'
-      | 'bio'
-      | 'emergencyNote'
-      | 'shareProfileWithFriends'
-    >
-  >,
-): Promise<User> {
+  patch: {
+    name?: string;
+    phone?: string | null;
+    bio?: string | null;
+    emergencyNote?: string | null;
+    shareProfileWithFriends?: boolean;
+    pushEnabled?: boolean;
+  },
+): Promise<User | undefined> {
   const [row] = await db
     .update(users)
-    .set({ ...changes, updatedAt: new Date() })
+    .set({
+      ...patch,
+      updatedAt: new Date(),
+    })
     .where(eq(users.id, id))
     .returning();
-  return row!;
+
+  return row;
 }

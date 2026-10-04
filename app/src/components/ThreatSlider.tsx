@@ -18,8 +18,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import * as Haptics from 'expo-haptics';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 
 import {
@@ -39,7 +37,6 @@ import {
   OVERDRAG,
   STOP_LEVELS,
   THREAT_SAFE,
-  levelForProgress,
   type ThreatLevel,
 } from '@/theme/levels';
 
@@ -65,35 +62,6 @@ const STOP_LABELS = ['—', '1', '2', 'SOS'];
 const MAGNET_RANGE = sliderTokens.magnetRange;
 /** Ile z odległości zjada magnes w swoim centrum. */
 const MAGNET_STRENGTH = sliderTokens.magnetStrength;
-
-/**
- * Przyciąga wartość do najbliższego detentu.
- *
- * Worklet (stąd `'worklet'`), bo liczy się na UI thread w trakcie gestu —
- * dlatego punkty detentów są w środku a nie w importowanym `DETENTS`: worklet
- * nie domyka z importów. Wartości muszą trzymać się `DETENTS` w
- * `theme/levels.ts`; web ma identyczną funkcję obok.
- */
-function magnetize(progress: number): number {
-  'worklet';
-  const detents = [0, 0.34, 0.66, 1];
-  let nearest = 0;
-  let bestDistance = 2;
-  for (let i = 0; i < 4; i++) {
-    const distance = Math.abs(progress - detents[i]!);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      nearest = detents[i]!;
-    }
-  }
-  if (bestDistance >= MAGNET_RANGE) return progress;
-
-  // Kwadratowy ramp: magnes włącza się ostro przy detencie, a nie na całym
-  // zakresie, więc nie ma efektu „przyklejonej gąbki".
-  const falloff = 1 - bestDistance / MAGNET_RANGE;
-  const pull = falloff * falloff * MAGNET_STRENGTH;
-  return nearest + (progress - nearest) * (1 - pull);
-}
 
 /** Dynamiczny, sprężysty spring podczas prowadzenia gałki. */
 const KNOB_SPRING = { damping: 20, stiffness: 240, mass: 0.7 } as const;
@@ -141,16 +109,6 @@ export type ThreatSliderProps = {
   caption?: string;
 };
 
-/**
- * The threat slider: one track, one knob, four labelled stops.
- *
- * Nothing happens while the thumb is down. The knob follows the finger, the
- * stop it is over lights up, and letting go commits that level — so brushing
- * across the screen can never start a call or page anyone.
- *
- * Po commicie gałka dojeżdża do końca i znika, a bar wypełnia się w całości
- * kolorem poziomu; w środku pojawia się wtedy `caption`.
- */
 export function ThreatSlider({
   onCommit,
   activeLevel,
@@ -274,8 +232,6 @@ export function ThreatSlider({
       }, SHINE_DELAY_MS);
       timersRef.current.push(tShine);
 
-      // Bar wraca do pustego, ale label zostaje do samego końca — kolorowy
-      // pasek nigdy nie jest bez wyjaśnienia.
       const t1 = setTimeout(() => {
         progress.value = withTiming(0, {
           duration: RESET_DURATION_MS,
@@ -288,9 +244,12 @@ export function ThreatSlider({
       }, COMMIT_DURATION_MS + HOLD_DURATION_MS);
       timersRef.current.push(t1);
 
-      const t2 = setTimeout(() => {
-        setFilledLevel(null);
-      }, COMMIT_DURATION_MS + HOLD_DURATION_MS + RESET_DURATION_MS);
+      const t2 = setTimeout(
+        () => {
+          setFilledLevel(null);
+        },
+        COMMIT_DURATION_MS + HOLD_DURATION_MS + RESET_DURATION_MS,
+      );
       timersRef.current.push(t2);
     },
     [clearTimers, progress, shineProgress, zone, zoneMix],
@@ -303,6 +262,7 @@ export function ThreatSlider({
         .maxPointers(1)
         .minDistance(0)
         .onBegin(() => {
+          'worklet';
           pressed.value = withSpring(1, KNOB_SPRING);
           zone.value = THREAT_SAFE;
           zoneMix.value = THREAT_SAFE;
@@ -311,6 +271,7 @@ export function ThreatSlider({
           runOnJS(handleDragBegin)();
         })
         .onUpdate((event) => {
+          'worklet';
           const maxTravel = travelSV.value;
           if (maxTravel <= 0) return;
 
@@ -320,34 +281,56 @@ export function ThreatSlider({
           const rubber =
             raw > 1 ? 1 + (raw - 1) * (OVERDRAG / (OVERDRAG + (raw - 1))) : Math.max(0, raw);
 
-          // Magnes: wciąga knobę w najbliższy detent, więc animacja jest
-          // etapowa zamiast płynnej, a przy puszczeniu jesteśmy już blisko stopa.
-          const next = magnetize(rubber);
+          // Inline magnetize calculation inside worklet
+          const detents = [0, 0.34, 0.66, 1];
+          let nearest = 0;
+          let bestDistance = 2;
+          for (let i = 0; i < 4; i++) {
+            const d = detents[i] ?? 0;
+            const distance = Math.abs(rubber - d);
+            if (distance < bestDistance) {
+              bestDistance = distance;
+              nearest = d;
+            }
+          }
+          let next = rubber;
+          if (bestDistance < MAGNET_RANGE) {
+            const falloff = 1 - bestDistance / MAGNET_RANGE;
+            const pull = falloff * falloff * MAGNET_STRENGTH;
+            next = nearest + (rubber - nearest) * (1 - pull);
+          }
 
           progress.value = Math.min(1 + OVERDRAG, next);
 
-          const crossed = levelForProgress(next);
+          // Inline level calculation inside worklet
+          const clamped = Math.min(1, Math.max(0, next));
+          let crossed = 0;
+          if (clamped < 0.18) {
+            crossed = 0;
+          } else if (clamped < 0.5) {
+            crossed = 1;
+          } else if (clamped < 0.85) {
+            crossed = 2;
+          } else {
+            crossed = 3;
+          }
+
           if (crossed !== zone.value) {
             zone.value = crossed;
             zoneMix.value = withTiming(crossed, { duration: ZONE_BLEND_MS });
-            runOnJS(handleZoneCrossed)(crossed);
+            runOnJS(handleZoneCrossed)(crossed as ThreatLevel);
           }
         })
         .onFinalize((_event, success) => {
+          'worklet';
           pressed.value = withSpring(0, KNOB_SPRING);
           runOnJS(handleDragEnd)();
 
           if (travelSV.value <= 0) return;
 
-          // `zone` only ever holds whole levels, so the level that escapes here
-          // is always one the state machine and the API understand.
-          const level = Math.min(
-            MAX_LEVEL,
-            Math.max(THREAT_SAFE, Math.round(zone.value)),
-          ) as ThreatLevel;
+          const rawLevel = Math.round(zone.value);
+          const level = (rawLevel < 0 ? 0 : rawLevel > 3 ? 3 : rawLevel) as ThreatLevel;
 
-          // A gesture another pointer took over is not a decision: spring home
-          // and commit nothing.
           if (!success || level === THREAT_SAFE) {
             zone.value = THREAT_SAFE;
             zoneMix.value = withTiming(THREAT_SAFE, { duration: ZONE_BLEND_MS });
@@ -358,8 +341,6 @@ export function ThreatSlider({
           runOnJS(commit)(level);
           runOnJS(showFilled)(level);
 
-          // Gałka dojeżdża do końca i znika, a bar wypełnia się w całości
-          // kolorem poziomu (label w środku wstawia ekran).
           zone.value = level;
           zoneMix.value = withTiming(level, { duration: ZONE_BLEND_MS });
           progress.value = withTiming(1, {
@@ -384,8 +365,6 @@ export function ThreatSlider({
 
   const fillStyle = useAnimatedStyle(() => {
     const p = Math.max(0, Math.min(1, progress.value));
-    // Podczas przeciągania krawędź wypełnienia sięga dokładnie prawej krawędzi
-    // gałki (p * travel + KNOB_SIZE). Przy p=0 jest schowana (width 0).
     const fillWidth = p <= 0 ? 0 : p * travelSV.value + KNOB_SIZE;
     return {
       width: fillWidth,
@@ -407,7 +386,6 @@ export function ThreatSlider({
       { translateX: Math.max(0, Math.min(1, progress.value)) * travelSV.value },
       { scale: interpolate(pressed.value, [0, 1], [1, sliderTokens.knobPressedScale]) },
     ],
-    // Podczas dojazdu na commit gałka płynnie rozpływa się przy samym końcu
     opacity: interpolate(progress.value, [0.94, 1], [1, 0]),
   }));
 
@@ -415,13 +393,11 @@ export function ThreatSlider({
     transform: [{ translateX: chevronGlance.value }],
   }));
 
-  // Floating drag bubble — dymek nad suwakiem podczas przeciągania
   const bubbleStyle = useAnimatedStyle(() => ({
     opacity: interpolate(pressed.value, [0, 1], [0, 1]),
     transform: [{ translateY: interpolate(pressed.value, [0, 1], [6, 0]) }],
   }));
 
-  // Slow breathing ring while the top level is live.
   useEffect(() => {
     if (activeLevel !== MAX_LEVEL) {
       live.value = withTiming(0, { duration: 200 });
@@ -478,14 +454,16 @@ export function ThreatSlider({
       ]}
       onAccessibilityAction={onAccessibilityAction}
     >
-      {/* Dymek nad sliderem — widoczny podczas przeciągania, kciuk nie zasłania stanu */}
+      {/* Dymek nad sliderem — widoczny podczas przeciągania */}
       <Animated.View style={[styles.bubble, bubbleStyle]} pointerEvents="none">
         <View
           style={[
             styles.bubbleDot,
             {
               backgroundColor:
-                currentZoneLevel === THREAT_SAFE ? palette.textMuted : colorForLevel(currentZoneLevel),
+                currentZoneLevel === THREAT_SAFE
+                  ? palette.textMuted
+                  : colorForLevel(currentZoneLevel),
             },
           ]}
         />
@@ -500,27 +478,22 @@ export function ThreatSlider({
             {/* Płytki bar: fill + stopy w środku. */}
             <View style={styles.bar} pointerEvents="none">
               <Animated.View style={[styles.fill, fillStyle]} pointerEvents="none">
-                {/* Rozświetlony wierzch nałożony na kolor poziomu */}
-                <LinearGradient
-                  colors={[
-                    sliderTokens.fillSheenTop,
-                    sliderTokens.fillSheenMid,
-                    sliderTokens.fillSheenBottom,
+                <View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { backgroundColor: 'rgba(255, 255, 255, 0.12)' },
                   ]}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  style={StyleSheet.absoluteFill}
                 />
               </Animated.View>
 
               {/* Błysk / odblask przejeżdżający raz po commicie */}
               {filledLevel !== null && (
                 <Animated.View style={[styles.shine, shineStyle]} pointerEvents="none">
-                  <LinearGradient
-                    colors={['transparent', sliderTokens.shine, 'transparent']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
+                  <View
+                    style={[
+                      StyleSheet.absoluteFill,
+                      { backgroundColor: 'rgba(255, 255, 255, 0.25)' },
+                    ]}
                   />
                 </Animated.View>
               )}
@@ -531,7 +504,6 @@ export function ThreatSlider({
                   {STOP_LEVELS.map((level) => {
                     const highlighted = level === shownLevel;
                     const d = detentFor(level);
-                    // Czy stop jest pokryty przez wypełnienie?
                     const covered = preview !== null && preview >= level && level > 0;
                     const stopColor = covered
                       ? currentContrastText
@@ -542,10 +514,7 @@ export function ThreatSlider({
                         : sliderTokens.stopLabelIdle;
 
                     return (
-                      <View
-                        key={level}
-                        style={[styles.stop, { left: KNOB_SIZE / 2 + d * travel }]}
-                      >
+                      <View key={level} style={[styles.stop, { left: KNOB_SIZE / 2 + d * travel }]}>
                         <View
                           style={[
                             styles.tick,
@@ -588,17 +557,17 @@ export function ThreatSlider({
 
             {/* Szklana gałka okalająca bar */}
             <Animated.View style={[styles.knob, knobStyle]} pointerEvents="none">
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 40 : 25}
-                tint="light"
-                style={StyleSheet.absoluteFill}
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  {
+                    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+                    borderRadius: KNOB_SIZE / 2,
+                  },
+                ]}
               />
-              <LinearGradient
-                colors={sliderTokens.knobGradient}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
+
+              {/* Dwie strzałki iOS 6 » subtelnie drgające */}
               <Animated.View style={chevronStyle}>
                 <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
                   <Path
@@ -617,6 +586,8 @@ export function ThreatSlider({
                   />
                 </Svg>
               </Animated.View>
+
+              {/* Pierścień pulsujący na poziomie SOS */}
               <Animated.View style={[styles.liveRing, liveRingStyle]} />
             </Animated.View>
           </View>
@@ -698,9 +669,9 @@ const styles = StyleSheet.create({
     width: KNOB_SIZE,
     height: KNOB_SIZE,
     borderRadius: KNOB_SIZE / 2,
-    backgroundColor: sliderTokens.knobGradient[0],
-    borderWidth: 1,
-    borderColor: sliderTokens.knobBorder,
+    backgroundColor: 'rgba(38, 42, 50, 0.92)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -751,12 +722,11 @@ const styles = StyleSheet.create({
   tick: {
     width: TICK_WIDTH,
     borderRadius: TICK_WIDTH / 2,
+    marginBottom: 4,
   },
   stopLabel: {
-    marginTop: 3,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-    lineHeight: 12,
+    ...type.caption,
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

@@ -1,6 +1,6 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-import type { AlertLevel } from './db/schema.js';
+import type { AlertLevel } from "./db/schema.js";
 
 /**
  * Alert levels are a closed scale. The union is what makes the rest of the
@@ -13,33 +13,58 @@ import type { AlertLevel } from './db/schema.js';
  */
 export const alertLevelSchema = z
   .literal([1, 2, 3, 4])
-  .describe('1 uncomfortable, 2 unsafe, 3 danger, 4 omega');
+  .describe("1 uncomfortable, 2 unsafe, 3 danger, 4 omega");
 
 export const alertStatusSchema = z.enum([
-  'active',
-  'acknowledged',
-  'resolved',
-  'cancelled',
-  'escalated',
+  "active",
+  "acknowledged",
+  "resolved",
+  "cancelled",
+  "escalated",
 ]);
 
 /* ---------------------------------------------------------------- alerts -- */
 
 export const createAlertBody = z.object({
   level: alertLevelSchema,
-  message: z.string().trim().max(1000).optional().describe('What is happening, in her words'),
-  lat: z.number().min(-90).max(90).optional().describe('Latitude of the sender'),
-  lng: z.number().min(-180).max(180).optional().describe('Longitude of the sender'),
-  address: z.string().max(500).optional().describe('Reverse-geocoded street address'),
+  message: z
+    .string()
+    .trim()
+    .max(1000)
+    .optional()
+    .describe("What is happening, in her words"),
+  lat: z
+    .number()
+    .min(-90)
+    .max(90)
+    .optional()
+    .describe("Latitude of the sender"),
+  lng: z
+    .number()
+    .min(-180)
+    .max(180)
+    .optional()
+    .describe("Longitude of the sender"),
+  address: z
+    .string()
+    .max(500)
+    .optional()
+    .describe("Reverse-geocoded street address"),
 });
 
 export const alertIdParams = z.object({
-  alertId: z.uuid().describe('Alert id'),
+  alertId: z.uuid().describe("Alert id"),
 });
 
 export const listAlertsQuerystring = z.object({
-  status: alertStatusSchema.optional().describe('Filter by lifecycle state'),
-  limit: z.coerce.number().int().min(1).max(200).default(50).describe('Max rows to return'),
+  status: alertStatusSchema.optional().describe("Filter by lifecycle state"),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(200)
+    .default(50)
+    .describe("Max rows to return"),
 });
 
 /* -------------------------------------------------------------- invites -- */
@@ -51,24 +76,24 @@ export const createInviteBody = z.object({
     .min(1)
     .max(50)
     .optional()
-    .describe('How many friends may use this code. Defaults to 1.'),
+    .describe("How many friends may use this code. Defaults to 1."),
   ttlHours: z
     .number()
     .int()
     .min(1)
     .max(720)
     .optional()
-    .describe('Hours until the code stops working. Defaults to 24.'),
+    .describe("Hours until the code stops working. Defaults to 24."),
   requiresApproval: z
     .boolean()
     .optional()
     .describe(
-      'When true (default) the owner must accept each request before anything is shared. Set false to link immediately, for people who have already agreed offline.',
+      "When true (default) the owner must accept each request before anything is shared. Set false to link immediately, for people who have already agreed offline.",
     ),
 });
 
 export const inviteCodeParams = z.object({
-  codeId: z.uuid().describe('Invite code id, from the code you created'),
+  codeId: z.uuid().describe("Invite code id, from the code you created"),
 });
 
 export const redeemInviteBody = z.object({
@@ -85,14 +110,16 @@ export const redeemInviteBody = z.object({
     .trim()
     .max(280)
     .optional()
-    .describe('Shown to the other person with the request, so they recognise you.'),
+    .describe(
+      "Shown to the other person with the request, so they recognise you.",
+    ),
 });
 
 export const inviteLinkSchema = z.object({
-  web: z.string().describe('Open in a browser. Paste into SMS, chat or email.'),
+  web: z.string().describe("Open in a browser. Paste into SMS, chat or email."),
   deep: z
     .string()
-    .describe('Opens the app directly. Use for the QR image on a phone.'),
+    .describe("Opens the app directly. Use for the QR image on a phone."),
   code: z.string(),
 });
 
@@ -103,11 +130,11 @@ export const inviteCodeSchema = z.object({
   usedCount: z.number(),
   requiresApproval: z
     .boolean()
-    .describe('True when the owner must accept before anything is shared'),
+    .describe("True when the owner must accept before anything is shared"),
   expiresAt: z.date(),
   revokedAt: z.date().nullable(),
-  redeemable: z.boolean().describe('False once used up, expired or cancelled'),
-  qrPayload: z.string().describe('Exactly what to encode in the QR image'),
+  redeemable: z.boolean().describe("False once used up, expired or cancelled"),
+  qrPayload: z.string().describe("Exactly what to encode in the QR image"),
   links: inviteLinkSchema,
 });
 
@@ -140,12 +167,15 @@ export const inboxAlertSchema = alertSchema.extend({
 const contactFields = {
   name: z.string().trim().min(1).max(255),
   phone: z.string().trim().min(3).max(32),
-  email: z.email().optional().describe('Links to an app account with the same address'),
+  email: z
+    .email()
+    .optional()
+    .describe("Links to an app account with the same address"),
   relationship: z.string().trim().max(64).optional(),
-  isPrimary: z.boolean().optional().describe('Only one contact can be primary'),
+  isPrimary: z.boolean().optional().describe("Only one contact can be primary"),
   minLevel: alertLevelSchema
     .optional()
-    .describe('Notify this contact from this level upwards'),
+    .describe("Notify this contact from this level upwards"),
 };
 
 export const createContactBody = z.object(contactFields).extend({
@@ -161,11 +191,11 @@ export const updateContactBody = z
   .object(contactFields)
   .partial()
   .refine((value) => Object.keys(value).length > 0, {
-    message: 'at least one field is required',
+    message: "at least one field is required",
   });
 
 export const contactIdParams = z.object({
-  contactId: z.uuid().describe('Contact id'),
+  contactId: z.uuid().describe("Contact id"),
 });
 
 export const contactSchema = z.object({
@@ -179,23 +209,23 @@ export const contactSchema = z.object({
   isPrimary: z.boolean(),
   minLevel: z.number(),
   source: z
-    .enum(['manual', 'invite_code', 'accepted_request'])
-    .describe('How this contact was added'),
+    .enum(["manual", "invite_code", "accepted_request"])
+    .describe("How this contact was added"),
   nickname: z
     .string()
     .nullable()
-    .describe('What you call them. Local only: never sent to them.'),
+    .describe("What you call them. Local only: never sent to them."),
   notifyEmail: z
     .string()
     .nullable()
-    .describe('Where danger alerts are emailed for this contact'),
+    .describe("Where danger alerts are emailed for this contact"),
   createdAt: z.date(),
 });
 
 /* -------------------------------------------------------------- friends -- */
 
 export const friendParams = z.object({
-  friendId: z.uuid().describe('The other user id'),
+  friendId: z.uuid().describe("The other user id"),
 });
 
 /** The slice of a profile a friend is allowed to see. */
@@ -207,7 +237,7 @@ export const publicProfileSchema = z.object({
   emergencyNote: z
     .string()
     .nullable()
-    .describe('Her own words: medical needs, who to call, anything vital'),
+    .describe("Her own words: medical needs, who to call, anything vital"),
   phone: z.string().nullable(),
 });
 
@@ -216,11 +246,19 @@ export const friendshipSchema = z.object({
   contact: contactSchema,
   friend: z.object({
     id: z.uuid(),
-    name: z.string().describe('The local nickname if set, otherwise her real name'),
+    name: z
+      .string()
+      .describe("The local nickname if set, otherwise her real name"),
     realName: z.string().describe('Her actual name, for "Mamusia (Kasia)"'),
     phone: z.string().nullable(),
     profile: publicProfileSchema,
   }),
+  id: z.string().optional(),
+  displayName: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+  status: z.string().optional(),
+  friendshipId: z.string().nullable().optional(),
+  lastSeenAt: z.string().nullable().optional(),
 });
 
 /** Per-contact settings: nickname, threshold, and the email for danger alerts. */
@@ -232,19 +270,27 @@ export const updateFriendBody = z
       .max(64)
       .nullable()
       .optional()
-      .describe('What you call her. Local only: never sent to her.'),
-    minLevel: alertLevelSchema.optional().describe('Notify from this level upwards'),
+      .describe("What you call her. Local only: never sent to her."),
+    minLevel: alertLevelSchema
+      .optional()
+      .describe("Notify from this level upwards"),
     notifyEmail: z
       .email()
       .nullable()
       .optional()
-      .describe('Where to email danger alerts (levels 3 and 4) for this contact'),
+      .describe(
+        "Where to email danger alerts (levels 3 and 4) for this contact",
+      ),
   })
   .refine((value) => Object.keys(value).length > 0, {
-    message: 'at least one field is required',
+    message: "at least one field is required",
   });
 
-export const friendRequestStatusSchema = z.enum(['pending', 'accepted', 'declined']);
+export const friendRequestStatusSchema = z.enum([
+  "pending",
+  "accepted",
+  "declined",
+]);
 
 /** A pending invitation, with enough profile to recognise the sender. */
 export const friendRequestSchema = z.object({
@@ -264,13 +310,20 @@ export const friendRequestSchema = z.object({
     bio: z.string().nullable(),
   }),
   to: z.object({ id: z.uuid(), name: z.string() }),
+  id: z.string().optional(),
+  displayName: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+  status: z.string().optional(),
+  friendshipId: z.string().nullable().optional(),
 });
 
 export const requestFriendSchema = z.object({
   request: friendRequestSchema,
   alreadyRequested: z
     .boolean()
-    .describe('True when a request was already pending, so nothing was created'),
+    .describe(
+      "True when a request was already pending, so nothing was created",
+    ),
   status: friendRequestStatusSchema.describe(
     'pending until the owner accepts; "accepted" if they were already friends',
   ),
@@ -278,36 +331,38 @@ export const requestFriendSchema = z.object({
 
 export const listRequestsQuery = z.object({
   direction: z
-    .enum(['incoming', 'outgoing'])
-    .default('incoming')
-    .describe('incoming is the inbox to answer, outgoing is what you are waiting on'),
-  status: friendRequestStatusSchema.default('pending'),
+    .enum(["incoming", "outgoing"])
+    .default("incoming")
+    .describe(
+      "incoming is the inbox to answer, outgoing is what you are waiting on",
+    ),
+  status: friendRequestStatusSchema.default("pending"),
 });
 
 export const friendRequestIdParams = z.object({
-  requestId: z.uuid().describe('Friend request id'),
+  requestId: z.uuid().describe("Friend request id"),
 });
 
 /* --------------------------------------------------------------- devices -- */
 
 export const registerDeviceBody = z.object({
-  token: z.string().min(1).max(2048).describe('APNs or FCM device token'),
-  platform: z.enum(['ios', 'android']),
+  token: z.string().min(1).max(2048).describe("APNs or FCM device token"),
+  platform: z.enum(["ios", "android"]),
 });
 
 export const deviceIdParams = z.object({
-  deviceId: z.uuid().describe('Device id returned when registering'),
+  deviceId: z.uuid().describe("Device id returned when registering"),
 });
 
 export const updateDeviceBody = z.object({
-  isActive: z.boolean().describe('Set false to stop sending to this token'),
+  isActive: z.boolean().describe("Set false to stop sending to this token"),
 });
 
 export const deviceSchema = z.object({
   id: z.uuid(),
   userId: z.uuid(),
   token: z.string(),
-  platform: z.enum(['ios', 'android']),
+  platform: z.enum(["ios", "android"]),
   isActive: z.boolean(),
   lastSeenAt: z.date(),
   createdAt: z.date(),
@@ -318,6 +373,8 @@ export const deviceSchema = z.object({
 export const updateProfileBody = z
   .object({
     name: z.string().trim().min(1).max(255).optional(),
+    displayName: z.string().trim().min(1).max(255).nullable().optional(),
+    avatarUrl: z.string().trim().max(1024).nullable().optional(),
     phone: z.string().trim().min(3).max(32).optional(),
     pushEnabled: z.boolean().optional(),
     bio: z
@@ -326,7 +383,9 @@ export const updateProfileBody = z
       .max(280)
       .nullable()
       .optional()
-      .describe('A line about you, shown on friend requests so people recognise you'),
+      .describe(
+        "A line about you, shown on friend requests so people recognise you",
+      ),
     emergencyNote: z
       .string()
       .trim()
@@ -334,15 +393,15 @@ export const updateProfileBody = z
       .nullable()
       .optional()
       .describe(
-        'Shown to friends when an alert reaches them: medical needs, who to call, anything vital when there is no time to ask.',
+        "Shown to friends when an alert reaches them: medical needs, who to call, anything vital when there is no time to ask.",
       ),
     shareProfileWithFriends: z
       .boolean()
       .optional()
-      .describe('Set false to hide your bio and emergency note from friends'),
+      .describe("Set false to hide your bio and emergency note from friends"),
   })
   .refine((value) => Object.keys(value).length > 0, {
-    message: 'at least one field is required',
+    message: "at least one field is required",
   });
 
 export const userSchema = z.object({
@@ -350,6 +409,7 @@ export const userSchema = z.object({
   clerkId: z.string(),
   email: z.string().nullable(),
   name: z.string(),
+  displayName: z.string().nullable().optional(),
   phone: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   pushEnabled: z.boolean(),
@@ -364,7 +424,7 @@ export const userSchema = z.object({
 
 export const errorSchema = z.object({
   error: z.object({
-    code: z.string().describe('Stable machine-readable code'),
+    code: z.string().describe("Stable machine-readable code"),
     message: z.string(),
   }),
 });

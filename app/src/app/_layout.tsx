@@ -91,6 +91,13 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.surfaceSolid },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  root: {
+    flex: 1,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceSolid,
+  },
 });
