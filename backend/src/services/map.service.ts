@@ -1,14 +1,14 @@
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 
-import { db } from '../db/client.js';
+import { db } from "../db/client.js";
 import {
   alerts,
   contacts,
   users,
   type AlertLevel,
   type AlertStatus,
-} from '../db/schema.js';
-import { displayName } from './profile.service.js';
+} from "../db/schema.js";
+import { displayName } from "./profile.service.js";
 
 /**
  * A friend who is in danger right now, with the place to go.
@@ -50,7 +50,7 @@ export interface DangerMarker {
   ageSeconds: number;
 }
 
-const OPEN_STATUSES: AlertStatus[] = ['active', 'acknowledged'];
+const OPEN_STATUSES: AlertStatus[] = ["active", "acknowledged"];
 
 /**
  * Friends who currently have an alert open, newest first.
@@ -59,7 +59,9 @@ const OPEN_STATUSES: AlertStatus[] = ['active', 'acknowledged'];
  * the row is replaced in place, but a friend can still have several historical
  * alerts, and only the newest open one is relevant on a map.
  */
-export async function listDangerMarkers(userId: string): Promise<DangerMarker[]> {
+export async function listDangerMarkers(
+  userId: string,
+): Promise<DangerMarker[]> {
   const rows = await db
     .select({ contact: contacts, friend: users, alert: alerts })
     .from(contacts)
@@ -68,7 +70,10 @@ export async function listDangerMarkers(userId: string): Promise<DangerMarker[]>
     .innerJoin(users, eq(users.id, contacts.contactUserId))
     .innerJoin(
       alerts,
-      and(eq(alerts.userId, contacts.contactUserId), inArray(alerts.status, OPEN_STATUSES)),
+      and(
+        eq(alerts.userId, contacts.contactUserId),
+        inArray(alerts.status, OPEN_STATUSES),
+      ),
     )
     .where(eq(contacts.userId, userId))
     .orderBy(desc(alerts.createdAt));
@@ -82,7 +87,9 @@ export async function listDangerMarkers(userId: string): Promise<DangerMarker[]>
       realName: row.friend.name,
       avatarUrl: row.friend.avatarUrl,
       bio: row.friend.shareProfileWithFriends ? row.friend.bio : null,
-      emergencyNote: row.friend.shareProfileWithFriends ? row.friend.emergencyNote : null,
+      emergencyNote: row.friend.shareProfileWithFriends
+        ? row.friend.emergencyNote
+        : null,
       phone: row.friend.phone,
     },
     alert: {
@@ -96,7 +103,10 @@ export async function listDangerMarkers(userId: string): Promise<DangerMarker[]>
       createdAt: row.alert.createdAt,
       updatedAt: row.alert.updatedAt,
     },
-    ageSeconds: Math.max(0, Math.round((now - row.alert.updatedAt.getTime()) / 1000)),
+    ageSeconds: Math.max(
+      0,
+      Math.round((now - row.alert.updatedAt.getTime()) / 1000),
+    ),
   }));
 }
 
@@ -124,7 +134,10 @@ export async function countDangerMarkers(userId: string): Promise<number> {
     .from(contacts)
     .innerJoin(
       alerts,
-      and(eq(alerts.userId, contacts.contactUserId), inArray(alerts.status, OPEN_STATUSES)),
+      and(
+        eq(alerts.userId, contacts.contactUserId),
+        inArray(alerts.status, OPEN_STATUSES),
+      ),
     )
     .where(eq(contacts.userId, userId));
 

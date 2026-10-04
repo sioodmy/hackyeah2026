@@ -6,7 +6,12 @@
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { DARK_VECTOR_STYLE_URL, DEFAULT_CENTER, DEFAULT_ZOOM, colorForLevel } from "../theme";
+import {
+  DARK_VECTOR_STYLE_URL,
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+  colorForLevel,
+} from "../theme";
 import type { HeatmapCell, MockFriend } from "../mock";
 import type { ThreatLevel } from "../theme";
 
@@ -18,7 +23,9 @@ type Props = {
   recenterTick: number;
 };
 
-function heatmapGeoJSON(cells: HeatmapCell[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+function heatmapGeoJSON(
+  cells: HeatmapCell[],
+): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
     features: cells.map((c, i) => ({
@@ -36,7 +43,13 @@ function heatmapGeoJSON(cells: HeatmapCell[]): GeoJSON.FeatureCollection<GeoJSON
   };
 }
 
-export function MapView({ friends, level, showHeatmap, heatmap, recenterTick }: Props) {
+export function MapView({
+  friends,
+  level,
+  showHeatmap,
+  heatmap,
+  recenterTick,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
@@ -57,7 +70,10 @@ export function MapView({ friends, level, showHeatmap, heatmap, recenterTick }: 
     mapRef.current = map;
     map.on("load", () => {
       readyRef.current = true;
-      map.addSource("danger-heatmap", { type: "geojson", data: heatmapGeoJSON(heatmap) });
+      map.addSource("danger-heatmap", {
+        type: "geojson",
+        data: heatmapGeoJSON(heatmap),
+      });
       map.addLayer({
         id: "danger-heatmap-layer",
         type: "heatmap",
@@ -87,7 +103,17 @@ export function MapView({ friends, level, showHeatmap, heatmap, recenterTick }: 
           ],
           // Wyższa intensywność niż domyślne 1: przy `DEFAULT_ZOOM = 13.5`
           // poprzednia wartość 1,5 dawała ledwo widoczną mgłę.
-          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 9, 1, 13, 1.9, 16, 3],
+          "heatmap-intensity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            9,
+            1,
+            13,
+            1.9,
+            16,
+            3,
+          ],
           // Tylko czerwień, bez żółtego: przy tej niskiej alphie żółty składał się
           // z szarości i wychodził brązowy. Zaczyna się przezroczysty pomarańcz.
           // Przesunięte progi w dół, żeby słaba gęstość też miała kolor.
@@ -110,7 +136,19 @@ export function MapView({ friends, level, showHeatmap, heatmap, recenterTick }: 
           ],
           // Promień musi być mniejszy niż odległość między klastrami, inaczej
           // plamy stykają się ze sobą i zamiast pięciu miejsc jest jedna plama.
-          "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 9, 16, 12, 27, 15, 40, 17, 54],
+          "heatmap-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            9,
+            16,
+            12,
+            27,
+            15,
+            40,
+            17,
+            54,
+          ],
           "heatmap-opacity": 0.42,
         },
       });
@@ -132,7 +170,9 @@ export function MapView({ friends, level, showHeatmap, heatmap, recenterTick }: 
       // Własna pozycja — niebieski puck jak UserLocation w MapCanvas.
       const puck = document.createElement("div");
       puck.className = "user-puck";
-      new maplibregl.Marker({ element: puck }).setLngLat(DEFAULT_CENTER).addTo(map);
+      new maplibregl.Marker({ element: puck })
+        .setLngLat(DEFAULT_CENTER)
+        .addTo(map);
       // Wymuś odświeżenie warstw po inicjalizacji.
       syncRef.current?.();
     });
@@ -151,11 +191,19 @@ export function MapView({ friends, level, showHeatmap, heatmap, recenterTick }: 
   syncRef.current = () => {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
-    const heat = map.getSource("danger-heatmap") as maplibregl.GeoJSONSource | undefined;
+    const heat = map.getSource("danger-heatmap") as
+      | maplibregl.GeoJSONSource
+      | undefined;
     heat?.setData(heatmapGeoJSON(heatmap));
-    map.setLayoutProperty("danger-heatmap-layer", "visibility", showHeatmap ? "visible" : "none");
+    map.setLayoutProperty(
+      "danger-heatmap-layer",
+      "visibility",
+      showHeatmap ? "visible" : "none",
+    );
 
-    const halo = map.getSource("friends-halo") as maplibregl.GeoJSONSource | undefined;
+    const halo = map.getSource("friends-halo") as
+      | maplibregl.GeoJSONSource
+      | undefined;
     halo?.setData({
       type: "FeatureCollection",
       features: friends.map((f) => ({
@@ -164,7 +212,11 @@ export function MapView({ friends, level, showHeatmap, heatmap, recenterTick }: 
         properties: { id: f.userId },
       })),
     });
-    map.setPaintProperty("friends-halo-layer", "circle-color", colorForLevel(level));
+    map.setPaintProperty(
+      "friends-halo-layer",
+      "circle-color",
+      colorForLevel(level),
+    );
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = friends.map((f) => {

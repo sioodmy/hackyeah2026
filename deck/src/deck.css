@@ -1,0 +1,242 @@
+@import "tailwindcss";
+
+/* Ten sam zestaw co landing — prezentacja ma być rozpoznawalna jako Mokosh,
+   a oba artefakty mają dzielić jedną paletę i jeden krój. */
+@theme {
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --color-primary: #ff2a85;
+  --color-primary-hover: #e61a72;
+  --color-primary-dim: rgba(255, 42, 133, 0.12);
+  /* Poziomy zagrożenia — prosto z app/src/theme/tokens.ts, żeby kropka na
+     slajdzie i wypełnienie suwaka w telefonie były tym samym kolorem. */
+  --color-lv0: #5c6069;
+  --color-lv1: #efc02b;
+  --color-lv2: #f2761b;
+  --color-lv3: #d62828;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #05060a;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+/* Klasa z dokumentacji Google — bez `font-variation-settings` glify ligatur
+   wypadają jako nazwa tekstu („person_2") zamiast ikony. */
+.material-symbols-rounded {
+  font-family: "Material Symbols Rounded";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 20;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.bg-dot-grid {
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.07) 1px,
+    transparent 1px
+  );
+  background-size: 26px 26px;
+}
+
+/* Miękka poświata w tle slajdu — kolor zależy od slajdu, stąd zmienna. */
+.slide-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  pointer-events: none;
+  background: var(--glow, rgba(255, 42, 133, 0.16));
+}
+
+/* --------------------------------------------------------------------------
+   Scena 1280×720 i jej skalowanie do okna
+   -------------------------------------------------------------------------- */
+
+.stage-wrap {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.stage {
+  position: relative;
+  width: 1280px;
+  height: 720px;
+  transform-origin: center center;
+  flex: none;
+}
+
+.slide-host {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px) scale(0.995);
+  transition:
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 0.32s;
+}
+
+.slide-host.is-active {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s;
+}
+
+/* Slajd wypełnia swojego hosta i ma stały rozmiar — dzięki temu telefon
+   wewnątrz jest zawsze tej samej wielkości niezależnie od tego, co widać. */
+.slide {
+  position: absolute;
+  inset: 0;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  background: #090a10;
+}
+
+/* Wewnątrz slajdu wszystko jest absolutne wobec 1280×720, więc karty i kolumny
+   nie muszą znać swoich szerokości — wystarczy siatka. */
+.slide-inner {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  padding: 54px 68px 52px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Pasek postępu prezentacji + licznik — tylko na ekranie. */
+.deck-chrome {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  z-index: 50;
+}
+
+.deck-chrome-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff2a85, #ff8ab8);
+  transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.deck-hint {
+  position: fixed;
+  right: 14px;
+  bottom: 12px;
+  z-index: 51;
+  font-size: 11px;
+  color: #475569;
+  font-family: var(--font-mono);
+}
+
+/* --------------------------------------------------------------------------
+   Tryb wydruku / eksportu PDF
+   -------------------------------------------------------------------------- */
+
+.deck-print .stage-wrap {
+  position: static;
+  display: block;
+  overflow: visible;
+}
+
+.deck-print .stage {
+  width: auto;
+  height: auto;
+  transform: none !important;
+}
+
+.deck-print .slide-host {
+  position: static;
+  inset: auto;
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: none;
+  break-after: page;
+  page-break-after: always;
+}
+
+.deck-print .slide-host:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+.deck-print .slide {
+  position: relative;
+  inset: auto;
+  /* Rozmiar strony PDF-a. Eksport idzie po jednym slajdzie na kartę
+     (`?print=1&only=N`), więc slajd nigdy nie musi dzielić się na dwie
+     strony i nie traci przy podziale dolnej krawędzi telefonu. */
+  overflow: hidden;
+  height: 720px;
+}
+
+.deck-print .deck-chrome,
+.deck-print .deck-hint,
+.deck-print .deck-only {
+  display: none;
+}
+
+/* Rozmiar strony dla eksportu PDF. Musi być poza `@media print`, bo skrypt
+   renderuje slajdy w media screen (patrz `scripts/export-pdf.mjs`), a `@page`
+   wewnątrz `@media print` byłby wtedy zignorowany i PDF wyszedłby na Letter. */
+@page {
+  size: 1280px 720px;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    background: #090a10;
+  }
+}
+
+/*
+  Animacje w PDF-ie nie istnieją, a bez wyłączenia zatrzymane w połowie
+  przejścia kształty (wypełnienie suwaka, poświata) byłyby ucięte. Zakres
+  `.deck-print`, nie `*`, bo skrypt drukuje w media screen i reguła w
+  `@media print` nie zadziałałaby.
+*/
+.deck-print *,
+.deck-print *::before,
+.deck-print *::after {
+  animation: none !important;
+  transition: none !important;
+}

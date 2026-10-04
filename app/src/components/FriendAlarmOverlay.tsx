@@ -259,7 +259,9 @@ function AlarmScreen({
           <Text style={styles.alarmName} numberOfLines={1}>
             {name}
           </Text>
-          <Text style={styles.alarmBodyText}>Pilnie potrzebuje pomocy. Powiadomimy Cię o aktualizacjach</Text>
+          <Text style={styles.alarmBodyText}>
+            Pilnie potrzebuje pomocy. Powiadomimy Cię o aktualizacjach
+          </Text>
           {coords ? <Text style={styles.alarmCoords}>{coords}</Text> : null}
         </View>
 

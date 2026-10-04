@@ -1,9 +1,9 @@
-import 'dotenv/config';
+import "dotenv/config";
 
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { Pool } from 'pg';
-import { userInfo } from 'node:os';
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { Pool } from "pg";
+import { userInfo } from "node:os";
 
 /**
  * Applies the SQL files in ./drizzle.
@@ -21,27 +21,27 @@ function resolveDatabaseUrl(): string {
   if (configured) return configured;
 
   const { username } = userInfo();
-  const socketDir = process.env.PGHOST ?? '/tmp';
+  const socketDir = process.env.PGHOST ?? "/tmp";
   return `postgresql://${encodeURIComponent(username)}@/${DB_NAME}?host=${socketDir}`;
 }
 
-const DB_NAME = process.env.DB_NAME ?? 'mokosh';
+const DB_NAME = process.env.DB_NAME ?? "mokosh";
 
 async function main(): Promise<void> {
   const pool = new Pool({ connectionString: resolveDatabaseUrl() });
   try {
-    await migrate(drizzle(pool), { migrationsFolder: './drizzle' });
-    console.log('[db] migrations applied');
+    await migrate(drizzle(pool), { migrationsFolder: "./drizzle" });
+    console.log("[db] migrations applied");
   } finally {
     await pool.end();
   }
 }
 
 main().catch((error) => {
-  console.error('[db] migration failed:', (error as Error).message);
-  console.error('\nIf Postgres is not running:');
-  console.error('  brew services start postgresql@18');
-  console.error('\nIf the database does not exist yet:');
-  console.error('  npm run db:create');
+  console.error("[db] migration failed:", (error as Error).message);
+  console.error("\nIf Postgres is not running:");
+  console.error("  brew services start postgresql@18");
+  console.error("\nIf the database does not exist yet:");
+  console.error("  npm run db:create");
   process.exitCode = 1;
 });

@@ -1,9 +1,9 @@
-import 'fastify';
+import "fastify";
 
-import type { ClerkClaims } from './core/clerk.js';
-import type { User } from './db/schema.js';
+import type { ClerkClaims } from "./core/clerk.js";
+import type { User } from "./db/schema.js";
 
-declare module 'fastify' {
+declare module "fastify" {
   interface FastifyRequest {
     /** Verified Clerk JWT claims, set by the authenticate hook. */
     claims: ClerkClaims;
@@ -13,7 +13,7 @@ declare module 'fastify' {
 
   interface FastifyInstance {
     /** preHandler: verifies the JWT and mirrors the user profile. */
-    authenticate: import('fastify').preHandlerHookHandler;
+    authenticate: import("fastify").preHandlerHookHandler;
   }
 }
 

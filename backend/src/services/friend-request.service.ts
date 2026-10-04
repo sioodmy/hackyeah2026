@@ -5,10 +5,14 @@
  * stranger permanent access to your live location during an emergency. Now a
  * scan files a request and nothing is shared until it is accepted.
  */
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
-import { ConflictError, ForbiddenError, NotFoundError } from '../core/errors.js';
-import { db } from '../db/client.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from "../core/errors.js";
+import { db } from "../db/client.js";
 import {
   contacts,
   friendRequests,
@@ -17,12 +21,17 @@ import {
   type Contact,
   type FriendRequest,
   type User,
-} from '../db/schema.js';
+} from "../db/schema.js";
 
 export interface FriendRequestView {
   request: FriendRequest;
   /** Whoever sent the request, for the addressee to recognise. */
-  from: { id: string; name: string; avatarUrl: string | null; bio: string | null };
+  from: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+    bio: string | null;
+  };
   /** Whoever must decide, for the requester to wait on. */
   to: { id: string; name: string };
 }
@@ -46,18 +55,23 @@ export async function requestFriendship(
 ): Promise<{ request: FriendRequestView; alreadyRequested: boolean }> {
   const code = rawCode.trim().toUpperCase();
 
-  const invite = await db.query.inviteCodes.findFirst({ where: eq(inviteCodes.code, code) });
-  if (!invite) throw new NotFoundError('That code does not exist');
+  const invite = await db.query.inviteCodes.findFirst({
+    where: eq(inviteCodes.code, code),
+  });
+  if (!invite) throw new NotFoundError("That code does not exist");
   if (invite.ownerId === requesterId) {
-    throw new ConflictError('You cannot use your own code');
+    throw new ConflictError("You cannot use your own code");
   }
-  if (invite.revokedAt) throw new ConflictError('That code was cancelled');
+  if (invite.revokedAt) throw new ConflictError("That code was cancelled");
   if (invite.expiresAt.getTime() <= Date.now()) {
-    throw new ConflictError('That code has expired');
+    throw new ConflictError("That code has expired");
   }
 
-  const addressee = await db.query.users.findFirst({ where: eq(users.id, invite.ownerId) });
-  if (!addressee) throw new NotFoundError('The person who made this code no longer exists');
+  const addressee = await db.query.users.findFirst({
+    where: eq(users.id, invite.ownerId),
+  });
+  if (!addressee)
+    throw new NotFoundError("The person who made this code no longer exists");
 
   // Already friends: say so rather than filing a request neither wants.
   const existing = await db.query.contacts.findFirst({
@@ -77,7 +91,7 @@ export async function requestFriendship(
     where: and(
       eq(friendRequests.requesterId, requesterId),
       eq(friendRequests.addresseeId, invite.ownerId),
-      eq(friendRequests.status, 'pending'),
+      eq(friendRequests.status, "pending"),
     ),
   });
   if (pending) {
@@ -104,7 +118,7 @@ export async function requestFriendship(
       )
       .returning();
 
-    if (!claimed) throw new ConflictError('That code has already been used');
+    if (!claimed) throw new ConflictError("That code has already been used");
     codeId = claimed.id;
 
     const [created] = await db
@@ -122,8 +136,10 @@ export async function requestFriendship(
 
   // No approval needed: link immediately, the way the pre-approval behaviour
   // did. There is no request to file and nobody to wait for.
-  const requester = await db.query.users.findFirst({ where: eq(users.id, requesterId) });
-  if (!requester) throw new NotFoundError('Your account no longer exists');
+  const requester = await db.query.users.findFirst({
+    where: eq(users.id, requesterId),
+  });
+  if (!requester) throw new NotFoundError("Your account no longer exists");
 
   await linkMutually(addressee, requester);
   await settleReverseRequest(requesterId, addressee.id);
@@ -150,10 +166,10 @@ async function settledView(a: string, b: string): Promise<FriendRequestView> {
   // Never requested: synthesise an accepted request so the response still
   // matches the documented shape.
   return viewOf({
-    id: '00000000-0000-0000-0000-000000000000',
+    id: "00000000-0000-0000-0000-000000000000",
     requesterId: a,
     addresseeId: b,
-    status: 'accepted',
+    status: "accepted",
     inviteCodeId: null,
     message: null,
     respondedAt: new Date(),
@@ -161,15 +177,18 @@ async function settledView(a: string, b: string): Promise<FriendRequestView> {
   });
 }
 
-async function settleReverseRequest(requesterId: string, addresseeId: string): Promise<void> {
+async function settleReverseRequest(
+  requesterId: string,
+  addresseeId: string,
+): Promise<void> {
   await db
     .update(friendRequests)
-    .set({ status: 'accepted', respondedAt: new Date() })
+    .set({ status: "accepted", respondedAt: new Date() })
     .where(
       and(
         eq(friendRequests.requesterId, addresseeId),
         eq(friendRequests.addresseeId, requesterId),
-        eq(friendRequests.status, 'pending'),
+        eq(friendRequests.status, "pending"),
       ),
     );
 }
@@ -177,7 +196,7 @@ async function settleReverseRequest(requesterId: string, addresseeId: string): P
 /** The addressee's inbox of things waiting for a decision. */
 export async function listIncoming(
   userId: string,
-  status: FriendRequest['status'] = 'pending',
+  status: FriendRequest["status"] = "pending",
 ): Promise<FriendRequestView[]> {
   const rows = await db.query.friendRequests.findMany({
     where: and(
@@ -192,7 +211,7 @@ export async function listIncoming(
 /** What I sent, so the app can show "waiting for an answer". */
 export async function listOutgoing(
   userId: string,
-  status: FriendRequest['status'] = 'pending',
+  status: FriendRequest["status"] = "pending",
 ): Promise<FriendRequestView[]> {
   const rows = await db.query.friendRequests.findMany({
     where: and(
@@ -217,20 +236,27 @@ export async function acceptRequest(
   const request = await db.query.friendRequests.findFirst({
     where: eq(friendRequests.id, requestId),
   });
-  if (!request) throw new NotFoundError('Friend request not found');
+  if (!request) throw new NotFoundError("Friend request not found");
   if (request.addresseeId !== userId) {
-    throw new ForbiddenError('Only the person who received the request can accept it');
+    throw new ForbiddenError(
+      "Only the person who received the request can accept it",
+    );
   }
-  if (request.status !== 'pending') {
+  if (request.status !== "pending") {
     throw new ConflictError(`This request was already ${request.status}`);
   }
 
   const [claimed] = await db
     .update(friendRequests)
-    .set({ status: 'accepted', respondedAt: new Date() })
-    .where(and(eq(friendRequests.id, requestId), eq(friendRequests.status, 'pending')))
+    .set({ status: "accepted", respondedAt: new Date() })
+    .where(
+      and(
+        eq(friendRequests.id, requestId),
+        eq(friendRequests.status, "pending"),
+      ),
+    )
     .returning();
-  if (!claimed) throw new ConflictError('This request was already answered');
+  if (!claimed) throw new ConflictError("This request was already answered");
 
   const requester = await db.query.users.findFirst({
     where: eq(users.id, request.requesterId),
@@ -239,7 +265,7 @@ export async function acceptRequest(
     where: eq(users.id, request.addresseeId),
   });
   if (!requester || !addressee) {
-    throw new NotFoundError('One of these accounts no longer exists');
+    throw new NotFoundError("One of these accounts no longer exists");
   }
 
   const contact = await linkMutually(addressee, requester);
@@ -255,43 +281,58 @@ export async function acceptRequest(
   };
 }
 
-export async function declineRequest(requestId: string, userId: string): Promise<FriendRequest> {
+export async function declineRequest(
+  requestId: string,
+  userId: string,
+): Promise<FriendRequest> {
   const request = await db.query.friendRequests.findFirst({
     where: eq(friendRequests.id, requestId),
   });
-  if (!request) throw new NotFoundError('Friend request not found');
+  if (!request) throw new NotFoundError("Friend request not found");
   if (request.addresseeId !== userId) {
-    throw new ForbiddenError('Only the person who received the request can decline it');
+    throw new ForbiddenError(
+      "Only the person who received the request can decline it",
+    );
   }
-  if (request.status !== 'pending') {
+  if (request.status !== "pending") {
     throw new ConflictError(`This request was already ${request.status}`);
   }
 
   const [declined] = await db
     .update(friendRequests)
-    .set({ status: 'declined', respondedAt: new Date() })
-    .where(and(eq(friendRequests.id, requestId), eq(friendRequests.status, 'pending')))
+    .set({ status: "declined", respondedAt: new Date() })
+    .where(
+      and(
+        eq(friendRequests.id, requestId),
+        eq(friendRequests.status, "pending"),
+      ),
+    )
     .returning();
 
   return declined!;
 }
 
-export async function cancelRequest(requestId: string, userId: string): Promise<void> {
+export async function cancelRequest(
+  requestId: string,
+  userId: string,
+): Promise<void> {
   const request = await db.query.friendRequests.findFirst({
     where: eq(friendRequests.id, requestId),
   });
-  if (!request) throw new NotFoundError('Friend request not found');
+  if (!request) throw new NotFoundError("Friend request not found");
   if (request.requesterId !== userId) {
-    throw new ForbiddenError('Only the person who sent the request can cancel it');
+    throw new ForbiddenError(
+      "Only the person who sent the request can cancel it",
+    );
   }
-  if (request.status !== 'pending') {
-    throw new ConflictError('This request has already been answered');
+  if (request.status !== "pending") {
+    throw new ConflictError("This request has already been answered");
   }
 
   // Declining is the same outcome from the requester's point of view.
   await db
     .update(friendRequests)
-    .set({ status: 'declined', respondedAt: new Date() })
+    .set({ status: "declined", respondedAt: new Date() })
     .where(eq(friendRequests.id, requestId));
 }
 
@@ -303,31 +344,32 @@ export async function cancelRequest(requestId: string, userId: string): Promise<
 async function settleReverse(request: FriendRequest): Promise<void> {
   await db
     .update(friendRequests)
-    .set({ status: 'accepted', respondedAt: new Date() })
+    .set({ status: "accepted", respondedAt: new Date() })
     .where(
       and(
         eq(friendRequests.requesterId, request.addresseeId),
         eq(friendRequests.addresseeId, request.requesterId),
-        eq(friendRequests.status, 'pending'),
+        eq(friendRequests.status, "pending"),
       ),
     );
 }
 
-
-
 /** Creates the contact rows in both directions, tolerating repeats. */
 async function linkMutually(owner: User, friend: User): Promise<Contact> {
-  await ensureContact(owner, friend, 'accepted_request');
-  return ensureContact(friend, owner, 'accepted_request');
+  await ensureContact(owner, friend, "accepted_request");
+  return ensureContact(friend, owner, "accepted_request");
 }
 
 async function ensureContact(
   owner: User,
   friend: User,
-  source: 'manual' | 'invite_code' | 'accepted_request',
+  source: "manual" | "invite_code" | "accepted_request",
 ): Promise<Contact> {
   const existing = await db.query.contacts.findFirst({
-    where: and(eq(contacts.userId, owner.id), eq(contacts.contactUserId, friend.id)),
+    where: and(
+      eq(contacts.userId, owner.id),
+      eq(contacts.contactUserId, friend.id),
+    ),
   });
   // Never reset an existing link's notification settings on re-acceptance.
   if (existing) return existing;
@@ -338,7 +380,7 @@ async function ensureContact(
       userId: owner.id,
       contactUserId: friend.id,
       name: friend.name,
-      phone: friend.phone ?? '',
+      phone: friend.phone ?? "",
       email: friend.email,
       minLevel: 1,
       source,
@@ -349,9 +391,12 @@ async function ensureContact(
   if (row) return row;
 
   const found = await db.query.contacts.findFirst({
-    where: and(eq(contacts.userId, owner.id), eq(contacts.contactUserId, friend.id)),
+    where: and(
+      eq(contacts.userId, owner.id),
+      eq(contacts.contactUserId, friend.id),
+    ),
   });
-  if (!found) throw new Error('Failed to create the contact link');
+  if (!found) throw new Error("Failed to create the contact link");
   return found;
 }
 
@@ -365,25 +410,28 @@ async function viewOf(request: FriendRequest): Promise<FriendRequestView> {
     request,
     from: {
       id: from?.id ?? request.requesterId,
-      name: from?.name || 'Someone',
+      name: from?.name || "Someone",
       avatarUrl: from?.avatarUrl ?? null,
       bio: from?.bio ?? null,
     },
-    to: { id: to?.id ?? request.addresseeId, name: to?.name || 'Someone' },
+    to: { id: to?.id ?? request.addresseeId, name: to?.name || "Someone" },
   };
 }
 
 /** Pending count in one direction, for the app's badge. */
 export async function countRequests(
   userId: string,
-  direction: 'incoming' | 'outgoing',
+  direction: "incoming" | "outgoing",
 ): Promise<number> {
-  const column = direction === 'incoming' ? friendRequests.addresseeId : friendRequests.requesterId;
+  const column =
+    direction === "incoming"
+      ? friendRequests.addresseeId
+      : friendRequests.requesterId;
 
   const rows = await db
     .select({ id: friendRequests.id })
     .from(friendRequests)
-    .where(and(eq(column, userId), eq(friendRequests.status, 'pending')));
+    .where(and(eq(column, userId), eq(friendRequests.status, "pending")));
 
   return rows.length;
 }

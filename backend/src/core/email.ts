@@ -36,7 +36,7 @@ class SmtpTransport implements EmailTransport {
   ) {}
 
   async send(message: EmailMessage): Promise<boolean> {
-    const smtp = await import('nodemailer');
+    const smtp = await import("nodemailer");
 
     const client = smtp.createTransport({
       host: this.host,
@@ -72,7 +72,9 @@ export function emailTransport(env: {
   if (transport) return transport;
 
   if (!env.SMTP_HOST) {
-    console.warn('[email] SMTP_HOST is not set; danger alerts will not send email');
+    console.warn(
+      "[email] SMTP_HOST is not set; danger alerts will not send email",
+    );
     transport = nullTransport;
     return transport;
   }
@@ -82,7 +84,7 @@ export function emailTransport(env: {
     Number(env.SMTP_PORT ?? 587),
     env.SMTP_USER,
     env.SMTP_PASSWORD,
-    env.EMAIL_FROM ?? 'Safety Alert <alerts@safetyapp.example>',
+    env.EMAIL_FROM ?? "Safety Alert <alerts@safetyapp.example>",
   );
   return transport;
 }

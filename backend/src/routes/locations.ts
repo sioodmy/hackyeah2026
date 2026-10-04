@@ -1,9 +1,9 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import type { WebSocket } from 'ws';
-import { z } from 'zod';
+import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
+import type { WebSocket } from "ws";
+import { z } from "zod";
 
-import { verifyClerkToken } from '../core/clerk.js';
-import { registry, type WireFrame } from '../core/realtime.js';
+import { verifyClerkToken } from "../core/clerk.js";
+import { registry, type WireFrame } from "../core/realtime.js";
 import {
   friendsWithAccounts,
   profileOf,
@@ -11,8 +11,8 @@ import {
   snapshotFor,
   storePing,
   toFrame,
-} from '../services/location.service.js';
-import { upsertFromClerk } from '../services/user.service.js';
+} from "../services/location.service.js";
+import { upsertFromClerk } from "../services/user.service.js";
 
 const locationIn = z.object({
   type: z.string().optional(),
@@ -55,43 +55,53 @@ export const locationRoutes: FastifyPluginAsyncZod = async (app) => {
    * map degrades instead of going blank.
    */
   app.post(
-    '/locations/ping',
+    "/locations/ping",
     {
       preHandler: app.authenticate,
       schema: {
-        tags: ['locations'],
-        summary: 'Submit a live position',
+        tags: ["locations"],
+        summary: "Submit a live position",
         description: [
-          'Fallback for when the WebSocket cannot be established. Fans the',
-          'position out to accepted contacts exactly as the socket would.',
-        ].join('\n'),
+          "Fallback for when the WebSocket cannot be established. Fans the",
+          "position out to accepted contacts exactly as the socket would.",
+        ].join("\n"),
         body: locationIn,
-        response: { 202: z.object({ ok: z.boolean(), id: z.number() }), ...errorResponse },
+        response: {
+          202: z.object({ ok: z.boolean(), id: z.number() }),
+          ...errorResponse,
+        },
       },
     },
     async (request, reply) => {
       const ping = await storePing(request.user.id, request.body);
       const profile = await profileOf(request.user.id);
       const friends = await friendsWithAccounts(request.user.id);
-      registry.fanout(friends, toFrame(request.user.id, ping, profile), request.user.id);
+      registry.fanout(
+        friends,
+        toFrame(request.user.id, ping, profile),
+        request.user.id,
+      );
 
       return reply.status(202).send({ ok: true, id: ping.id });
     },
   );
 
   app.get(
-    '/locations/snapshot',
+    "/locations/snapshot",
     {
       preHandler: app.authenticate,
       schema: {
-        tags: ['locations'],
-        summary: 'Last known position of every contact',
+        tags: ["locations"],
+        summary: "Last known position of every contact",
         description: [
-          'One position per accepted contact, newest first. A contact who has',
+          "One position per accepted contact, newest first. A contact who has",
           'never sent a ping is absent rather than returned as "safe", so this',
-          'response cannot be used to enumerate people.',
-        ].join('\n'),
-        response: { 200: z.object({ locations: z.array(locationSchema) }), ...errorResponse },
+          "response cannot be used to enumerate people.",
+        ].join("\n"),
+        response: {
+          200: z.object({ locations: z.array(locationSchema) }),
+          ...errorResponse,
+        },
       },
     },
     async (request) => ({ locations: await snapshotFor(request.user.id) }),
@@ -115,11 +125,17 @@ export const locationRoutes: FastifyPluginAsyncZod = async (app) => {
    *     {"type":"location","userId":"…","lat":…,"lng":…}
    *     {"type":"ping"}
    */
-  app.get('/ws/locations', { websocket: true }, (socket: WebSocket, request) => {
-    void serveSocket(socket, request.query as { token?: string }).catch(() => {
-      socket.close(1011, 'internal error');
-    });
-  });
+  app.get(
+    "/ws/locations",
+    { websocket: true },
+    (socket: WebSocket, request) => {
+      void serveSocket(socket, request.query as { token?: string }).catch(
+        () => {
+          socket.close(1011, "internal error");
+        },
+      );
+    },
+  );
 };
 
 /**
@@ -133,7 +149,7 @@ export async function serveSocket(
   query: { token?: string } | undefined,
 ): Promise<void> {
   if (!query?.token) {
-    socket.close(WS_CLOSE_UNAUTHORIZED, 'missing token');
+    socket.close(WS_CLOSE_UNAUTHORIZED, "missing token");
     return;
   }
 
@@ -143,7 +159,7 @@ export async function serveSocket(
     const { user } = await upsertFromClerk(claims);
     userId = user.id;
   } catch {
-    socket.close(WS_CLOSE_UNAUTHORIZED, 'unauthorized');
+    socket.close(WS_CLOSE_UNAUTHORIZED, "unauthorized");
     return;
   }
 
@@ -152,14 +168,19 @@ export async function serveSocket(
     if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(frame));
   };
 
-  const heartbeat = setInterval(() => send({ type: 'ping', ts: Date.now() / 1000 }), 25_000);
+  const heartbeat = setInterval(
+    () => send({ type: "ping", ts: Date.now() / 1000 }),
+    25_000,
+  );
 
   try {
     const friends = await friendsWithAccounts(userId);
-    const profiles = await Promise.all(friends.map(async (id) => ({ id, ...(await profileOf(id)) })));
+    const profiles = await Promise.all(
+      friends.map(async (id) => ({ id, ...(await profileOf(id)) })),
+    );
 
     send({
-      type: 'hello',
+      type: "hello",
       self: userId,
       friends: profiles.map((p) => ({
         id: p.id,
@@ -173,10 +194,10 @@ export async function serveSocket(
     // Replay so a reconnecting phone does not show an empty map until the next
     // ping interval.
     for (const location of await replayFor(userId, 20)) {
-      send({ type: 'location', ...location });
+      send({ type: "location", ...location });
     }
   } catch (error) {
-    socket.close(1011, 'friend lookup failed');
+    socket.close(1011, "friend lookup failed");
     return;
   } finally {
     registry.unsubscribe(sub);
@@ -186,14 +207,14 @@ export async function serveSocket(
     void handleFrame(userId, String(data), send);
   };
 
-  socket.on('message', onMessage);
+  socket.on("message", onMessage);
 
   await new Promise<void>((resolve) => {
-    socket.once('close', resolve);
-    socket.once('error', resolve);
+    socket.once("close", resolve);
+    socket.once("error", resolve);
   }).finally(() => {
     clearInterval(heartbeat);
-    socket.off('message', onMessage);
+    socket.off("message", onMessage);
     registry.unsubscribe(sub);
   });
 }
@@ -213,21 +234,21 @@ export async function handleFrame(
   try {
     decoded = JSON.parse(raw);
   } catch {
-    send({ type: 'error', message: 'invalid frame' });
+    send({ type: "error", message: "invalid frame" });
     return;
   }
 
   const kind = (decoded as { type?: unknown } | null)?.type;
-  if (kind === 'pong') return;
+  if (kind === "pong") return;
 
-  if (kind !== 'location') {
-    send({ type: 'error', message: `unknown type ${String(kind)}` });
+  if (kind !== "location") {
+    send({ type: "error", message: `unknown type ${String(kind)}` });
     return;
   }
 
   const parsed = locationIn.safeParse(decoded);
   if (!parsed.success) {
-    send({ type: 'error', message: 'invalid frame' });
+    send({ type: "error", message: "invalid frame" });
     return;
   }
 
@@ -236,9 +257,9 @@ export async function handleFrame(
     const profile = await profileOf(userId);
     const friends = await friendsWithAccounts(userId);
     // Ack first so the client knows the sample was stored, not just queued.
-    send({ type: 'ack', seq: ping.seq });
+    send({ type: "ack", seq: ping.seq });
     registry.fanout(friends, toFrame(userId, ping, profile), userId);
   } catch {
-    send({ type: 'error', message: 'could not store position' });
+    send({ type: "error", message: "could not store position" });
   }
 }

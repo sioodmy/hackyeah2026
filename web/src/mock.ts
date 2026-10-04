@@ -129,7 +129,13 @@ export function mockHeatmap(): HeatmapCell[] {
    * peryferie tylko tleją, więc demo pokazuje gradację zamiast jednego
    * równomiernego czerwonego kółka.
    */
-  const clusters: Array<{ name: string; lng: number; lat: number; n: number; peak: number }> = [
+  const clusters: Array<{
+    name: string;
+    lng: number;
+    lat: number;
+    n: number;
+    peak: number;
+  }> = [
     { name: "Tauron Arena", lng: 19.9689, lat: 50.0676, n: 15, peak: 8 },
     { name: "Park Lotników", lng: 19.9641, lat: 50.0697, n: 9, peak: 5 },
     { name: "Stadion Miejski", lng: 19.9645, lat: 50.0732, n: 8, peak: 4 },
@@ -143,7 +149,10 @@ export function mockHeatmap(): HeatmapCell[] {
       // Skrajne zgłoszenia są cięższe niż środek — tak rozkładają się realne
       // raporty, i dzięki temu plama ma miękką, nie jednokolorową obwódkę.
       const spread = Math.abs(rand() - 0.5) * 2;
-      const count = Math.max(1, Math.round(1 + spread * (c.peak - 1) + rand() * 1.4));
+      const count = Math.max(
+        1,
+        Math.round(1 + spread * (c.peak - 1) + rand() * 1.4),
+      );
       max = Math.max(max, count);
       cells.push({
         lng: c.lng + (rand() - 0.5) * 0.006,
@@ -166,7 +175,10 @@ export function mockHeatmapGeoJSON(cells: HeatmapCell[]) {
     features: cells.map((c, i) => ({
       type: "Feature" as const,
       id: i,
-      geometry: { type: "Point" as const, coordinates: [c.lng, c.lat] as [number, number] },
+      geometry: {
+        type: "Point" as const,
+        coordinates: [c.lng, c.lat] as [number, number],
+      },
       properties: {
         count: c.count,
         weight: c.weight,
@@ -186,16 +198,54 @@ export const ACK_LABEL: Record<AckAction, string> = {
 
 export function ackLine(acks: MockAck[]): string | null {
   if (!acks.length) return null;
-  return acks.map((a) => `${a.displayName} — ${ACK_LABEL[a.action]}`).join(" · ");
+  return acks
+    .map((a) => `${a.displayName} — ${ACK_LABEL[a.action]}`)
+    .join(" · ");
 }
 
 export const CATEGORIES = [
-  { id: "harassment", label: "Zaczepianie / Molestowanie", severity: 2, icon: "🗣️", color: "#FDD835" },
-  { id: "sexual_assault", label: "Próba gwałtu / Napaść seksualna", severity: 3, icon: "🛑", color: "#D32F2F" },
-  { id: "assault", label: "Napaść fizyczna / Pobicie", severity: 3, icon: "⚠️", color: "#F4511E" },
-  { id: "robbery", label: "Rozbój / Kradzież zuchwała", severity: 2, icon: "🚨", color: "#FB8C00" },
-  { id: "stalking", label: "Śledzenie / Podejrzana osoba", severity: 2, icon: "👀", color: "#AB47BC" },
-  { id: "suspicious", label: "Agresywna grupa / Zastraszanie", severity: 1, icon: "👥", color: "#FFA000" },
+  {
+    id: "harassment",
+    label: "Zaczepianie / Molestowanie",
+    severity: 2,
+    icon: "🗣️",
+    color: "#FDD835",
+  },
+  {
+    id: "sexual_assault",
+    label: "Próba gwałtu / Napaść seksualna",
+    severity: 3,
+    icon: "🛑",
+    color: "#D32F2F",
+  },
+  {
+    id: "assault",
+    label: "Napaść fizyczna / Pobicie",
+    severity: 3,
+    icon: "⚠️",
+    color: "#F4511E",
+  },
+  {
+    id: "robbery",
+    label: "Rozbój / Kradzież zuchwała",
+    severity: 2,
+    icon: "🚨",
+    color: "#FB8C00",
+  },
+  {
+    id: "stalking",
+    label: "Śledzenie / Podejrzana osoba",
+    severity: 2,
+    icon: "👀",
+    color: "#AB47BC",
+  },
+  {
+    id: "suspicious",
+    label: "Agresywna grupa / Zastraszanie",
+    severity: 1,
+    icon: "👥",
+    color: "#FFA000",
+  },
 ] as const;
 
 export const MOCK_CONTACTS = [

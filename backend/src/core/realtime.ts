@@ -86,7 +86,11 @@ class ConnectionRegistry {
    * A user with two devices open gets two copies, which is correct: both
    * screens should follow.
    */
-  fanout(userIds: Iterable<string>, payload: WireFrame, except?: string): number {
+  fanout(
+    userIds: Iterable<string>,
+    payload: WireFrame,
+    except?: string,
+  ): number {
     let delivered = 0;
     for (const id of userIds) {
       if (id === except) continue;

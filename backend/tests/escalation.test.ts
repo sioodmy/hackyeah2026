@@ -5,24 +5,27 @@
  *
  * Timers are simulated by ageing rows rather than waiting for the clock.
  */
-import type { FastifyInstance } from 'fastify';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import type { FastifyInstance } from "fastify";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { ClerkStub } from './helpers/auth.js';
-import { backdateAlert, readAlert } from './helpers/escalation.js';
-import { installPushCredentials } from './helpers/push-credentials.js';
-import { recordPushes, type PushRecorder } from './helpers/sent-pushes.js';
-import { createTestDatabase, type TestDatabaseHandle } from './helpers/test-db.js';
+import { ClerkStub } from "./helpers/auth.js";
+import { backdateAlert, readAlert } from "./helpers/escalation.js";
+import { installPushCredentials } from "./helpers/push-credentials.js";
+import { recordPushes, type PushRecorder } from "./helpers/sent-pushes.js";
+import {
+  createTestDatabase,
+  type TestDatabaseHandle,
+} from "./helpers/test-db.js";
 
-const JANE_CLERK_ID = 'user_jane';
-const MAMA_CLERK_ID = 'user_mama';
-const MAMA_TOKEN = 'mama-apns-token';
+const JANE_CLERK_ID = "user_jane";
+const MAMA_CLERK_ID = "user_mama";
+const MAMA_TOKEN = "mama-apns-token";
 
 let clerk: ClerkStub;
 let testDb: TestDatabaseHandle;
 let app: FastifyInstance;
 let pushes: PushRecorder;
-let escalate: typeof import('../src/services/alert.service.js').escalateDueAlerts;
+let escalate: typeof import("../src/services/alert.service.js").escalateDueAlerts;
 
 let janeToken: string;
 let mamaToken: string;
@@ -32,9 +35,10 @@ beforeAll(async () => {
   await clerk.start();
   await installPushCredentials();
 
-  const { buildApp } = await import('../src/app.js');
-  const { setDatabase } = await import('../src/db/client.js');
-  ({ escalateDueAlerts: escalate } = await import('../src/services/alert.service.js'));
+  const { buildApp } = await import("../src/app.js");
+  const { setDatabase } = await import("../src/db/client.js");
+  ({ escalateDueAlerts: escalate } =
+    await import("../src/services/alert.service.js"));
 
   testDb = await createTestDatabase();
   setDatabase(testDb.db);
@@ -45,12 +49,12 @@ beforeAll(async () => {
   pushes = recordPushes();
 
   janeToken = await clerk.issueToken(JANE_CLERK_ID, {
-    email: 'jane@example.com',
-    first_name: 'Jane',
+    email: "jane@example.com",
+    first_name: "Jane",
   });
   mamaToken = await clerk.issueToken(MAMA_CLERK_ID, {
-    email: 'mama@example.com',
-    first_name: 'Mama',
+    email: "mama@example.com",
+    first_name: "Mama",
   });
 });
 
@@ -72,45 +76,53 @@ function as(token: string) {
 }
 
 async function post(path: string, token: string, payload?: unknown) {
-  return app.inject({ method: 'POST', url: path, headers: as(token), payload: payload as object });
+  return app.inject({
+    method: "POST",
+    url: path,
+    headers: as(token),
+    payload: payload as object,
+  });
 }
 
 /** Jane with Mama as a linked, push-enabled contact. */
 async function seedPair(): Promise<void> {
-  await post('/api/v1/users/sync', mamaToken);
-  await post('/api/v1/devices', mamaToken, { token: MAMA_TOKEN, platform: 'ios' });
-  await post('/api/v1/users/sync', janeToken);
-  await post('/api/v1/contacts', janeToken, {
-    name: 'Mama',
-    phone: '+48444555666',
-    email: 'mama@example.com',
+  await post("/api/v1/users/sync", mamaToken);
+  await post("/api/v1/devices", mamaToken, {
+    token: MAMA_TOKEN,
+    platform: "ios",
+  });
+  await post("/api/v1/users/sync", janeToken);
+  await post("/api/v1/contacts", janeToken, {
+    name: "Mama",
+    phone: "+48444555666",
+    email: "mama@example.com",
     minLevel: 1,
   });
 }
 
 async function raiseAlert(level: number): Promise<string> {
-  const response = await post('/api/v1/alerts', janeToken, {
+  const response = await post("/api/v1/alerts", janeToken, {
     level,
     lat: 52.2297,
     lng: 21.0122,
-    address: 'Marszałkowska 1',
+    address: "Marszałkowska 1",
   });
   expect(response.statusCode).toBe(201);
   return response.json().id as string;
 }
 
-describe('escalating unanswered alerts', () => {
-  it('leaves a fresh alert alone', async () => {
+describe("escalating unanswered alerts", () => {
+  it("leaves a fresh alert alone", async () => {
     await seedPair();
     const id = await raiseAlert(2);
 
     const escalated = await escalate();
 
     expect(escalated).toHaveLength(0);
-    expect((await readAlert(testDb, id))?.status).toBe('active');
+    expect((await readAlert(testDb, id))?.status).toBe("active");
   });
 
-  it('raises level 2 to 3 after 15 minutes', async () => {
+  it("raises level 2 to 3 after 15 minutes", async () => {
     await seedPair();
     const id = await raiseAlert(2);
     await backdateAlert(testDb, id, 16);
@@ -122,10 +134,10 @@ describe('escalating unanswered alerts', () => {
     expect(escalated[0]).toMatchObject({ level: 3, escalatedFromId: id });
 
     // The original is marked escalated rather than mutated, so the timeline reads true.
-    expect((await readAlert(testDb, id))?.status).toBe('escalated');
+    expect((await readAlert(testDb, id))?.status).toBe("escalated");
   });
 
-  it('carries the location forward to the escalated alert', async () => {
+  it("carries the location forward to the escalated alert", async () => {
     await seedPair();
     const id = await raiseAlert(2);
     await backdateAlert(testDb, id, 16);
@@ -135,11 +147,11 @@ describe('escalating unanswered alerts', () => {
     expect(raised).toMatchObject({
       lat: 52.2297,
       lng: 21.0122,
-      address: 'Marszałkowska 1',
+      address: "Marszałkowska 1",
     });
   });
 
-  it('notifies contacts again on escalation', async () => {
+  it("notifies contacts again on escalation", async () => {
     await seedPair();
     const id = await raiseAlert(2);
     await backdateAlert(testDb, id, 16);
@@ -148,10 +160,14 @@ describe('escalating unanswered alerts', () => {
     await escalate();
 
     const push = pushes.forToken(MAMA_TOKEN)[0]!;
-    expect(push.body).toMatchObject({ type: 'ALERT', level: 3, level_name: 'danger' });
+    expect(push.body).toMatchObject({
+      type: "ALERT",
+      level: 3,
+      level_name: "danger",
+    });
   });
 
-  it('reaches omega when level 3 goes unanswered for 5 minutes', async () => {
+  it("reaches omega when level 3 goes unanswered for 5 minutes", async () => {
     await seedPair();
     const id = await raiseAlert(3);
     await backdateAlert(testDb, id, 6);
@@ -162,12 +178,12 @@ describe('escalating unanswered alerts', () => {
     expect(escalated[0]?.level).toBe(4);
     expect(pushes.forToken(MAMA_TOKEN)[0]?.body).toMatchObject({
       level: 4,
-      level_name: 'omega',
-      priority: 'critical',
+      level_name: "omega",
+      priority: "critical",
     });
   });
 
-  it('uses the critical delivery flags once it reaches omega', async () => {
+  it("uses the critical delivery flags once it reaches omega", async () => {
     await seedPair();
     const id = await raiseAlert(3);
     await backdateAlert(testDb, id, 6);
@@ -177,15 +193,15 @@ describe('escalating unanswered alerts', () => {
 
     const push = pushes.forToken(MAMA_TOKEN)[0]!;
 
-    expect(push.headers['apns-priority']).toBe('10');
+    expect(push.headers["apns-priority"]).toBe("10");
     expect(push.body.aps).toMatchObject({
-      sound: 'critical.caf',
-      interruptionLevel: 'time-sensitive',
-      category: 'ALERT_CRITICAL',
+      sound: "critical.caf",
+      interruptionLevel: "time-sensitive",
+      category: "ALERT_CRITICAL",
     });
   });
 
-  it('never escalates past omega', async () => {
+  it("never escalates past omega", async () => {
     await seedPair();
     const id = await raiseAlert(4);
     // Long past any threshold.
@@ -194,10 +210,10 @@ describe('escalating unanswered alerts', () => {
     const escalated = await escalate();
 
     expect(escalated).toHaveLength(0);
-    expect((await readAlert(testDb, id))?.status).toBe('active');
+    expect((await readAlert(testDb, id))?.status).toBe("active");
   });
 
-  it('ignores an alert the contact already acknowledged', async () => {
+  it("ignores an alert the contact already acknowledged", async () => {
     await seedPair();
     const id = await raiseAlert(2);
     await backdateAlert(testDb, id, 16);
@@ -208,7 +224,7 @@ describe('escalating unanswered alerts', () => {
     expect(escalated).toHaveLength(0);
   });
 
-  it('ignores an alert she already cancelled', async () => {
+  it("ignores an alert she already cancelled", async () => {
     await seedPair();
     const id = await raiseAlert(2);
     await post(`/api/v1/alerts/${id}/cancel`, janeToken);
@@ -219,7 +235,7 @@ describe('escalating unanswered alerts', () => {
     expect(escalated).toHaveLength(0);
   });
 
-  it('walks 2 to 3 to 4 across two sweeps', async () => {
+  it("walks 2 to 3 to 4 across two sweeps", async () => {
     await seedPair();
     const id = await raiseAlert(2);
 
@@ -237,26 +253,26 @@ describe('escalating unanswered alerts', () => {
     expect(await escalate()).toHaveLength(0);
   });
 
-  it('escalates several people at once', async () => {
+  it("escalates several people at once", async () => {
     await seedPair();
 
     // A second woman with her own contact, since one person can only ever
     // have a single open alert.
-    const kasiaToken = await clerk.issueToken('user_kasia', {
-      email: 'kasia@example.com',
-      first_name: 'Kasia',
+    const kasiaToken = await clerk.issueToken("user_kasia", {
+      email: "kasia@example.com",
+      first_name: "Kasia",
     });
-    await post('/api/v1/users/sync', kasiaToken);
-    const buddy = await post('/api/v1/users/sync', mamaToken);
+    await post("/api/v1/users/sync", kasiaToken);
+    const buddy = await post("/api/v1/users/sync", mamaToken);
     expect(buddy.statusCode).toBe(200);
-    await post('/api/v1/contacts', kasiaToken, {
-      name: 'Mama',
-      phone: '+48444555666',
-      email: 'mama@example.com',
+    await post("/api/v1/contacts", kasiaToken, {
+      name: "Mama",
+      phone: "+48444555666",
+      email: "mama@example.com",
     });
 
     const first = await raiseAlert(2);
-    const second = await post('/api/v1/alerts', kasiaToken, { level: 2 });
+    const second = await post("/api/v1/alerts", kasiaToken, { level: 2 });
     expect(second.statusCode).toBe(201);
 
     await backdateAlert(testDb, first, 16);

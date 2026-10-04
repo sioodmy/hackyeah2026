@@ -71,7 +71,9 @@ export default function App() {
             </button>
             <div className="friend-hint-progress">
               <span className="friend-hint-bar" />
-              <span className="friend-hint-progress-label">fake połączenie</span>
+              <span className="friend-hint-progress-label">
+                fake połączenie
+              </span>
             </div>
           </div>
         ) : null}

@@ -13,9 +13,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#14161A"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "bundleIdentifier": "pl.hackyeah.mokosh",
       "supportsTablet": true,
@@ -23,11 +21,7 @@
         "NSLocationWhenInUseUsageDescription": "Twoja lokalizacja jest udostępniana znajomym tylko wtedy, gdy zaznaczysz poziom zagrożenia.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Twoja lokalizacja jest udostępniana znajomym tylko wtedy, gdy zaznaczysz poziom zagrożenia.",
         "NSMicrophoneUsageDescription": "Nagrywanie dźwięku aktywuje się wyłącznie przy najwyższym poziomie zagrożenia.",
-        "UIBackgroundModes": [
-          "audio",
-          "location",
-          "remote-notification"
-        ],
+        "UIBackgroundModes": ["audio", "location", "remote-notification"],
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         }
@@ -62,10 +56,7 @@
               "scheme": "mokosh"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },

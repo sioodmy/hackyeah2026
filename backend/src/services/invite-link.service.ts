@@ -29,17 +29,21 @@ export interface InviteLinks {
 }
 
 export function buildInviteLinks(options: InviteLinkOptions): InviteLinks {
-  const base = options.baseUrl.replace(/\/+$/, '');
-  const scheme = options.appScheme.replace(/:\/\/?$/, '');
+  const base = options.baseUrl.replace(/\/+$/, "");
+  const scheme = options.appScheme.replace(/:\/\/?$/, "");
 
   const web = `${base}/api/v1/invites/redeem/${options.code}`;
 
   // A universal link would be better on iOS, but that needs an Apple-hosted
   // domain, so the custom scheme is the portable choice for a hackathon.
   const query = new URLSearchParams({ code: options.code });
-  if (options.inviterName) query.set('by', options.inviterName);
+  if (options.inviterName) query.set("by", options.inviterName);
 
-  return { web, deep: `${scheme}://invite?${query.toString()}`, code: options.code };
+  return {
+    web,
+    deep: `${scheme}://invite?${query.toString()}`,
+    code: options.code,
+  };
 }
 
 /**
@@ -58,10 +62,10 @@ export function extractCode(input: string): string | null {
   // A link, in either shape we generate, or a deep link with ?code=.
   try {
     const url = new URL(trimmed);
-    const fromQuery = url.searchParams.get('code');
+    const fromQuery = url.searchParams.get("code");
     if (fromQuery) return fromQuery.toUpperCase();
 
-    const segments = url.pathname.split('/').filter(Boolean);
+    const segments = url.pathname.split("/").filter(Boolean);
     const last = segments.at(-1);
     if (last && /^[A-Za-z0-9]{4,16}$/.test(last)) return last.toUpperCase();
   } catch {
