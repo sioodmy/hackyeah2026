@@ -214,18 +214,12 @@ export function ProfileSettingsCard() {
             return (
               <Pressable
                 key={aura.id}
-                style={[
-                  styles.auraPill,
-                  isSelected && [styles.auraPillSelected, { borderColor: aura.hex }],
-                ]}
+                style={[styles.auraDot, isSelected && styles.auraDotSelected]}
                 onPress={() => handleSelectAura(aura.hex)}
                 accessibilityRole="button"
                 accessibilityLabel={`Aura ${aura.name}`}
               >
                 <View style={[styles.auraSwatch, { backgroundColor: aura.hex }]} />
-                <Text style={[styles.auraText, isSelected && styles.auraTextSelected]}>
-                  {aura.name}
-                </Text>
               </Pressable>
             );
           })}
@@ -436,34 +430,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     rowGap: 8,
   },
-  auraPill: {
-    width: '31%',
-    flexDirection: 'row',
+  /** Sam kółek: mały, wyśrodkowany w siatce 6 kolumn. */
+  auraDot: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: radii.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: 'transparent',
   },
-  auraPillSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  auraDotSelected: {
+    borderColor: '#FFFFFF',
   },
   auraSwatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  auraText: {
-    ...type.caption,
-    fontSize: 11,
-    color: palette.textMuted,
-  },
-  auraTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
   },
   tabsRow: {
     flexDirection: 'row',
