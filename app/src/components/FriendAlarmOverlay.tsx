@@ -259,11 +259,8 @@ function AlarmScreen({
           <Text style={styles.alarmName} numberOfLines={1}>
             {name}
           </Text>
-          <Text style={styles.alarmBodyText}>potrzebuje pomocy. Zadzwoń do niej teraz.</Text>
+          <Text style={styles.alarmBodyText}>potrzebuje pomocy. Zadzwoń do niej.</Text>
           {coords ? <Text style={styles.alarmCoords}>{coords}</Text> : null}
-          <View style={[styles.alarmBadge, floatingShadow(10)]}>
-            <Text style={styles.alarmBadgeText}>lokalizacja wysyłana na żywo</Text>
-          </View>
         </View>
 
         <View style={[styles.alarmActions, { paddingBottom: bottomInset + spacing.xl }]}>
@@ -271,17 +268,17 @@ function AlarmScreen({
             style={[styles.alarmPrimary, floatingShadow(12)]}
             onPress={onOnTheWay}
             accessibilityRole="button"
-            accessibilityLabel="Idę do niej"
+            accessibilityLabel="Pomagam"
           >
-            <Text style={styles.alarmPrimaryText}>Idę do niej</Text>
+            <Text style={styles.alarmPrimaryText}>Pomagam</Text>
           </Pressable>
           <Pressable
             style={styles.alarmSecondary}
             onPress={onSeen}
             accessibilityRole="button"
-            accessibilityLabel="Zobaczyłam, ale nie mogę teraz"
+            accessibilityLabel="Zamknij"
           >
-            <Text style={styles.alarmSecondaryText}>Nie mogę teraz — sprawdzę na mapie</Text>
+            <Text style={styles.alarmSecondaryText}>Zamknij</Text>
           </Pressable>
         </View>
       </View>
@@ -318,7 +315,6 @@ function CallRequestScreen({
           <Text style={styles.callCaller} numberOfLines={1}>
             {name}
           </Text>
-          <Text style={styles.callReason}>prosi o telefon</Text>
         </View>
 
         <View style={styles.callBody}>
@@ -340,7 +336,7 @@ function CallRequestScreen({
               </Pressable>
             </>
           ) : coords ? (
-            <Text style={styles.callCoords}>lokalizacja: {coords}</Text>
+            <Text style={styles.callCoords}>{coords}</Text>
           ) : null}
         </View>
 
@@ -416,26 +412,14 @@ const styles = StyleSheet.create({
   alarmCoords: {
     ...type.label,
     color: palette.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
-  alarmBadge: {
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: palette.surfaceRaised,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 138, 128, 0.45)',
-  },
-  alarmBadgeText: {
-    ...type.caption,
-    color: '#FF8A80',
   },
   alarmActions: {
+    flexDirection: 'row',
     paddingHorizontal: spacing.lg,
     gap: spacing.md,
   },
   alarmPrimary: {
+    flex: 1,
     paddingVertical: spacing.xl - spacing.xs,
     borderRadius: radii.pill,
     alignItems: 'center',
@@ -443,18 +427,22 @@ const styles = StyleSheet.create({
   },
   alarmPrimaryText: {
     ...type.title,
-    fontSize: 19,
+    fontSize: 18,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   alarmSecondary: {
-    paddingVertical: spacing.lg,
+    flex: 1,
+    paddingVertical: spacing.xl - spacing.xs,
     borderRadius: radii.pill,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
   },
   alarmSecondaryText: {
-    ...type.label,
+    ...type.title,
+    fontSize: 18,
+    fontWeight: '700',
     color: palette.text,
   },
   callRoot: {
@@ -469,11 +457,6 @@ const styles = StyleSheet.create({
     ...type.title,
     fontSize: 30,
     letterSpacing: 0.2,
-  },
-  callReason: {
-    ...type.caption,
-    marginTop: spacing.xs,
-    color: palette.level2,
   },
   callBody: {
     flex: 1,
