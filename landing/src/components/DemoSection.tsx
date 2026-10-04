@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, type CSSProperties } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   DemoPhone,
   FAKE_CALL_COUNTDOWN_S,
@@ -136,6 +142,17 @@ export const DemoSection: React.FC = () => {
     return () => clearTimeout(timer);
   }, [onFriendPhone, device]);
 
+  const handleState = useCallback((nextState: DemoState) => {
+    if (nextState.showHeatmap) {
+      phone.current?.setShowHeatmap(false);
+    }
+    setState(nextState);
+  }, []);
+
+  useEffect(() => {
+    phone.current?.setShowHeatmap(false);
+  }, []);
+
   const canGoBack =
     state?.tab !== "map" ||
     onFriendPhone ||
@@ -145,7 +162,7 @@ export const DemoSection: React.FC = () => {
   const phoneScreen = (
     <DemoPhone
       ref={phone}
-      onState={setState}
+      onState={handleState}
       safeAreaTop={SAFE_TOP}
       safeAreaBottom={SAFE_BOTTOM}
     />
@@ -168,8 +185,8 @@ export const DemoSection: React.FC = () => {
               Nawet, gdy ktoś patrzy Ci przez ramię.
             </h2>
             <p className="text-slate-400 text-base leading-relaxed mb-8">
-              Mokosh zachowuje dyskrecje wyglądając jak aplikacja Map. Nie
-              rzuca się w oczy oprawcom, nie wzbudza podejrzeń.
+              Mokosh zachowuje dyskrecje wyglądając jak aplikacja Map. Nie rzuca
+              się w oczy oprawcom, nie wzbudza podejrzeń.
             </p>
 
             <div className="flex flex-col gap-3">
@@ -177,7 +194,10 @@ export const DemoSection: React.FC = () => {
                 <LevelDemoButton
                   key={l.level}
                   {...l}
-                  onPlay={() => phone.current?.demoLevel(l.level)}
+                  onPlay={() => {
+                    phone.current?.demoLevel(l.level);
+                    phone.current?.setShowHeatmap(false);
+                  }}
                 />
               ))}
             </div>
@@ -239,41 +259,41 @@ export const DemoSection: React.FC = () => {
                   }
                 >
                   <div className="demo-annotation-card">
-                  <div className="demo-annotation-inner">
-                    <span className="demo-annotation-tag">
-                      Adnotacja prezentacji
-                    </span>
-                    <strong>Tak to wygląda u twojej przyjaciółki</strong>
-                    <span>Za chwilę pokażemy jej telefon</span>
-                  </div>
-                  <div className="demo-annotation-actions">
-                    <button
-                      type="button"
-                      className="demo-annotation-skip"
-                      onClick={() => phone.current?.skipToFriend()}
-                    >
-                      Zobacz teraz
-                    </button>
-                    <button
-                      type="button"
-                      className="demo-annotation-close"
-                      onClick={() => phone.current?.dismissFriendHint()}
-                      aria-label="Zamknij adnotację"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  {/*
+                    <div className="demo-annotation-inner">
+                      <span className="demo-annotation-tag">
+                        Adnotacja prezentacji
+                      </span>
+                      <strong>Tak to wygląda u twojej przyjaciółki</strong>
+                      <span>Za chwilę pokażemy jej telefon</span>
+                    </div>
+                    <div className="demo-annotation-actions">
+                      <button
+                        type="button"
+                        className="demo-annotation-skip"
+                        onClick={() => phone.current?.skipToFriend()}
+                      >
+                        Zobacz teraz
+                      </button>
+                      <button
+                        type="button"
+                        className="demo-annotation-close"
+                        onClick={() => phone.current?.dismissFriendHint()}
+                        aria-label="Zamknij adnotację"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {/*
                     Pasek postępu pokazuje, że zanim zobaczymy telefon znajomej,
                     demo wykonuje jeszcze fake połączenie na iPhonie. Bez niego
                     zamiana urządzeń wygląda jak teleport.
                   */}
-                  <div className="demo-annotation-progress">
-                    <span className="demo-annotation-bar" />
-                    <span className="demo-annotation-progress-label">
-                      fake połączenie
-                    </span>
-                  </div>
+                    <div className="demo-annotation-progress">
+                      <span className="demo-annotation-bar" />
+                      <span className="demo-annotation-progress-label">
+                        fake połączenie
+                      </span>
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -336,4 +356,3 @@ const LevelDemoButton: React.FC<{
     </button>
   );
 };
-

@@ -42,7 +42,7 @@ export const ProblemSection: React.FC = () => {
     >
       <div className="max-w-7xl mx-auto">
         <div className="max-w-3xl mb-14">
-<h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
             Nasza codzienność,
             <br />
             to nie „jednostkowy przypadek"
@@ -70,7 +70,9 @@ export const ProblemSection: React.FC = () => {
               */}
               <div
                 className="grid gap-1 mb-6"
-                style={{ gridTemplateColumns: `repeat(${ICONS / 2}, minmax(0, 1fr))` }}
+                style={{
+                  gridTemplateColumns: `repeat(${ICONS / 2}, minmax(0, 1fr))`,
+                }}
                 aria-hidden
               >
                 {Array.from({ length: ICONS }, (_, i) => (
@@ -79,8 +81,10 @@ export const ProblemSection: React.FC = () => {
                     className="material-symbols-rounded text-center"
                     style={{
                       fontSize: 20,
-                      color: i < s.filled ? "#ff2a85" : "rgba(255,255,255,0.16)",
-                      fontVariationSettings: i < s.filled ? '"FILL" 1' : '"FILL" 0',
+                      color:
+                        i < s.filled ? "#ff2a85" : "rgba(255,255,255,0.16)",
+                      fontVariationSettings:
+                        i < s.filled ? '"FILL" 1' : '"FILL" 0',
                     }}
                   >
                     person_2
@@ -98,8 +102,8 @@ export const ProblemSection: React.FC = () => {
         {/* Źródło w prawym dolnym rogu sekcji — nie w stopce, bo dotyczy
             wyłącznie liczb powyżej. */}
         <p className="mt-8 text-right text-xs text-slate-500">
-          Źródło: FRA (Europejska Agencja Praw Człowieka), badanie o
-          przemoci wobec kobiet w Unii Europejskiej
+          Źródło: FRA (Europejska Agencja Praw Człowieka), badanie o przemoci
+          wobec kobiet w Unii Europejskiej
         </p>
       </div>
     </section>
