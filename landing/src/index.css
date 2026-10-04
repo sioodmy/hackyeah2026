@@ -36,3 +36,172 @@ pre {
   );
   background-size: 24px 24px;
 }
+
+/* ---------- adnotacja prezentacji (nałożona na telefon) ---------- */
+/* Świadomie inny język wizualny niż reszta sekcji: ma się czytać jako
+   komentarz do prezentacji, a nie jako element aplikacji. Dlatego ma własny
+   tag i przerywaną ramkę.
+
+   Podział na dwa elementy nie jest ozdobnikiem: `.demo-annotation` trzyma
+   `transform: translateX(-50%)`, żeby wyśrodkować kartę **także wtedy, gdy jest
+   szersza niż telefon**. Przy `margin-inline: auto` i `width: max-content`
+   szerszym niż kontener przeglądarka gubi prawą marżę i karta przykleja się do
+   lewej krawędzi. Animacja wejścia musi więc żyć na karcie wewnętrznej — jedna
+   własność `transform` nie robi dwóch rzeczy. `top` dostarcza JSX. */
+.demo-annotation {
+  position: absolute;
+  left: 50%;
+  z-index: 40;
+  width: max-content;
+  /* Ciutke szersza niż telefon — karta wychodzi za obudowę o ~14 px z każdej
+     strony, ale wciąż mieści się w kolumnie, więc nie nachodzi na tekst
+     obok (odstęp między kolumnami to 64 px). */
+  max-width: calc(100% + 28px);
+  transform: translateX(-50%);
+}
+.demo-annotation-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  /* Przyciski schodzą pod tekst, a nie wciskają się obok niego — inaczej
+     na szerokości telefonu każde zdanie łamie się na trzy linie. */
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 12px 12px 16px;
+  border-radius: 18px;
+  /* Leży na mapie, więc musi być nieprzezroczysty — inaczej kafelki i heatmapa
+     przebijają przez tekst. */
+  background: rgba(10, 11, 16, 0.86);
+  backdrop-filter: blur(10px);
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  animation: demoAnnotationIn 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes demoAnnotationIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.demo-annotation-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.demo-annotation-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ff8ab8;
+}
+.demo-annotation-inner strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+.demo-annotation-inner span:last-child {
+  font-size: 12px;
+  color: #94a3b8;
+}
+.demo-annotation-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Cały wiersz pod tekstem, wyrównany do prawej. */
+  width: 100%;
+  justify-content: flex-end;
+}
+.demo-annotation-skip {
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #fff;
+  background: #ff2a85;
+  white-space: nowrap;
+}
+.demo-annotation-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.demo-annotation-close:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- ikony Material Symbols ---------- */
+/* Klasa z dokumentacji Google — bez `font-variation-settings` glify ligatur
+   wypadają jako nazwa tekstu („person_2") zamiast ikony. */
+.material-symbols-rounded {
+  font-family: "Material Symbols Rounded";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 20;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ---------- pasek fake call w adnotacji ---------- */
+/* Kładzie się pod przyciskami na całą szerokość karty. Zwykły `div` z
+   animowanym `width`, a nie `transform: scaleX` — przy `scaleX` gradient
+   zostaje rozciągnięty i pasek wygląda na rozmyty u prawej. */
+.demo-annotation-progress {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.demo-annotation-bar {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff2a85, #ff8ab8);
+  /* Czas z JS (`--hint-ms`), bo adnotacja i odliczanie w telefonie startują
+     w tym samym renderze. `forwards` zostawia pasek pełny, gdyby adnotacja
+     została na ekranie dłużej niż odliczanie. */
+  animation: demoAnnotationBar var(--hint-ms, 5000ms) linear forwards;
+}
+@keyframes demoAnnotationBar {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+.demo-annotation-progress-label {
+  position: absolute;
+  left: 0;
+  top: 9px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}

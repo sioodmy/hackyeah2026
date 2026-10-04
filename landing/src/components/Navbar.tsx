@@ -20,40 +20,16 @@ export const Navbar: React.FC = () => {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-7">
           <a
-            href="#mechanizm"
+            href="#problem"
             className="text-xs font-medium text-slate-300 hover:text-white transition-colors"
           >
-            Jak działa
+            Problem
           </a>
           <a
-            href="#kamuflaz"
+            href="#demo"
             className="text-xs font-medium text-slate-300 hover:text-white transition-colors"
           >
-            Kamuflaż
-          </a>
-          <a
-            href="#dlaczego"
-            className="text-xs font-medium text-slate-300 hover:text-white transition-colors"
-          >
-            Dlaczego tak
-          </a>
-          <a
-            href="#heatmapa"
-            className="text-xs font-medium text-slate-300 hover:text-white transition-colors"
-          >
-            Heatmapa
-          </a>
-          <a
-            href="#zalozenia"
-            className="text-xs font-medium text-slate-300 hover:text-white transition-colors"
-          >
-            Założenia
-          </a>
-          <a
-            href="#stack"
-            className="text-xs font-medium text-slate-300 hover:text-white transition-colors"
-          >
-            Stack
+            Demo
           </a>
         </nav>
 
@@ -116,46 +92,18 @@ export const Navbar: React.FC = () => {
             </a>
           </div>
           <a
-            href="#mechanizm"
+            href="#problem"
             onClick={() => setMobileMenuOpen(false)}
             className="block py-1.5 text-sm font-medium text-slate-300 hover:text-white"
           >
-            Jak działa
+            Problem
           </a>
           <a
-            href="#kamuflaz"
+            href="#demo"
             onClick={() => setMobileMenuOpen(false)}
             className="block py-1.5 text-sm font-medium text-slate-300 hover:text-white"
           >
-            Kamuflaż
-          </a>
-          <a
-            href="#dlaczego"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-1.5 text-sm font-medium text-slate-300 hover:text-white"
-          >
-            Dlaczego tak
-          </a>
-          <a
-            href="#heatmapa"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-1.5 text-sm font-medium text-slate-300 hover:text-white"
-          >
-            Heatmapa Krakowa
-          </a>
-          <a
-            href="#zalozenia"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-1.5 text-sm font-medium text-slate-300 hover:text-white"
-          >
-            Założenia
-          </a>
-          <a
-            href="#stack"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-1.5 text-sm font-medium text-slate-300 hover:text-white"
-          >
-            Stack
+            Demo
           </a>
           <div className="pt-2">
             <a

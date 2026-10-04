@@ -1,13 +1,12 @@
 import React from "react";
 import { Navbar } from "./components/Navbar";
 import { Hero } from "./components/Hero";
-import { ThreatMatrix } from "./components/ThreatMatrix";
-import { FeatureBento } from "./components/FeatureBento";
-import { FeministManifesto } from "./components/FeministManifesto";
-import { HeatmapSection } from "./components/HeatmapSection";
-import { JurySection } from "./components/JurySection";
-import { ArchitectureSection } from "./components/ArchitectureSection";
+import { ProblemSection } from "./components/ProblemSection";
+import { DemoSection } from "./components/DemoSection";
 import { Footer } from "./components/Footer";
+// Style demo (mapa, suwak, nakładki) — te same, co w web preview.
+import "../../web/src/styles.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 export const App: React.FC = () => {
   return (
@@ -15,12 +14,15 @@ export const App: React.FC = () => {
       <Navbar />
       <main className="flex-1">
         <Hero />
-        <ThreatMatrix />
-        <FeatureBento />
-        <FeministManifesto />
-        <HeatmapSection />
-        <JurySection />
-        <ArchitectureSection />
+        <ProblemSection />
+        <DemoSection />
+      {/*
+        Sekcje od „Architektura Suwaka" (ThreatMatrix) do „Stack
+        Technologiczny" (ArchitectureSection) zostały usunięte — prezentacja
+        ma prowadzić widza od razu do demo, a nie przez sześć sekcji
+        dokumentacyjnych. Pliki komponentów zostały na dysku, więc da się je
+        przywrócić jednym importem.
+      */}
       </main>
       <Footer />
     </div>

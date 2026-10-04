@@ -13,6 +13,8 @@
 export {
   palette,
   colorForLevel,
+  textOnLevel,
+  auras,
   radii,
   spacing,
   type,
@@ -31,6 +33,9 @@ export {
   DETENTS,
   OVERDRAG,
   FAKE_CALL_DELAY_MS,
+  FAKE_CALL_DELAY_S,
+  fakeCallHint,
+  fakeCallPreview,
   EVIDENCE_CHUNK_SECONDS,
   LOCATION_INTERVAL_ACTIVE_MS,
   LOCATION_INTERVAL_LIVE_MS,
@@ -44,6 +49,12 @@ export {
 /** Dark vector OSM — wektorowy, bez klucza (jak w `app/src/theme/mapStyle`). */
 export const DARK_VECTOR_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
 
-/** Kraków [lng, lat] — środek startowy mapy, jak w `app/src/theme/mapStyle`. */
-export const DEFAULT_CENTER: [number, number] = [19.9373, 50.0617];
+/**
+ * Tauron Arena, Kraków [lng, lat] — środek mapy w demo.
+ *
+ * Celowo nie Rynek: wokół hali jest rozległa, czytelna siatka ulic i parking,
+ * więc skupiska zdarzeń z mocka rysują się jako osobne plamy zamiast zlewać
+ * się w centrum.
+ */
+export const DEFAULT_CENTER: [number, number] = [19.9689, 50.0676];
 export const DEFAULT_ZOOM = 13.5;

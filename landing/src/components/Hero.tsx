@@ -27,7 +27,7 @@ export const Hero: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row items-center gap-3.5 w-full sm:w-auto">
           <a
-            href="#mechanizm"
+            href="#demo"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full text-xs sm:text-sm font-semibold text-white bg-[#ff2a85] hover:bg-[#e61a72] transition-colors shadow-md shadow-[#ff2a85]/25"
           >
             <span>Zobacz jak działa</span>
@@ -50,7 +50,7 @@ export const Hero: React.FC = () => {
       <div className="pt-8 border-t border-slate-800/80 mt-auto">
         <div className="flex items-center justify-center">
           <a
-            href="#mechanizm"
+            href="#demo"
             className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
           >
             <span>Poznaj mechanizm czterech stref</span>

@@ -8,11 +8,13 @@ import { palette as tokensPalette } from './tokens';
  * rzeczy, które Platform wymagają, i zachowuje dotychczasowy API.
  *
  * NIE DUBLUJ tu wartości kolorów: zmiana ma iść do `tokens.ts`, inaczej web
- * i apkade się rozjadą po cichu.
+ * i apka się rozjadą po cichu.
  */
 export {
   palette,
   colorForLevel,
+  textOnLevel,
+  auras,
   radii,
   spacing,
   type,

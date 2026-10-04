@@ -45,6 +45,16 @@ export function colorForLevel(level: number): string {
   }
 }
 
+/** Predefiniowane aury awatarów — wspólna paleta dla profilu i znaczników mapy. */
+export const auras = [
+  { id: 'fuchsia', name: 'Róż', hex: '#F472B6' },
+  { id: 'purple', name: 'Fiolet', hex: '#A78BFA' },
+  { id: 'coral', name: 'Koral', hex: '#E05624' },
+  { id: 'emerald', name: 'Mięta', hex: '#34D399' },
+  { id: 'amber', name: 'Złoto', hex: '#FBBF24' },
+  { id: 'sky', name: 'Błękit', hex: '#38BDF8' },
+] as const;
+
 export const radii = {
   pill: 999,
   card: 20,
@@ -75,7 +85,7 @@ export const type = {
 export const sliderTokens = {
   /** Średnica gałki. */
   knob: 56,
-  /** Wysokość kontenera gestu (t bigger niż bar, bo gałka wystaje). */
+  /** Wysokość kontenera gestu (większy niż bar — zapas na powiększoną gałkę). */
   track: 72,
   /** Bar ma dokładnie tę wysokość co średnica gałki — jego końce są wtedy
    *  tym samym kształtem co gałka. */
@@ -83,9 +93,16 @@ export const sliderTokens = {
     return this.knob;
   },
 
-  /** Kolor pustego baru. */
-  barFill: '#191C23',
+  /**
+   * Pusty bar: ten sam przydymiony materiał co pozostałe pływające pigułki na
+   * mapie (`palette.surface`), więc slider nie wygląda jak obcy element.
+   */
+  barFill: 'rgba(20, 22, 26, 0.86)',
   barBorder: 'rgba(255, 255, 255, 0.10)',
+  /** Wklęsłość pustego baru (CSS `box-shadow`, w RN `boxShadow` z new arch). */
+  barInset: 'inset 0 2px 6px rgba(0, 0, 0, 0.45)',
+  /** Cień, który odkleja bar od mapy — ten sam co `floatingShadow(8)`. */
+  barShadow: '0 5px 13px rgba(0, 0, 0, 0.45)',
 
   /**
    * Materiał gałki: półprzezroczysta biel z rozświetleniem u góry.
@@ -93,12 +110,15 @@ export const sliderTokens = {
    * `expo-linear-gradient` + `expo-blur`. Gradient jest wspólny co do wartości,
    * więc krawędź światła pada tak samo.
    */
-  knobGradient: ['#ffffff80', '#d7dae080'] as [string, string],
-  knobBorder: 'rgba(255, 255, 255, 0.34)',
+  knobGradient: ['rgba(255, 255, 255, 0.80)', 'rgba(220, 223, 229, 0.58)'] as [string, string],
+  knobBorder: 'rgba(255, 255, 255, 0.45)',
+  knobShadow: '0 4px 12px rgba(0, 0, 0, 0.45)',
   knobBlur: 5,
   knobSaturate: 1.15,
+  /** Gałka pod palcem rośnie o tyle — czuć, że coś się złapało. */
+  knobPressedScale: 1.06,
   /** Kolor uchwytu » na gałce. */
-  knobGrip: 'rgba(0, 0, 0, 0.38)',
+  knobGrip: 'rgba(0, 0, 0, 0.42)',
 
   /**
    * Materiał wypełnienia: kolor poziomu plus ten sam rozświetlony wierzch,
@@ -107,6 +127,8 @@ export const sliderTokens = {
   fillSheenTop: 'rgba(255, 255, 255, 0.22)',
   fillSheenMid: 'rgba(255, 255, 255, 0.06)',
   fillSheenBottom: 'rgba(0, 0, 0, 0.10)',
+  /** Odblask, który raz przejeżdża po wypełnionym barze po commicie. */
+  shine: 'rgba(255, 255, 255, 0.40)',
 
   /** Tick skali: rośnie z poziomem, więc da się go odczytać wzrokiem. */
   tickWidth: 2,
@@ -125,7 +147,30 @@ export const sliderTokens = {
   commitMs: 420,
   holdMs: 1600,
   resetMs: 900,
+  /** Przenikanie koloru wypełnienia między strefami. */
+  zoneBlendMs: 160,
+  /** Pojawianie się / gaśnięcie dymka nad sliderem i labela w barze. */
+  fadeMs: 180,
+  /** Przejazd odblasku po wypełnionym barze. */
+  shineMs: 900,
+  /** Okres „zaczepki” na strzałkach gałki w spoczynku. */
+  gripHintMs: 3200,
+  /**
+   * Okres pulsu, gdy palec trzyma suwak na najwyższym poziomie.
+   *
+   * To najpoważniejszy moment interakcji i jedyny, w którym użytkownik jeszcze
+   * może się wycofać — puls ma to pokazać, zanim cokolwiek się wydarzy.
+   */
+  maxPulseMs: 900,
 } as const;
+
+/**
+ * Kolor tekstu i ticków leżących NA wypełnieniu danego poziomu: żółty
+ * potrzebuje ciemnego, reszta białego.
+ */
+export function textOnLevel(level: number): string {
+  return level === 1 ? '#1A1405' : '#FFFFFF';
+}
 
 /** Przełącznik w Ustawieniach — wspólna geometria (RN: własny, nie natywny). */
 export const switchTokens = {
