@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowDown, DownloadSimple, ArrowRight } from "@phosphor-icons/react";
+import { DownloadSimple, ArrowRight } from "@phosphor-icons/react";
 
 export const Hero: React.FC = () => {
   return (
@@ -42,19 +42,6 @@ export const Hero: React.FC = () => {
           >
             <DownloadSimple size={16} weight="bold" />
             <span>Pobierz APK (v0.3.0)</span>
-          </a>
-        </div>
-      </div>
-
-      {/* Specifications strip */}
-      <div className="pt-8 border-t border-slate-800/80 mt-auto">
-        <div className="flex items-center justify-center">
-          <a
-            href="#demo"
-            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
-          >
-            <span>Poznaj mechanizm czterech stref</span>
-            <ArrowDown size={13} />
           </a>
         </div>
       </div>

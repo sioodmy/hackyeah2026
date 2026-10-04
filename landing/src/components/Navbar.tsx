@@ -17,21 +17,11 @@ export const Navbar: React.FC = () => {
           </span>
         </a>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-7">
-          <a
-            href="#problem"
-            className="text-xs font-medium text-slate-300 hover:text-white transition-colors"
-          >
-            Problem
-          </a>
-          <a
-            href="#demo"
-            className="text-xs font-medium text-slate-300 hover:text-white transition-colors"
-          >
-            Demo
-          </a>
-        </nav>
+        {/*
+          Świadomie bez listy sekcji. Strona ma teraz hero, problem i demo,
+          więc menu z dwoma pozycjami wyglądało jak błąd, a nie jak nawigacja.
+          Zostaje tylko marka po lewej i akcje po prawej.
+        */}
 
         {/* Top Right: HackYeah Logo + GitHub */}
         <div className="hidden md:flex items-center gap-4">
@@ -91,20 +81,6 @@ export const Navbar: React.FC = () => {
               />
             </a>
           </div>
-          <a
-            href="#problem"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-1.5 text-sm font-medium text-slate-300 hover:text-white"
-          >
-            Problem
-          </a>
-          <a
-            href="#demo"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-1.5 text-sm font-medium text-slate-300 hover:text-white"
-          >
-            Demo
-          </a>
           <div className="pt-2">
             <a
               href="https://github.com/sioodmy/hackyeah2026"
