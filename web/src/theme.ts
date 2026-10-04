@@ -47,7 +47,8 @@ export {
 } from "@app/theme/levels";
 
 /** Dark vector OSM — wektorowy, bez klucza (jak w `app/src/theme/mapStyle`). */
-export const DARK_VECTOR_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+export const DARK_VECTOR_STYLE_URL =
+  "https://tiles.openfreemap.org/styles/dark";
 
 /**
  * Tauron Arena, Kraków [lng, lat] — środek mapy w demo.

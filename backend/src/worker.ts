@@ -1,5 +1,5 @@
-import { closeDatabase } from './db/client.js';
-import { escalateDueAlerts } from './services/alert.service.js';
+import { closeDatabase } from "./db/client.js";
+import { escalateDueAlerts } from "./services/alert.service.js";
 
 /**
  * The escalation sweep: alerts nobody answered climb a level, and the contacts
@@ -19,7 +19,7 @@ let sweeping = false;
 
 async function sweep(): Promise<void> {
   if (sweeping) {
-    console.warn('[worker] previous sweep still running, skipping this tick');
+    console.warn("[worker] previous sweep still running, skipping this tick");
     return;
   }
   sweeping = true;
@@ -36,7 +36,7 @@ async function sweep(): Promise<void> {
     }
   } catch (error) {
     // Never let one bad sweep kill the loop; the next tick retries.
-    console.error('[worker] escalation sweep failed', error);
+    console.error("[worker] escalation sweep failed", error);
   } finally {
     sweeping = false;
   }
@@ -52,7 +52,9 @@ function scheduleNext(): void {
 async function main(): Promise<void> {
   await sweep();
   scheduleNext();
-  console.log(`[worker] escalation sweep running every ${SWEEP_INTERVAL_MS / 1000}s`);
+  console.log(
+    `[worker] escalation sweep running every ${SWEEP_INTERVAL_MS / 1000}s`,
+  );
 
   const shutdown = async (signal: string) => {
     console.log(`[worker] ${signal} received, shutting down`);
@@ -60,11 +62,11 @@ async function main(): Promise<void> {
     process.exit(0);
   };
 
-  process.on('SIGTERM', () => void shutdown('SIGTERM'));
-  process.on('SIGINT', () => void shutdown('SIGINT'));
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 
 main().catch((error) => {
-  console.error('[worker] failed to start', error);
+  console.error("[worker] failed to start", error);
   process.exit(1);
 });

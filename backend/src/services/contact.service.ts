@@ -1,8 +1,13 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from "drizzle-orm";
 
-import { NotFoundError } from '../core/errors.js';
-import { db } from '../db/client.js';
-import { contacts, users, type AlertLevel, type Contact } from '../db/schema.js';
+import { NotFoundError } from "../core/errors.js";
+import { db } from "../db/client.js";
+import {
+  contacts,
+  users,
+  type AlertLevel,
+  type Contact,
+} from "../db/schema.js";
 
 export interface ContactInput {
   name: string;
@@ -20,7 +25,10 @@ export async function listContacts(userId: string): Promise<Contact[]> {
   });
 }
 
-export async function createContact(userId: string, input: ContactInput): Promise<Contact> {
+export async function createContact(
+  userId: string,
+  input: ContactInput,
+): Promise<Contact> {
   if (input.isPrimary) await clearPrimary(userId);
 
   // If the contact already uses the app we link the account, which is what
@@ -60,7 +68,9 @@ export async function updateContact(
       ...(changes.name !== undefined && { name: changes.name }),
       ...(changes.phone !== undefined && { phone: changes.phone }),
       ...(changes.email !== undefined && { email: changes.email }),
-      ...(changes.relationship !== undefined && { relationship: changes.relationship }),
+      ...(changes.relationship !== undefined && {
+        relationship: changes.relationship,
+      }),
       ...(changes.isPrimary !== undefined && { isPrimary: changes.isPrimary }),
       ...(changes.minLevel !== undefined && { minLevel: changes.minLevel }),
     })
@@ -70,22 +80,33 @@ export async function updateContact(
   return row!;
 }
 
-export async function deleteContact(userId: string, contactId: string): Promise<void> {
+export async function deleteContact(
+  userId: string,
+  contactId: string,
+): Promise<void> {
   const existing = await findOwned(userId, contactId);
   await db.delete(contacts).where(eq(contacts.id, existing.id));
 }
 
-export async function findOwned(userId: string, contactId: string): Promise<Contact> {
+export async function findOwned(
+  userId: string,
+  contactId: string,
+): Promise<Contact> {
   const row = await db.query.contacts.findFirst({
     where: and(eq(contacts.id, contactId), eq(contacts.userId, userId)),
   });
-  if (!row) throw new NotFoundError('Contact not found');
+  if (!row) throw new NotFoundError("Contact not found");
   return row;
 }
 
 /** Contacts of `userId` that should be told about an alert of this level. */
-export async function contactsToNotify(userId: string, level: AlertLevel): Promise<Contact[]> {
-  const all = await db.query.contacts.findMany({ where: eq(contacts.userId, userId) });
+export async function contactsToNotify(
+  userId: string,
+  level: AlertLevel,
+): Promise<Contact[]> {
+  const all = await db.query.contacts.findMany({
+    where: eq(contacts.userId, userId),
+  });
   return all.filter((contact) => contact.minLevel <= level);
 }
 
@@ -104,7 +125,9 @@ export async function findBetween(
 
 /** Every contact entry across all owners pointing at this user. */
 export async function linksForUser(recipientId: string): Promise<Contact[]> {
-  return db.query.contacts.findMany({ where: eq(contacts.contactUserId, recipientId) });
+  return db.query.contacts.findMany({
+    where: eq(contacts.contactUserId, recipientId),
+  });
 }
 
 async function findUserIdByEmail(email: string): Promise<string | undefined> {

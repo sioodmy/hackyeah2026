@@ -1,18 +1,18 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { z } from 'zod';
+import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
+import { z } from "zod";
 
 import {
   deviceIdParams,
   deviceSchema,
   registerDeviceBody,
   updateDeviceBody,
-} from '../schemas.js';
+} from "../schemas.js";
 import {
   listDevices,
   registerDevice,
   removeDevice,
   setActive,
-} from '../services/device.service.js';
+} from "../services/device.service.js";
 
 export const deviceRoutes: FastifyPluginAsyncZod = async (app) => {
   /**
@@ -20,14 +20,14 @@ export const deviceRoutes: FastifyPluginAsyncZod = async (app) => {
    * nothing, so this is the single most important integration call.
    */
   app.post(
-    '/devices',
+    "/devices",
     {
       preHandler: app.authenticate,
       schema: {
-        tags: ['devices'],
-        summary: 'Register a push token',
+        tags: ["devices"],
+        summary: "Register a push token",
         description:
-          'Idempotent: posting an already-known token reactivates it and reassigns it to the caller.',
+          "Idempotent: posting an already-known token reactivates it and reassigns it to the caller.",
         body: registerDeviceBody,
         response: { 201: deviceSchema },
       },
@@ -39,12 +39,12 @@ export const deviceRoutes: FastifyPluginAsyncZod = async (app) => {
   );
 
   app.get(
-    '/devices',
+    "/devices",
     {
       preHandler: app.authenticate,
       schema: {
-        tags: ['devices'],
-        summary: 'List own devices',
+        tags: ["devices"],
+        summary: "List own devices",
         response: { 200: z.array(deviceSchema) },
       },
     },
@@ -52,29 +52,33 @@ export const deviceRoutes: FastifyPluginAsyncZod = async (app) => {
   );
 
   app.patch(
-    '/devices/:deviceId',
+    "/devices/:deviceId",
     {
       preHandler: app.authenticate,
       schema: {
-        tags: ['devices'],
-        summary: 'Pause or resume a token',
+        tags: ["devices"],
+        summary: "Pause or resume a token",
         params: deviceIdParams,
         body: updateDeviceBody,
         response: { 200: deviceSchema },
       },
     },
     async (request) =>
-      setActive(request.user.id, request.params.deviceId, request.body.isActive),
+      setActive(
+        request.user.id,
+        request.params.deviceId,
+        request.body.isActive,
+      ),
   );
 
   app.delete(
-    '/devices/:deviceId',
+    "/devices/:deviceId",
     {
       preHandler: app.authenticate,
       schema: {
-        tags: ['devices'],
-        summary: 'Unregister a token',
-        description: 'Called on logout.',
+        tags: ["devices"],
+        summary: "Unregister a token",
+        description: "Called on logout.",
         params: deviceIdParams,
         // A 204 has no body, so no response schema: the Zod serializer has
         // nothing to compile and Fastify would reject a null type here.

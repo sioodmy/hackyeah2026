@@ -1,7 +1,7 @@
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 
-import { env } from '../config/env.js';
-import { UnauthorizedError } from './errors.js';
+import { env } from "../config/env.js";
+import { UnauthorizedError } from "./errors.js";
 
 /**
  * Clerk signs session JWTs with RS256. We verify them locally against the
@@ -26,33 +26,36 @@ export interface ClerkClaims extends JWTPayload {
 export async function verifyClerkToken(token: string): Promise<ClerkClaims> {
   try {
     const { payload } = await jwtVerify(token, jwks, {
-      algorithms: ['RS256'],
+      algorithms: ["RS256"],
       ...(env.CLERK_ISSUER ? { issuer: env.CLERK_ISSUER } : {}),
     });
 
     if (!payload.sub) {
-      throw new UnauthorizedError('Token has no subject');
+      throw new UnauthorizedError("Token has no subject");
     }
     return payload as ClerkClaims;
   } catch (error) {
     if (error instanceof UnauthorizedError) throw error;
-    throw new UnauthorizedError('Invalid or expired token');
+    throw new UnauthorizedError("Invalid or expired token");
   }
 }
 
 export function extractBearerToken(header: string | undefined): string {
-  if (!header?.startsWith('Bearer ')) {
-    throw new UnauthorizedError('Missing bearer token');
+  if (!header?.startsWith("Bearer ")) {
+    throw new UnauthorizedError("Missing bearer token");
   }
-  const token = header.slice('Bearer '.length).trim();
-  if (!token) throw new UnauthorizedError('Missing bearer token');
+  const token = header.slice("Bearer ".length).trim();
+  if (!token) throw new UnauthorizedError("Missing bearer token");
   return token;
 }
 
 export function displayNameFromClaims(claims: ClerkClaims): string {
-  const full = [claims.first_name, claims.last_name].filter(Boolean).join(' ').trim();
+  const full = [claims.first_name, claims.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
   if (full) return full;
   if (claims.name?.trim()) return claims.name.trim();
-  if (claims.email) return claims.email.split('@')[0] ?? '';
-  return '';
+  if (claims.email) return claims.email.split("@")[0] ?? "";
+  return "";
 }

@@ -162,12 +162,8 @@
           "name": "alerts_user_id_users_id_fk",
           "tableFrom": "alerts",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -175,12 +171,8 @@
           "name": "alerts_acknowledged_by_contact_id_contacts_id_fk",
           "tableFrom": "alerts",
           "tableTo": "contacts",
-          "columnsFrom": [
-            "acknowledged_by_contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["acknowledged_by_contact_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -311,12 +303,8 @@
           "name": "contacts_user_id_users_id_fk",
           "tableFrom": "contacts",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -324,12 +312,8 @@
           "name": "contacts_contact_user_id_users_id_fk",
           "tableFrom": "contacts",
           "tableTo": "users",
-          "columnsFrom": [
-            "contact_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["contact_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -414,12 +398,8 @@
           "name": "devices_user_id_users_id_fk",
           "tableFrom": "devices",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -524,12 +504,8 @@
           "name": "invite_codes_owner_id_users_id_fk",
           "tableFrom": "invite_codes",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -633,29 +609,17 @@
     "public.alert_status": {
       "name": "alert_status",
       "schema": "public",
-      "values": [
-        "active",
-        "acknowledged",
-        "resolved",
-        "cancelled",
-        "escalated"
-      ]
+      "values": ["active", "acknowledged", "resolved", "cancelled", "escalated"]
     },
     "public.contact_source": {
       "name": "contact_source",
       "schema": "public",
-      "values": [
-        "manual",
-        "invite_code"
-      ]
+      "values": ["manual", "invite_code"]
     },
     "public.device_platform": {
       "name": "device_platform",
       "schema": "public",
-      "values": [
-        "ios",
-        "android"
-      ]
+      "values": ["ios", "android"]
     }
   },
   "schemas": {},

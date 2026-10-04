@@ -11,12 +11,17 @@
  *    belongs to.
  */
 
-import { desc, eq, inArray } from 'drizzle-orm';
+import { desc, eq, inArray } from "drizzle-orm";
 
-import type { WireFrame } from '../core/realtime.js';
-import { db } from '../db/client.js';
-import { alerts, locationPings, users, type LocationPing } from '../db/schema.js';
-import { linksForUser } from './contact.service.js';
+import type { WireFrame } from "../core/realtime.js";
+import { db } from "../db/client.js";
+import {
+  alerts,
+  locationPings,
+  users,
+  type LocationPing,
+} from "../db/schema.js";
+import { linksForUser } from "./contact.service.js";
 
 export interface LocationInput {
   lat: number;
@@ -51,7 +56,7 @@ export async function friendsWithAccounts(userId: string): Promise<string[]> {
   const links = await linksForUser(userId);
   return links
     .map((contact) => contact.contactUserId)
-    .filter((id): id is string => typeof id === 'string' && id.length > 0);
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
 }
 
 /**
@@ -61,7 +66,10 @@ export async function friendsWithAccounts(userId: string): Promise<string[]> {
  * evidence session or a dispatch record points at the episode rather than at a
  * wall-clock guess.
  */
-export async function storePing(userId: string, input: LocationInput): Promise<LocationPing> {
+export async function storePing(
+  userId: string,
+  input: LocationInput,
+): Promise<LocationPing> {
   let alertId = input.alertId ?? null;
 
   if (alertId === null) {
@@ -92,9 +100,13 @@ export async function storePing(userId: string, input: LocationInput): Promise<L
 }
 
 /** The frame sent to contacts when this user moves. */
-export function toFrame(userId: string, ping: LocationPing, profile: Profile): WireFrame {
+export function toFrame(
+  userId: string,
+  ping: LocationPing,
+  profile: Profile,
+): WireFrame {
   return {
-    type: 'location',
+    type: "location",
     userId,
     displayName: profile.displayName,
     avatarUrl: profile.avatarUrl,
@@ -124,7 +136,8 @@ async function profilesOf(ids: string[]): Promise<Map<string, Profile>> {
     .where(inArray(users.id, ids));
 
   const out = new Map<string, Profile>();
-  for (const row of rows) out.set(row.id, { displayName: row.name, avatarUrl: row.avatarUrl });
+  for (const row of rows)
+    out.set(row.id, { displayName: row.name, avatarUrl: row.avatarUrl });
   return out;
 }
 
@@ -178,6 +191,9 @@ export async function snapshotFor(userId: string): Promise<FriendLocation[]> {
  * A phone that just reconnected would otherwise show an empty map until the
  * next ping interval, so the last known position per contact is replayed.
  */
-export async function replayFor(userId: string, limit: number): Promise<FriendLocation[]> {
+export async function replayFor(
+  userId: string,
+  limit: number,
+): Promise<FriendLocation[]> {
   return (await snapshotFor(userId)).slice(0, limit);
 }

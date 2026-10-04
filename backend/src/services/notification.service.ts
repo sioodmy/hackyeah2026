@@ -1,7 +1,7 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from "drizzle-orm";
 
-import { emailTransport } from '../core/email.js';
-import { env } from '../config/env.js';
+import { emailTransport } from "../core/email.js";
+import { env } from "../config/env.js";
 import {
   alertLevelName,
   notificationPriority,
@@ -10,20 +10,20 @@ import {
   type Alert,
   type Contact,
   type Device,
-} from '../db/schema.js';
-import { db } from '../db/client.js';
-import { findById } from './user.service.js';
-import { sendApns } from '../core/push/apns.js';
-import { sendFcm } from '../core/push/fcm.js';
+} from "../db/schema.js";
+import { db } from "../db/client.js";
+import { findById } from "./user.service.js";
+import { sendApns } from "../core/push/apns.js";
+import { sendFcm } from "../core/push/fcm.js";
 
-export type NotificationPriority = 'normal' | 'high' | 'critical';
+export type NotificationPriority = "normal" | "high" | "critical";
 
 /**
  * What the mobile app receives. This is the contract: fields can be added,
  * but the mobile team's parsing depends on these names.
  */
 export interface AlertPushPayload {
-  type: 'ALERT';
+  type: "ALERT";
   alert_id: string;
   level: number;
   level_name: string;
@@ -36,11 +36,11 @@ export interface AlertPushPayload {
 }
 
 export interface AckPushPayload {
-  type: 'ALERT_ACKNOWLEDGED';
+  type: "ALERT_ACKNOWLEDGED";
   alert_id: string;
   level: number;
   contact_name: string;
-  priority: 'high';
+  priority: "high";
 }
 
 export function buildAlertPayload(
@@ -48,11 +48,11 @@ export function buildAlertPayload(
   sender: { name: string; phone: string | null },
 ): AlertPushPayload {
   return {
-    type: 'ALERT',
+    type: "ALERT",
     alert_id: alert.id,
     level: alert.level,
     level_name: alertLevelName(alert.level),
-    sender_name: sender.name || 'Someone',
+    sender_name: sender.name || "Someone",
     sender_phone: sender.phone,
     location: { lat: alert.lat, lng: alert.lng, address: alert.address },
     message: alert.message,
@@ -62,12 +62,13 @@ export function buildAlertPayload(
 }
 
 /** Human text for the notification body, since the app may not be running. */
-export function notificationText(
-  payload: AlertPushPayload | AckPushPayload,
-): { title: string; body: string } {
-  if (payload.type === 'ALERT_ACKNOWLEDGED') {
+export function notificationText(payload: AlertPushPayload | AckPushPayload): {
+  title: string;
+  body: string;
+} {
+  if (payload.type === "ALERT_ACKNOWLEDGED") {
     return {
-      title: 'Someone is on the way',
+      title: "Someone is on the way",
       body: `${payload.contact_name} acknowledged your alert.`,
     };
   }
@@ -75,15 +76,26 @@ export function notificationText(
   const title = `${payload.sender_name} needs help`;
   switch (payload.level) {
     case 4:
-      return { title, body: payload.message ?? 'EMERGENCY - immediate help needed' };
+      return {
+        title,
+        body: payload.message ?? "EMERGENCY - immediate help needed",
+      };
     case 3:
-      return { title, body: payload.message ?? 'Someone is following her. Real danger.' };
+      return {
+        title,
+        body: payload.message ?? "Someone is following her. Real danger.",
+      };
     case 2:
-      return { title, body: payload.message ?? 'She does not feel safe. Please check on her.' };
+      return {
+        title,
+        body: payload.message ?? "She does not feel safe. Please check on her.",
+      };
     default:
       return {
         title,
-        body: payload.message ?? 'She feels uncomfortable and asked you to call her.',
+        body:
+          payload.message ??
+          "She feels uncomfortable and asked you to call her.",
       };
   }
 }
@@ -98,12 +110,14 @@ export async function notifyContactsOfAlert(
 ): Promise<void> {
   const sender = await findById(alert.userId);
   const payload = buildAlertPayload(alert, {
-    name: sender?.name ?? '',
+    name: sender?.name ?? "",
     phone: sender?.phone ?? null,
   });
 
   const recipients = new Set(
-    contacts.map((contact) => contact.contactUserId).filter((id): id is string => Boolean(id)),
+    contacts
+      .map((contact) => contact.contactUserId)
+      .filter((id): id is string => Boolean(id)),
   );
   for (const recipient of recipients) {
     await pushToUser(recipient, payload);
@@ -155,8 +169,8 @@ async function emailContactsOfDangerAlert(
 }
 
 const ALERT_EMAIL_SUBJECTS: Record<number, string> = {
-  3: 'is in real danger',
-  4: 'needs help NOW',
+  3: "is in real danger",
+  4: "needs help NOW",
 };
 
 function dangerAlertEmail(payload: AlertPushPayload): string {
@@ -164,25 +178,25 @@ function dangerAlertEmail(payload: AlertPushPayload): string {
     ? payload.location.address
     : payload.location.lat !== null && payload.location.lng !== null
       ? `${payload.location.lat}, ${payload.location.lng}`
-      : 'her location is not available';
+      : "her location is not available";
 
   const lines = [
     `${payload.sender_name} raised a level ${payload.level} alert (${payload.level_name}).`,
-    '',
+    "",
     `Where: ${where}`,
   ];
   if (payload.message) lines.push(`She wrote: ${payload.message}`);
   if (payload.sender_phone) lines.push(`Call her: ${payload.sender_phone}`);
 
   lines.push(
-    '',
-    'Open the app to acknowledge and follow her location.',
+    "",
+    "Open the app to acknowledge and follow her location.",
     `Alert raised at ${payload.created_at}.`,
-    '',
-    'You are receiving this because you are a trusted contact.',
+    "",
+    "You are receiving this because you are a trusted contact.",
   );
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
@@ -201,7 +215,7 @@ export async function pushToUser(
   });
   if (tokens.length === 0) return;
 
-  const critical = payload.priority === 'critical';
+  const critical = payload.priority === "critical";
   const body = {
     ...payload,
     ...notificationText(payload),
@@ -224,13 +238,16 @@ async function deliver(
   critical: boolean,
 ): Promise<{ tokenInvalid: boolean }> {
   try {
-    return device.platform === 'ios'
+    return device.platform === "ios"
       ? await sendApns(device.token, body, critical)
       : await sendFcm(device.token, body, critical);
   } catch (error) {
     // Missing credentials, an outage, a malformed key: the token stays
     // registered, because the cause is ours and not the device's.
-    console.error(`[push] ${device.platform} delivery to ${device.token} failed`, error);
+    console.error(
+      `[push] ${device.platform} delivery to ${device.token} failed`,
+      error,
+    );
     return { tokenInvalid: false };
   }
 }
@@ -250,17 +267,17 @@ async function callEmergencyWebhook(payload: AlertPushPayload): Promise<void> {
   if (!env.EMERGENCY_WEBHOOK_URL) return;
   try {
     await fetch(env.EMERGENCY_WEBHOOK_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'content-type': 'application/json',
+        "content-type": "application/json",
         ...(env.EMERGENCY_WEBHOOK_SECRET && {
-          'x-webhook-secret': env.EMERGENCY_WEBHOOK_SECRET,
+          "x-webhook-secret": env.EMERGENCY_WEBHOOK_SECRET,
         }),
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(5_000),
     });
   } catch (error) {
-    console.error('[push] emergency webhook failed', error);
+    console.error("[push] emergency webhook failed", error);
   }
 }

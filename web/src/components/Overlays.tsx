@@ -73,7 +73,11 @@ export function IncomingCallOverlay({
       {!answered && (
         <div className="call-actions">
           <div className="call-action-col">
-            <button className="call-btn decline" onClick={onDecline} aria-label="Odrzuć połączenie">
+            <button
+              className="call-btn decline"
+              onClick={onDecline}
+              aria-label="Odrzuć połączenie"
+            >
               ✕
             </button>
             <span>Odrzuć</span>
@@ -140,7 +144,8 @@ export function FriendCallScreen({
         {answered ? (
           <>
             <div className="call-timer">
-              {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
+              {Math.floor(secondsLeft / 60)}:
+              {String(secondsLeft % 60).padStart(2, "0")}
             </div>
             <button className="pill-btn" onClick={onDecline}>
               Zakończ
@@ -153,7 +158,11 @@ export function FriendCallScreen({
       {!answered && (
         <div className="call-actions">
           <div className="call-action-col">
-            <button className="call-btn decline" onClick={onDecline} aria-label="Odrzuć połączenie">
+            <button
+              className="call-btn decline"
+              onClick={onDecline}
+              aria-label="Odrzuć połączenie"
+            >
               ✕
             </button>
             <span>Nie teraz</span>

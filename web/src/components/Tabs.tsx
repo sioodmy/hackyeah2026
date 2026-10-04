@@ -35,7 +35,9 @@ export function FriendsPanel({ friends }: { friends: MockFriend[] }) {
           </div>
           <button
             className="small-btn"
-            onClick={() => setAccepted((a) => (a.includes("nina") ? a : [...a, "nina"]))}
+            onClick={() =>
+              setAccepted((a) => (a.includes("nina") ? a : [...a, "nina"]))
+            }
           >
             {accepted.includes("nina") ? "Dodana ✓" : "Akceptuj"}
           </button>
@@ -44,7 +46,9 @@ export function FriendsPanel({ friends }: { friends: MockFriend[] }) {
 
       <div className="card">
         <div className="card-title">Twój kod QR</div>
-        <div className="card-note">Znajoma może zeskanować ten kod lub wpisać sześć znaków</div>
+        <div className="card-note">
+          Znajoma może zeskanować ten kod lub wpisać sześć znaków
+        </div>
         <div className="qr-box">
           <div className="qr-fake">
             <span>MOKOSH</span>
@@ -57,7 +61,9 @@ export function FriendsPanel({ friends }: { friends: MockFriend[] }) {
       <div className="card">
         <div className="card-title">Twoje kontakty</div>
         {visible.length === 0 ? (
-          <div className="card-note">Brak kontaktów. Pokaż swój kod znajomej.</div>
+          <div className="card-note">
+            Brak kontaktów. Pokaż swój kod znajomej.
+          </div>
         ) : (
           visible.map((f) => {
             const { emoji, aura } = parseAvatar(`${f.emoji}|${f.aura}`);
@@ -73,7 +79,10 @@ export function FriendsPanel({ friends }: { friends: MockFriend[] }) {
                   <div className="friend-name">{f.displayName}</div>
                   <div className="friend-sub">Kontakt zaufania</div>
                 </div>
-                <button className="link-danger" onClick={() => setRemoved((r) => [...r, f.userId])}>
+                <button
+                  className="link-danger"
+                  onClick={() => setRemoved((r) => [...r, f.userId])}
+                >
                   Usuń
                 </button>
               </div>
@@ -82,14 +91,26 @@ export function FriendsPanel({ friends }: { friends: MockFriend[] }) {
         )}
       </div>
 
-      <button className="scan-btn" onClick={() => alert("Mock: tu w appce otwiera się skaner QR (expo-camera).")}>
+      <button
+        className="scan-btn"
+        onClick={() =>
+          alert("Mock: tu w appce otwiera się skaner QR (expo-camera).")
+        }
+      >
         Skanuj kod znajomej
       </button>
     </div>
   );
 }
 
-const AURAS = ["#F472B6", "#F2761B", "#EFC02B", "#4CAF7D", "#8AB4F8", "#AB47BC"];
+const AURAS = [
+  "#F472B6",
+  "#F2761B",
+  "#EFC02B",
+  "#4CAF7D",
+  "#8AB4F8",
+  "#AB47BC",
+];
 const EMOJIS = ["🌸", "🦊", "🌙", "⚡", "🐚", "🍀"];
 
 function Toggle({
@@ -111,7 +132,7 @@ function Toggle({
         {hint ? <div className="muted small">{hint}</div> : null}
       </div>
       <button
-        className={value ? 'switch' : 'switch'}
+        className={value ? "switch" : "switch"}
         style={{
           width: s.width,
           height: s.height,
@@ -224,17 +245,23 @@ export function SignInPanel() {
         </div>
         <h1 className="signin-brand">Mokosh</h1>
         <p className="signin-tagline">
-          Wygląda jak mapa. Znajomi wiedzą, gdzie jesteś — tylko wtedy, gdy naprawdę tego
-          potrzebujesz.
+          Wygląda jak mapa. Znajomi wiedzą, gdzie jesteś — tylko wtedy, gdy
+          naprawdę tego potrzebujesz.
         </p>
       </div>
 
       <div className="signin-card">
-        <div className="signin-seg" role="tablist" aria-label="Logowanie lub rejestracja">
+        <div
+          className="signin-seg"
+          role="tablist"
+          aria-label="Logowanie lub rejestracja"
+        >
           <button
             role="tab"
             aria-selected={mode === "sign-in"}
-            className={mode === "sign-in" ? "signin-seg-btn on" : "signin-seg-btn"}
+            className={
+              mode === "sign-in" ? "signin-seg-btn on" : "signin-seg-btn"
+            }
             onClick={() => setMode("sign-in")}
           >
             Logowanie
@@ -242,21 +269,27 @@ export function SignInPanel() {
           <button
             role="tab"
             aria-selected={mode === "sign-up"}
-            className={mode === "sign-up" ? "signin-seg-btn on" : "signin-seg-btn"}
+            className={
+              mode === "sign-up" ? "signin-seg-btn on" : "signin-seg-btn"
+            }
             onClick={() => setMode("sign-up")}
           >
             Konto
           </button>
           <span
             className="signin-seg-thumb"
-            style={{ transform: `translateX(${mode === "sign-in" ? 0 : 100}%)` }}
+            style={{
+              transform: `translateX(${mode === "sign-in" ? 0 : 100}%)`,
+            }}
             aria-hidden
           />
         </div>
 
         {mode === "verify" ? (
           <>
-            <div className="signin-hint">Wysłaliśmy sześciocyfrowy kod na {email || "twój mail"}.</div>
+            <div className="signin-hint">
+              Wysłaliśmy sześciocyfrowy kod na {email || "twój mail"}.
+            </div>
             <input
               className="signin-code"
               placeholder="• • • • • •"
@@ -290,7 +323,9 @@ export function SignInPanel() {
               <input
                 type="password"
                 placeholder="min. 8 znaków"
-                autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+                autoComplete={
+                  mode === "sign-in" ? "current-password" : "new-password"
+                }
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -307,10 +342,13 @@ export function SignInPanel() {
       </div>
 
       <p className="signin-foot">
-        Twoja lokalizacja jest udostępniana wyłącznie przy podwyższonym poziomie zagrożenia.
-        Wszystko, co zbieramy, zostaje między Tobą a Twoimi kontaktami zaufania.
+        Twoja lokalizacja jest udostępniana wyłącznie przy podwyższonym poziomie
+        zagrożenia. Wszystko, co zbieramy, zostaje między Tobą a Twoimi
+        kontaktami zaufania.
       </p>
-      <div className="signin-mock">Mock: Clerk niepodłączony — przyciski tylko pokazują UI.</div>
+      <div className="signin-mock">
+        Mock: Clerk niepodłączony — przyciski tylko pokazują UI.
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { eq } from "drizzle-orm";
 
-import { alerts } from '../../src/db/schema.js';
-import type { TestDatabaseHandle } from './test-db.js';
+import { alerts } from "../../src/db/schema.js";
+import type { TestDatabaseHandle } from "./test-db.js";
 
 /**
  * Ages an alert so the escalation sweep considers it overdue.
@@ -24,7 +24,10 @@ export async function readAlert(
   testDb: TestDatabaseHandle,
   alertId: string,
 ): Promise<typeof alerts.$inferSelect | undefined> {
-  const [row] = await testDb.db.select().from(alerts).where(eq(alerts.id, alertId)).limit(1);
+  const [row] = await testDb.db
+    .select()
+    .from(alerts)
+    .where(eq(alerts.id, alertId))
+    .limit(1);
   return row;
 }
-

@@ -1,29 +1,29 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { z } from 'zod';
+import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
+import { z } from "zod";
 
 import {
   contactIdParams,
   contactSchema,
   createContactBody,
   updateContactBody,
-} from '../schemas.js';
+} from "../schemas.js";
 import {
   createContact,
   deleteContact,
   listContacts,
   updateContact,
-} from '../services/contact.service.js';
+} from "../services/contact.service.js";
 
 export const contactRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
-    '/contacts',
+    "/contacts",
     {
       preHandler: app.authenticate,
       schema: {
-        tags: ['contacts'],
-        summary: 'List trusted contacts',
+        tags: ["contacts"],
+        summary: "List trusted contacts",
         description:
-          'A contact is only reachable by push if they have an account and their email matches at the time of adding.',
+          "A contact is only reachable by push if they have an account and their email matches at the time of adding.",
         response: { 200: z.array(contactSchema) },
       },
     },
@@ -31,12 +31,12 @@ export const contactRoutes: FastifyPluginAsyncZod = async (app) => {
   );
 
   app.post(
-    '/contacts',
+    "/contacts",
     {
       preHandler: app.authenticate,
       schema: {
-        tags: ['contacts'],
-        summary: 'Add a trusted contact',
+        tags: ["contacts"],
+        summary: "Add a trusted contact",
         body: createContactBody,
         response: { 201: contactSchema },
       },
@@ -48,12 +48,12 @@ export const contactRoutes: FastifyPluginAsyncZod = async (app) => {
   );
 
   app.patch(
-    '/contacts/:contactId',
+    "/contacts/:contactId",
     {
       preHandler: app.authenticate,
       schema: {
-        tags: ['contacts'],
-        summary: 'Update a trusted contact',
+        tags: ["contacts"],
+        summary: "Update a trusted contact",
         params: contactIdParams,
         body: updateContactBody,
         response: { 200: contactSchema },
@@ -64,12 +64,12 @@ export const contactRoutes: FastifyPluginAsyncZod = async (app) => {
   );
 
   app.delete(
-    '/contacts/:contactId',
+    "/contacts/:contactId",
     {
       preHandler: app.authenticate,
       schema: {
-        tags: ['contacts'],
-        summary: 'Remove a trusted contact',
+        tags: ["contacts"],
+        summary: "Remove a trusted contact",
         params: contactIdParams,
         // A 204 has no body, so no response schema: the Zod serializer has
         // nothing to compile and Fastify would reject a null type here.

@@ -2,10 +2,10 @@
  * Captures what the backend tried to push, so tests can assert on the exact
  * payload the mobile app would receive without contacting APNs or FCM.
  */
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 export interface SentPush {
-  provider: 'apns' | 'fcm';
+  provider: "apns" | "fcm";
   token: string;
   headers: Record<string, string>;
   body: Record<string, unknown>;
@@ -18,16 +18,16 @@ export interface PushRecorder {
   restore: () => void;
 }
 
-const APNS_HOSTS = ['api.push.apple.com', 'api.sandbox.push.apple.com'];
-const FCM_HOSTS = ['fcm.googleapis.com', 'oauth2.googleapis.com'];
+const APNS_HOSTS = ["api.push.apple.com", "api.sandbox.push.apple.com"];
+const FCM_HOSTS = ["fcm.googleapis.com", "oauth2.googleapis.com"];
 
 type FetchArgs = Parameters<typeof fetch>;
 type FetchInput = FetchArgs[0];
 type FetchInit = FetchArgs[1];
-type HeadersLike = NonNullable<NonNullable<FetchInit>['headers']>;
+type HeadersLike = NonNullable<NonNullable<FetchInit>["headers"]>;
 
 function urlOf(input: FetchInput): string {
-  if (typeof input === 'string') return input;
+  if (typeof input === "string") return input;
   if (input instanceof URL) return input.href;
   return (input as Request).url;
 }
@@ -45,36 +45,39 @@ export function recordPushes(): PushRecorder {
     const headers = normalizeHeaders(init && init.headers);
 
     if (APNS_HOSTS.some((host) => url.includes(host))) {
-      const token = url.slice(url.lastIndexOf('/') + 1);
+      const token = url.slice(url.lastIndexOf("/") + 1);
       sent.push({
-        provider: 'apns',
+        provider: "apns",
         token,
         headers,
-        body: JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>,
+        body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>,
       });
-      return new Response('', { status: 200 });
+      return new Response("", { status: 200 });
     }
 
     if (FCM_HOSTS.some((host) => url.includes(host))) {
       // The OAuth2 token exchange is a prerequisite, not a notification.
-      if (url.includes('oauth2')) {
-        return new Response(JSON.stringify({ access_token: 'test-access-token' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
+      if (url.includes("oauth2")) {
+        return new Response(
+          JSON.stringify({ access_token: "test-access-token" }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        );
       }
-      const parsed = JSON.parse(String(init?.body ?? '{}')) as {
+      const parsed = JSON.parse(String(init?.body ?? "{}")) as {
         message?: { token?: string };
       };
       sent.push({
-        provider: 'fcm',
-        token: parsed.message?.token ?? '',
+        provider: "fcm",
+        token: parsed.message?.token ?? "",
         headers,
         body: parsed as unknown as Record<string, unknown>,
       });
-      return new Response('{}', {
+      return new Response("{}", {
         status: 200,
-        headers: { 'content-type': 'application/json' },
+        headers: { "content-type": "application/json" },
       });
     }
 
@@ -98,16 +101,26 @@ export function aps(body: Record<string, unknown>): Record<string, unknown> {
 }
 
 /** The android block of an FCM message. */
-export function android(body: Record<string, unknown>): Record<string, unknown> {
-  return (body.message as Record<string, unknown>).android as Record<string, unknown>;
+export function android(
+  body: Record<string, unknown>,
+): Record<string, unknown> {
+  return (body.message as Record<string, unknown>).android as Record<
+    string,
+    unknown
+  >;
 }
 
 /** The FCM data block, which carries our payload on Android. */
 export function fcmData(body: Record<string, unknown>): Record<string, string> {
-  return (body.message as Record<string, unknown>).data as Record<string, string>;
+  return (body.message as Record<string, unknown>).data as Record<
+    string,
+    string
+  >;
 }
 
-function normalizeHeaders(headers: HeadersLike | undefined): Record<string, string> {
+function normalizeHeaders(
+  headers: HeadersLike | undefined,
+): Record<string, string> {
   const out: Record<string, string> = {};
   if (!headers) return out;
 
@@ -116,12 +129,13 @@ function normalizeHeaders(headers: HeadersLike | undefined): Record<string, stri
       const [key, value] = entry;
       out[String(key).toLowerCase()] = String(value);
     }
-  } else if (typeof (headers as Headers).forEach === 'function') {
+  } else if (typeof (headers as Headers).forEach === "function") {
     (headers as Headers).forEach((value, key) => {
       out[key.toLowerCase()] = value;
     });
   } else {
-    for (const [key, value] of Object.entries(headers)) out[key.toLowerCase()] = String(value);
+    for (const [key, value] of Object.entries(headers))
+      out[key.toLowerCase()] = String(value);
   }
   return out;
 }

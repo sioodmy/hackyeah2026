@@ -215,7 +215,10 @@ export const DemoPhone = forwardRef<DemoHandle, DemoPhoneProps>(
     const demoLevel = useCallback(
       (target: ThreatLevel) => {
         reset({ recenter: false });
-        setAutoDrag((prev) => ({ level: target, nonce: (prev?.nonce ?? 0) + 1 }));
+        setAutoDrag((prev) => ({
+          level: target,
+          nonce: (prev?.nonce ?? 0) + 1,
+        }));
       },
       [reset],
     );
