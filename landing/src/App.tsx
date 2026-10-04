@@ -16,7 +16,7 @@ export const App: React.FC = () => {
         <Hero />
         <ProblemSection />
         <DemoSection />
-      {/*
+        {/*
         Sekcje od „Architektura Suwaka" (ThreatMatrix) do „Stack
         Technologiczny" (ArchitectureSection) zostały usunięte — prezentacja
         ma prowadzić widza od razu do demo, a nie przez sześć sekcji
