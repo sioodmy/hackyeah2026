@@ -16,7 +16,7 @@ import type {
 import type { NativeSyntheticEvent } from 'react-native';
 
 import { palette } from '@/theme';
-import { DEFAULT_CENTER, DEFAULT_ZOOM, osmRasterStyle } from '@/theme/mapStyle';
+import { DEFAULT_CENTER, DEFAULT_ZOOM, defaultMapStyle } from '@/theme/mapStyle';
 import { isStale, type SmoothedPoint } from '@/hooks/useSmoothedLocations';
 import { FriendMapMarker } from '@/components/FriendMapMarker';
 import type { HeatmapGeoJSON } from '@/lib/api';
@@ -33,7 +33,7 @@ export type MapCanvasProps = {
 
 type FeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point>;
 
-const MAP_STYLE = osmRasterStyle();
+const MAP_STYLE = defaultMapStyle();
 
 /**
  * The fullscreen map.
@@ -99,15 +99,13 @@ export function MapCanvas({
 
       <UserLocation animated accuracy heading={false} />
 
-      {/* Kraków danger heatmap: yellow (few) -> crimson (many).
+      {/* Kraków danger heatmap: tylko czerwień, bez żółtego.
 
-        The stops follow the densities MapLibre can actually reach for these
-        weights (`weight * intensity * 0.3989`, with no per-tile rescaling): 0.33
-        for the quietest reported cell at zoom 15 and 0.94 for a saturated one, so
-        the ramp starts to colour at 0.08 rather than 0.15 and every reported
-        street is drawn, not only the ones that happen to share a cell.
-        `HeatmapLegend` mirrors these stops. */}
-      {showHeatmap && heatmapData && heatmapData.features && heatmapData.features.length > 0 && (
+        Ramp zaczyna się od przezroczystego pomarańczu i przechodzi w
+        karmazyn — żółty przy tej niskiej alphie składał się z szarości i
+        wychodził brązowy, więc usunięty. Legenda zniknęła z UI razem z
+        UI zgłoszeń, więc ramp jest jedynym miejscem, które go opisuje. */}
+      {heatmapData && heatmapData.features.length > 0 && (
         <GeoJSONSource id="danger-heatmap-source" data={heatmapData}>
           <Layer
             id="danger-heatmap-layer"
@@ -123,16 +121,16 @@ export function MapCanvas({
                 ['heatmap-density'],
                 0,
                 'rgba(0, 0, 0, 0)',
-                0.08,
-                'rgba(255, 235, 59, 0.50)',
-                0.25,
-                'rgba(255, 193, 7, 0.68)',
-                0.5,
-                'rgba(255, 112, 67, 0.82)',
-                0.75,
-                'rgba(244, 67, 54, 0.92)',
+                0.15,
+                'rgba(214, 87, 40, 0.16)',
+                0.35,
+                'rgba(206, 47, 32, 0.30)',
+                0.6,
+                'rgba(190, 26, 32, 0.46)',
+                0.8,
+                'rgba(160, 16, 30, 0.60)',
                 1.0,
-                'rgba(183, 28, 28, 0.98)',
+                'rgba(122, 8, 26, 0.72)',
               ],
               'heatmap-radius': [
                 'interpolate',
@@ -147,7 +145,7 @@ export function MapCanvas({
                 17,
                 50,
               ],
-              'heatmap-opacity': 0.85,
+              'heatmap-opacity': 0.34,
             }}
           />
         </GeoJSONSource>

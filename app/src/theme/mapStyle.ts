@@ -1,17 +1,18 @@
 /**
- * Modern Dark Mode OSM raster style.
+ * Ciemny WEKTOR OSM — OpenFreeMap `styles/dark` (dane OpenStreetMap, bez klucza).
  *
- * Uses CARTO Dark Matter raster tiles (derived directly from OpenStreetMap data)
- * across subdomains a/b/c/d for fast, unblocked, modern dark mode tile streaming.
- * You can also override it at build time with `EXPO_PUBLIC_OSM_TILE_URL`.
+ * `EXPO_PUBLIC_OSM_TILE_URL` zostaje jako furtka na własne kafelki rastrowe
+ * (wtedy wracają dzienne transformy). Bez niej: wektor z URL-a, glify i sprite
+ * dociąga sama maplibre.
  *
- * If daylight OSM tiles (tile.openstreetmap.de/org) are provided, custom
- * high-contrast dark mode paint transforms are applied.
+ * Atrybucja: © OpenFreeMap, © OpenMapTiles, dane © OpenStreetMap contributors.
  */
 
 import type { StyleSpecification } from '@maplibre/maplibre-react-native';
 
 export type { StyleSpecification };
+
+export const DARK_VECTOR_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 
 export const DEFAULT_OSM_TILES: string[] = [
   'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
@@ -26,10 +27,11 @@ export const OSM_TILE_URL: string = process.env.EXPO_PUBLIC_OSM_TILE_URL ?? DEFA
 export const DEFAULT_CENTER: [number, number] = [19.9373, 50.0617];
 export const DEFAULT_ZOOM = 13.5;
 
-export function osmRasterStyle(tileUrl: string = OSM_TILE_URL): StyleSpecification {
+export function defaultMapStyle(tileUrl: string = OSM_TILE_URL): string | StyleSpecification {
   const isCustom = Boolean(process.env.EXPO_PUBLIC_OSM_TILE_URL);
-  const tiles = tileUrl === OSM_TILE_URL && !isCustom ? DEFAULT_OSM_TILES : [tileUrl];
+  if (!isCustom) return DARK_VECTOR_STYLE_URL;
 
+  const tiles = [tileUrl];
   const isDaylightOsm =
     tileUrl.includes('openstreetmap.de') || tileUrl.includes('tile.openstreetmap.org');
 
@@ -58,7 +60,6 @@ export function osmRasterStyle(tileUrl: string = OSM_TILE_URL): StyleSpecificati
         tiles,
         tileSize: 256,
         maxzoom: 19,
-        attribution: '© OpenStreetMap contributors, © CARTO',
       },
     },
     layers: [
