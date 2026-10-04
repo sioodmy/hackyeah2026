@@ -10,6 +10,24 @@ const here = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: "./",
+  esbuild: {
+    // Sekcja demo wciąga `app/src/theme/tokens.ts`, a esbuild szuka tsconfiga
+    // *w górę* od pliku — trafia więc na `app/tsconfig.json`, który dziedziczy
+    // po `expo/tsconfig.base`. Na maszynie z apką działa (expo jest w
+    // `app/node_modules`), ale w CI na GitHub Pages nikt nie instalował apki,
+    // więc build wybuchał na `failed to resolve "extends": "expo/tsconfig.base"`.
+    // `tsconfigRaw` musi być **stringiem**, nie obiektem: Vite przy obiekcie
+    // i tak wczytuje tsconfig pliku wspinając się w górę (`dep-*.js`,
+    // `transformWithEsbuild`) i pada na tym samym `extends`. Ze stringiem
+    // esbuild dostaje opcje wprost i ignoruje tsconfigi sąsiadów.
+    tsconfigRaw: JSON.stringify({
+      compilerOptions: {
+        target: "es2022",
+        useDefineForClassFields: true,
+        jsx: "react-jsx",
+      },
+    }),
+  },
   resolve: {
     // Osadzone demo importuje `react` ze swojego katalogu (`web/`), który ma
     // własne node_modules. Bez `dedupe` Vite dałby dwie instancje Reacta —

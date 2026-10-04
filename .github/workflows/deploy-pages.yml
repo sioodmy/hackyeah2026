@@ -7,6 +7,9 @@ on:
       - feat/hackathon-landing-page
     paths:
       - "landing/**"
+      - "web/src/**"
+      - "app/src/theme/**"
+      - "app/src/lib/avatar.ts"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
@@ -35,9 +38,21 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: landing/package-lock.json
+          cache-dependency-path: |
+            landing/package-lock.json
+            web/package-lock.json
 
-      - name: Install dependencies
+      - name: Install landing dependencies
+        run: npm ci
+
+      # Sekcja demo to kod z `web/src`, więc TS/Vite muszą widzieć `web`'s
+      # zależności (react, maplibre-gl) z `web/node_modules` — sama instalacja
+      # w `landing/` ich nie dostarcza i build padał na "Cannot find module
+      # 'react'". Uwaga: tego katalogu NIE da się zastąpić `landing/node_modules`,
+      # bo Node szuka `node_modules` w górę od importującego pliku, a
+      # `landing/` nie jest przodkiem `web/src/`.
+      - name: Install demo dependencies
+        working-directory: web
         run: npm ci
 
       - name: Build site with Vite
