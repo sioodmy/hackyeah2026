@@ -154,7 +154,15 @@ export const DemoSection: React.FC = () => {
   return (
     <section id="demo" className="py-24 px-4 sm:px-6 lg:px-8 relative">
       <div className="max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-[1fr_auto] gap-12 lg:gap-16 items-center">
+        {/*
+          `justify-center` zamiast toru `1fr`. Przy `lg:grid-cols-[1fr_auto]`
+          pierwszy tor rozciągał się na całą szerokość kontenera, więc na
+          szerokim monitorze tekst przyklejał się do lewej krawędzi, telefon do
+          prawej, a między nimi zostawała dziura (421 px przy 2560 px
+          viewportu). Stałe toru `minmax(0, 36rem)` + `auto` trzymają obie
+          kolumny obok siebie, a `justify-center` środkuje parę w kontenerze.
+        */}
+        <div className="grid lg:grid-cols-[minmax(0,36rem)_auto] lg:justify-center gap-12 items-center">
           <div className="max-w-xl">
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
               Nawet, gdy ktoś patrzy Ci przez ramię.

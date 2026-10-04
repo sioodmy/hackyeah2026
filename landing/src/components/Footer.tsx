@@ -25,15 +25,10 @@ export const Footer: React.FC = () => {
           </p>
         </div>
 
-        {/* Navigation Links */}
-        <div className="flex flex-wrap justify-center gap-6 text-xs text-slate-400 font-medium">
-          <a href="#problem" className="hover:text-white transition-colors">
-            Problem
-          </a>
-          <a href="#demo" className="hover:text-white transition-colors">
-            Demo
-          </a>
-        </div>
+        {/*
+          Bez listy sekcji: przy dwóch pozycjach wyglądałaby jak przypadkowy
+          fragment, a nie jak nawigacja.
+        */}
 
         {/* Right icons: HackYeah Logo + GitHub + Back to top */}
         <div className="flex items-center gap-3">

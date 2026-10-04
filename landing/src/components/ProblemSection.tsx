@@ -3,32 +3,36 @@ import React from "react";
 /**
  * Sekcja „problem" — trzy statystyki FRA jako wizualna teza przed demo.
  *
- * Wspólny mianownik dla wszystkich trzech to **20 kropek**: jedna kropka
- * = 5%. Dzięki temu „1 na 20" to dosłownie jedna kropka, „co druga" to
- * dziesięć, a „co trzecia" to siedem — czytelnik nie musi przeliczać niczego
- * w głowie i od razu widzi, że skala jest wspólna, a nie dobrana pod każdą
- * liczbę osobno.
+ * Wspólny mianownik dla wszystkich trzech to **20 ikon sylwetki**, ułożonych
+ * w dwa rzędy po dziesięć: jedna ikona = 5% populacji. Dzięki temu „1 na 20"
+ * to dosłownie jedna ikona, „co druga" to dziesięć, a „co trzecia" to siedem.
+ * Czytelnik nie musi przeliczać niczego w głowie i od razu widzi, że skala jest
+ * wspólna, a nie dobrana pod każdą liczbę osobno.
+ *
+ * Ikonki są wypełnione (`FILL 1`) dokładnie wtedy, gdy dotyczą udziału z
+ * tekstu, a konturowe (`FILL 0`) to reszta populacji — nie dekoracja, tylko
+ * liczenie.
  */
 const STATS = [
   {
-    /** Ile kropek z 20. */
+    /** Ile ikon z 20. */
     filled: 7,
-    value: "1/3",
-    text: "Co trzecia kobieta w UE doświadczyła przemocy.",
+    value: "Co trzecia",
+    text: "kobieta w UE doświadczyła przemocy.",
   },
   {
     filled: 1,
-    value: "1/20",
-    text: "1 na 20 kobiet w Europie została zgwałcona po ukończeniu 15 lat.",
+    value: "1 na 20",
+    text: "kobiet w Europie została zgwałcona po ukończeniu 15 lat.",
   },
   {
     filled: 10,
-    value: "1/2",
-    text: "Co druga kobieta w UE zetknęła się z przynajmniej jedną formą molestowania seksualnego.",
+    value: "Co druga",
+    text: "kobieta w UE zetknęła się z przynajmniej jedną formą molestowania seksualnego.",
   },
 ] as const;
 
-const DOTS = 20;
+const ICONS = 20;
 
 export const ProblemSection: React.FC = () => {
   return (
@@ -38,16 +42,16 @@ export const ProblemSection: React.FC = () => {
     >
       <div className="max-w-7xl mx-auto">
         <div className="max-w-3xl mb-14">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff2a85]/10 border border-[#ff2a85]/20 text-[#ff2a85] text-xs font-semibold uppercase tracking-wider mb-4">
-            skala problemu
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-            To nie jest edge case.
+<h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
+            Nasza codzienność,
+            <br />
+            to nie „jednostkowy przypadek"
           </h2>
           <p className="text-slate-400 text-base leading-relaxed">
-            Skala przemocy wobec kobiet w Europie nie jest marginalna — jest
-            statystycznie typowa. Poniżej trzy liczby z badań FRA, w których
-            punkt odniesienia jest ten sam: dwadzieśia kobiet.
+            Poniższe liczby pochodzą z badań FRA i mają wspólny mianownik:
+            dwadzieścia kobiet. W tej skali przemoc nie jest marginesem ryzyka,
+            który da się pominąć. Jest częstym doświadczeniem, o którym rzadko
+            się mówi.
           </p>
         </div>
 
@@ -58,28 +62,32 @@ export const ProblemSection: React.FC = () => {
               className="rounded-3xl border border-white/10 bg-white/[0.03] p-7 flex flex-col"
             >
               {/*
-                Kropki jako `grid` z jawnymi 20 kolumnami zamiast `flex-wrap`:
-                zawijanie zależałoby od szerokości karty, więc przy innym
-                viewportcie druga statystyka pokazałaby „1 na 19".
+                Dwa rzędy po 10 ikon, nie jeden długi. W jednym rzędzie
+                dwadzieścia glifów musiały być średnicą 11 px, czyli ledwie
+                czytelne; przy dziesięciu kolumnach mają 20 px i widać, że to
+                sylwetki. Nadal liczą te same 20 pozycji, więc „1 na 20" to
+                wciąż dosłownie jedna ikona.
               */}
               <div
-                className="grid gap-[5px] mb-6"
-                style={{ gridTemplateColumns: `repeat(${DOTS}, minmax(0, 1fr))` }}
+                className="grid gap-1 mb-6"
+                style={{ gridTemplateColumns: `repeat(${ICONS / 2}, minmax(0, 1fr))` }}
                 aria-hidden
               >
-                {Array.from({ length: DOTS }, (_, i) => (
+                {Array.from({ length: ICONS }, (_, i) => (
                   <span
                     key={i}
-                    className="aspect-square rounded-full"
-                    style={
-                      i < s.filled
-                        ? { background: "#ff2a85" }
-                        : { background: "rgba(255,255,255,0.10)" }
-                    }
-                  />
+                    className="material-symbols-rounded text-center"
+                    style={{
+                      fontSize: 20,
+                      color: i < s.filled ? "#ff2a85" : "rgba(255,255,255,0.16)",
+                      fontVariationSettings: i < s.filled ? '"FILL" 1' : '"FILL" 0',
+                    }}
+                  >
+                    person_2
+                  </span>
                 ))}
               </div>
-              <div className="text-5xl font-extrabold text-white tracking-tight tabular-nums mb-3">
+              <div className="text-3xl font-extrabold text-white tracking-tight mb-3">
                 {s.value}
               </div>
               <p className="text-slate-400 text-sm leading-relaxed">{s.text}</p>
@@ -90,7 +98,7 @@ export const ProblemSection: React.FC = () => {
         {/* Źródło w prawym dolnym rogu sekcji — nie w stopce, bo dotyczy
             wyłącznie liczb powyżej. */}
         <p className="mt-8 text-right text-xs text-slate-500">
-          Źródło: FRA — Europejska Agencja Praw Człowieka, badanie o
+          Źródło: FRA (Europejska Agencja Praw Człowieka), badanie o
           przemoci wobec kobiet w Unii Europejskiej
         </p>
       </div>

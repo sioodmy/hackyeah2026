@@ -120,20 +120,21 @@ export function mockHeatmap(): HeatmapCell[] {
    * jedną plamę, a nie w rozlaną mgłę.
    *
    * Gęstość zgłoszeń na klastrze musi być wyższa niż liczba plam: warstwa
-   * heatmapy sumuje gęstość, więc przy 26 punktach na klastrze zamiast 12
-   * pojedyncze zgłoszenia zlewają się w jedno pole z gradientem. Przy mniejszej
-   * liczbie wychodziło kilka osobnych kropek zamiast ciepłej plamy.
+   * heatmapy sumuje gęstość, więc kilkanaście punktów na klastrze daje jedno
+   * pole z gradientem zamiast pojedynczych kropek. Z drugiej strony zbyt
+   * dużo punktów zlewało sąsiednie klastry w jedną czerwoną plamę, więc
+   * liczby trzymane są w okolicach 6–15 na klastrze.
    *
    * `n` to liczba zgłoszeń, `peak` — ich wagi: sam obszar hali jest najcięższy,
    * peryferie tylko tleją, więc demo pokazuje gradację zamiast jednego
    * równomiernego czerwonego kółka.
    */
   const clusters: Array<{ name: string; lng: number; lat: number; n: number; peak: number }> = [
-    { name: "Tauron Arena", lng: 19.9689, lat: 50.0676, n: 26, peak: 9 },
-    { name: "Park Lotników", lng: 19.9641, lat: 50.0697, n: 16, peak: 6 },
-    { name: "Stadion Miejski", lng: 19.9645, lat: 50.0732, n: 13, peak: 5 },
-    { name: "Czyżyny", lng: 19.9741, lat: 50.0661, n: 14, peak: 5 },
-    { name: "Błonia", lng: 19.9713, lat: 50.0728, n: 11, peak: 4 },
+    { name: "Tauron Arena", lng: 19.9689, lat: 50.0676, n: 15, peak: 8 },
+    { name: "Park Lotników", lng: 19.9641, lat: 50.0697, n: 9, peak: 5 },
+    { name: "Stadion Miejski", lng: 19.9645, lat: 50.0732, n: 8, peak: 4 },
+    { name: "Czyżyny", lng: 19.9741, lat: 50.0661, n: 8, peak: 4 },
+    { name: "Błonia", lng: 19.9713, lat: 50.0728, n: 6, peak: 3 },
   ];
   let max = 1;
   for (const c of clusters) {

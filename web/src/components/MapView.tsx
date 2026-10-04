@@ -78,16 +78,16 @@ export function MapView({ friends, level, showHeatmap, heatmap, recenterTick }: 
             ["get", "weight"],
             0,
             0,
-            0.15,
-            0.35,
-            0.45,
-            0.7,
+            0.2,
+            0.3,
+            0.5,
+            0.68,
             1,
             1,
           ],
           // Wyższa intensywność niż domyślne 1: przy `DEFAULT_ZOOM = 13.5`
           // poprzednia wartość 1,5 dawała ledwo widoczną mgłę.
-          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 9, 1, 13, 2.2, 16, 3.4],
+          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 9, 1, 13, 1.9, 16, 3],
           // Tylko czerwień, bez żółtego: przy tej niskiej alphie żółty składał się
           // z szarości i wychodził brązowy. Zaczyna się przezroczysty pomarańcz.
           // Przesunięte progi w dół, żeby słaba gęstość też miała kolor.
@@ -98,20 +98,20 @@ export function MapView({ friends, level, showHeatmap, heatmap, recenterTick }: 
             0,
             "rgba(0, 0, 0, 0)",
             0.08,
-            "rgba(214, 87, 40, 0.20)",
+            "rgba(214, 87, 40, 0.18)",
             0.25,
-            "rgba(206, 47, 32, 0.38)",
+            "rgba(206, 47, 32, 0.34)",
             0.5,
-            "rgba(190, 26, 32, 0.55)",
+            "rgba(190, 26, 32, 0.5)",
             0.78,
-            "rgba(160, 16, 30, 0.68)",
+            "rgba(160, 16, 30, 0.62)",
             1.0,
-            "rgba(122, 8, 26, 0.80)",
+            "rgba(122, 8, 26, 0.74)",
           ],
-          // Szerszy promień: plamy muszą na siebie nachodzić, inaczej widać
-          // pojedyncze punkty zamiast ciągłego pola.
-          "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 9, 20, 12, 34, 15, 52, 17, 70],
-          "heatmap-opacity": 0.5,
+          // Promień musi być mniejszy niż odległość między klastrami, inaczej
+          // plamy stykają się ze sobą i zamiast pięciu miejsc jest jedna plama.
+          "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 9, 16, 12, 27, 15, 40, 17, 54],
+          "heatmap-opacity": 0.42,
         },
       });
       map.addSource("friends-halo", {
