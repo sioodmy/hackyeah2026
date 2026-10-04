@@ -9,6 +9,7 @@ landing/dist/
 app/web-build/
 app/android/
 app/ios/
+web/dist/
 result
 result-*
 

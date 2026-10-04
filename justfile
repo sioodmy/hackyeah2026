@@ -54,6 +54,15 @@ landing:
 landing-build:
     cd landing && npm run build
 
+# Web-only UI preview (branch web/preview): mock bez backendu, bez buildów
+# Androida. Szybka iteracja nad wyglądem, potem przeklejka do app/src.
+web:
+    cd web && npm run dev
+
+# Produkcja preview do statycznego podglądu.
+web-build:
+    cd web && npm run build
+
 
 # Build and run on a connected Android device or emulator.
 app-android:
