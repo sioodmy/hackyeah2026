@@ -4,15 +4,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 
 import { MapCanvas } from '@/components/MapCanvas';
 import { ThreatSlider } from '@/components/ThreatSlider';
 import { IncomingCallOverlay } from '@/components/IncomingCallOverlay';
 import { EvidenceIndicator } from '@/components/EvidenceIndicator';
-import { HeatmapLegend } from '@/components/HeatmapLegend';
-import { IncidentReportModal } from '@/components/IncidentReportModal';
 import { useThreatLevel } from '@/hooks/useThreatLevel';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useLiveLocations } from '@/hooks/useLiveLocations';
@@ -20,29 +18,15 @@ import { useSmoothedLocations } from '@/hooks/useSmoothedLocations';
 import { useEvidenceRecorder } from '@/hooks/useEvidenceRecorder';
 import { useApi } from '@/lib/ApiContext';
 import { useAuthToken } from '@/lib/useAuthToken';
-import { ApiError, type AlertAck, type HeatmapGeoJSON, type ReportIncidentInput } from '@/lib/api';
+import { ApiError, type HeatmapGeoJSON } from '@/lib/api';
 import { colorForLevel, floatingShadow, palette, radii, spacing, type } from '@/theme';
-import { THREAT_FULL, THREAT_SAFE, hint, label, type ThreatLevel } from '@/theme/levels';
-
-const ACK_LABEL: Record<AlertAck['action'], string> = {
-  seen: 'widzi alert',
-  answered: 'rozmawia',
-  on_the_way: 'idzie do ciebie',
-};
-
-/** What the friends' phones have reported back, in one discreet line. */
-function ackLine(acks: AlertAck[]): string | null {
-  if (!acks.length) return null;
-  return acks
-    .map((ack) => `${ack.displayName || 'Ktoś'} — ${ACK_LABEL[ack.action] ?? ACK_LABEL.seen}`)
-    .join(' · ');
-}
+import { THREAT_FULL, THREAT_SAFE, hint, type ThreatLevel } from '@/theme/levels';
 
 /**
- * A short Polish reason for the legend.
+ * A short Polish reason, trafiające do bannera błędu.
  *
  * The raw message would be an English FastAPI `detail` or a `TypeError` from
- * `fetch`, which reads as noise in a card written in Polish.
+ * `fetch`, which reads as noise w tekście pisanym po polsku.
  */
 function heatmapErrorText(err: unknown): string {
   if (err instanceof ApiError) {
@@ -73,13 +57,9 @@ export function MapScreen() {
   const [error, setError] = useState<string | null>(null);
   const [previewLevel, setPreviewLevel] = useState<ThreatLevel | null>(null);
 
-  // Kraków danger heatmap state
+  // Kraków danger heatmap state. Warstwa jest zawsze włączona — przełącznik
+  // zdjęty z mapy razem z przyciskami, żeby główny ekran był czysty.
   const [heatmapData, setHeatmapData] = useState<HeatmapGeoJSON | null>(null);
-  const [heatmapError, setHeatmapError] = useState<string | null>(null);
-  const [heatmapLoading, setHeatmapLoading] = useState(true);
-  const [showHeatmap, setShowHeatmap] = useState(true);
-  const [showLegend, setShowLegend] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
 
   const evidence = useEvidenceRecorder({ api });
   const lastBroadcastRef = useRef(0);
@@ -101,7 +81,7 @@ export function MapScreen() {
     }, []),
   });
 
-  const { locations, connected, publish } = useLiveLocations({
+  const { locations, publish } = useLiveLocations({
     enabled: threat.isLive,
     getToken,
     selfId: null,
@@ -117,50 +97,22 @@ export function MapScreen() {
     // Reloads can overlap (mount, post-report, retry), so only the newest answer is
     // allowed to write state; a slow failure must not overwrite a fresh success.
     const request = (heatmapRequestRef.current += 1);
-    setHeatmapLoading(true);
     try {
       const data = await api.incidentHeatmap();
       if (request !== heatmapRequestRef.current) return;
       setHeatmapData(data);
-      setHeatmapError(null);
     } catch (err) {
       if (request !== heatmapRequestRef.current) return;
       // Deliberately not silent: an unpainted map reads as "nobody reported
-      // anything here", which is the one thing this layer must never imply. The
-      // reason is kept and the legend is opened so it can say so.
-      setHeatmapError(heatmapErrorText(err));
-      setShowLegend(true);
-    } finally {
-      if (request === heatmapRequestRef.current) setHeatmapLoading(false);
+      // anything here", which is the one thing this layer must never imply.
+      // Legenda zniknęła z UI, więc powód wjeżdża w istniejący banner błędu.
+      setError(`Mapa zagrożeń: ${heatmapErrorText(err)}`);
     }
   }, [api]);
 
   useEffect(() => {
     void loadHeatmap();
   }, [loadHeatmap]);
-
-  // The response is one feature per ~200 m grid cell, so counting features would
-  // report the number of occupied cells as if it were the number of reports.
-  const { totalReported, hottestCells } = useMemo(() => {
-    const cells = heatmapData?.features ?? [];
-    return {
-      totalReported: cells.reduce((sum, feature) => sum + feature.properties.count, 0),
-      hottestCells: cells.slice(0, 3).map((feature) => ({
-        lat: feature.geometry.coordinates[1],
-        lng: feature.geometry.coordinates[0],
-        count: feature.properties.count,
-        severity: feature.properties.severity,
-      })),
-    };
-  }, [heatmapData]);
-
-  const handleReportIncident = useCallback(
-    async (data: ReportIncidentInput) => {
-      await api.reportIncident(data);
-      await loadHeatmap();
-    },
-    [api, loadHeatmap],
-  );
 
   // Push our own position on the alert interval, not on every GPS fix.
   useEffect(() => {
@@ -234,23 +186,6 @@ export function MapScreen() {
     return hint(threat.level);
   }, [previewLevel, threat.callPhase, threat.countdown, threat.dispatch, threat.level]);
 
-  const statusColor = useMemo(() => {
-    if (previewLevel !== null && previewLevel > 0) {
-      return colorForLevel(previewLevel);
-    }
-    if (threat.level > 0) {
-      return colorForLevel(threat.level);
-    }
-    return palette.textMuted;
-  }, [previewLevel, threat.level]);
-
-  // Only from level 2 up: below that nobody has been told anything yet, so there is
-  // nobody who could have answered.
-  const friendResponse = useMemo(
-    () => (threat.level >= 2 ? ackLine(threat.acks) : null),
-    [threat.acks, threat.level],
-  );
-
   return (
     <View style={styles.root}>
       <StatusBar hidden />
@@ -260,7 +195,6 @@ export function MapScreen() {
         staleSeconds={staleSeconds}
         level={threat.level}
         cameraRef={cameraRef}
-        showHeatmap={showHeatmap}
         heatmapData={heatmapData}
       />
 
@@ -268,41 +202,6 @@ export function MapScreen() {
         style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}
         pointerEvents="box-none"
       >
-        <View style={styles.leftGroup} pointerEvents="box-none">
-          {threat.level > THREAT_SAFE ? (
-            <View style={[styles.statusPill, floatingShadow(6)]}>
-              <View style={[styles.statusDot, { backgroundColor: colorForLevel(threat.level) }]} />
-              <Text style={styles.statusText}>{label(threat.level)}</Text>
-            </View>
-          ) : null}
-
-          {/* Kraków Danger Heatmap Toggle Pill */}
-          <Pressable
-            style={[styles.heatmapPill, showHeatmap && styles.heatmapPillActive, floatingShadow(6)]}
-            onPress={() => {
-              setShowHeatmap((prev) => !prev);
-              setShowLegend((prev) => !prev);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Strefy zagrożenia Kraków"
-          >
-            <Text style={styles.heatmapPillIcon}>🔥</Text>
-            <Text style={[styles.heatmapPillText, showHeatmap && styles.heatmapPillTextActive]}>
-              Zagrożenia
-            </Text>
-          </Pressable>
-
-          {/* Quick Danger Report Button */}
-          <Pressable
-            style={[styles.reportPill, floatingShadow(6)]}
-            onPress={() => setShowReportModal(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Zgłoś niebezpieczeństwo"
-          >
-            <Text style={styles.reportPillText}>+ Zgłoś</Text>
-          </Pressable>
-        </View>
-
         <View style={styles.rightGroup} pointerEvents="box-none">
           <EvidenceIndicator active={evidence.isRecording} uploading={evidence.isUploading} />
           <Pressable
@@ -312,33 +211,38 @@ export function MapScreen() {
             accessibilityLabel="Ustawienia"
             hitSlop={10}
           >
-            <Text style={styles.iconGlyph}>⚙</Text>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Path d="M3 6H21" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+              <Path d="M3 12H21" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+              <Path d="M3 18H21" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+              <Circle
+                cx={9}
+                cy={6}
+                r={2.4}
+                fill={palette.surfaceSolid}
+                stroke={palette.text}
+                strokeWidth={1.8}
+              />
+              <Circle
+                cx={15}
+                cy={12}
+                r={2.4}
+                fill={palette.surfaceSolid}
+                stroke={palette.text}
+                strokeWidth={1.8}
+              />
+              <Circle
+                cx={7}
+                cy={18}
+                r={2.4}
+                fill={palette.surfaceSolid}
+                stroke={palette.text}
+                strokeWidth={1.8}
+              />
+            </Svg>
           </Pressable>
         </View>
       </View>
-
-      {/* Heatmap Legend Card */}
-      <HeatmapLegend
-        visible={showLegend}
-        totalIncidents={totalReported}
-        hottestCells={hottestCells}
-        error={heatmapError}
-        loading={heatmapLoading}
-        onRetry={() => void loadHeatmap()}
-        onClose={() => setShowLegend(false)}
-        onOpenReport={() => {
-          setShowLegend(false);
-          setShowReportModal(true);
-        }}
-      />
-
-      {/* Incident Reporting Sheet */}
-      <IncidentReportModal
-        visible={showReportModal}
-        userCoords={position ? [position.lng, position.lat] : null}
-        onClose={() => setShowReportModal(false)}
-        onSubmit={handleReportIncident}
-      />
 
       {permission === 'denied' ? (
         <View style={[styles.banner, { top: insets.top + 70 }]}>
@@ -358,60 +262,40 @@ export function MapScreen() {
         style={[styles.bottom, { paddingBottom: insets.bottom + spacing.lg }]}
         pointerEvents="box-none"
       >
-        <Svg pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Defs>
-            <LinearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#111317" stopOpacity="0" />
-              <Stop offset="0.45" stopColor="#111317" stopOpacity="0.8" />
-              <Stop offset="1" stopColor="#111317" stopOpacity="0.98" />
-            </LinearGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#bottomFade)" />
-        </Svg>
-
-        <View style={styles.statusRow}>
-          {statusText ? (
-            <Text style={[styles.statusLine, { color: statusColor }]}>{statusText}</Text>
-          ) : (
-            <View />
-          )}
-          {connected ? (
-            <View style={styles.liveIndicator}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>live</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {friendResponse ? <Text style={styles.ackLine}>{friendResponse}</Text> : null}
-
+        {/* Jedyna informacja o poziomie to wypełniony slider — label wjeżdża
+            do jego środka po commicie. Osobna linijka statusu i ack-linia
+            zostały zdjęte: duplikowały to, co widać na samym sliderze. */}
         <ThreatSlider
           onCommit={handleCommit}
           onDragLevelChange={setPreviewLevel}
           activeLevel={threat.level}
+          caption={statusText || undefined}
         />
-      </View>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.recenter,
-          floatingShadow(8),
-          pressed && styles.recenterPressed,
-        ]}
-        onPress={recenter}
-        accessibilityRole="button"
-        accessibilityLabel="Wyśrodkuj na mojej lokalizacji"
-        hitSlop={8}
-      >
-        <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-          <Circle cx={12} cy={12} r={7} stroke={palette.text} strokeWidth={1.8} />
-          <Circle cx={12} cy={12} r={2.5} fill={palette.text} />
-          <Path d="M12 2V5" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
-          <Path d="M12 19V22" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
-          <Path d="M2 12H5" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
-          <Path d="M19 12H22" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
-        </Svg>
-      </Pressable>
+        {/* Kotwica do góry panelu dolnego (top: -(64 + 12)), nie sztywny
+            offset od dołu ekranu — po zmianie slidera wysokość panelu się
+            zmieniła i przycisk pływał. */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.recenter,
+            floatingShadow(8),
+            pressed && styles.recenterPressed,
+          ]}
+          onPress={recenter}
+          accessibilityRole="button"
+          accessibilityLabel="Wyśrodkuj na mojej lokalizacji"
+          hitSlop={8}
+        >
+          <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+            <Circle cx={12} cy={12} r={7} stroke={palette.text} strokeWidth={1.8} />
+            <Circle cx={12} cy={12} r={2.5} fill={palette.text} />
+            <Path d="M12 2V5" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+            <Path d="M12 19V22" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+            <Path d="M2 12H5" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+            <Path d="M19 12H22" stroke={palette.text} strokeWidth={1.8} strokeLinecap="round" />
+          </Svg>
+        </Pressable>
+      </View>
 
       <IncomingCallOverlay
         visible={threat.callPhase === 'ringing' || threat.callPhase === 'active'}
@@ -435,14 +319,9 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: spacing.lg,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     zIndex: 50,
-  },
-  leftGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
   },
   rightGroup: {
     flexDirection: 'row',
@@ -450,68 +329,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
 
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    height: 40,
-    borderRadius: radii.pill,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statusText: {
-    ...type.label,
-    color: palette.text,
-  },
-  heatmapPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.md,
-    height: 40,
-    borderRadius: radii.pill,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  heatmapPillActive: {
-    backgroundColor: 'rgba(214, 40, 40, 0.16)',
-    borderColor: 'rgba(214, 40, 40, 0.45)',
-  },
-  heatmapPillIcon: {
-    fontSize: 14,
-  },
-  heatmapPillText: {
-    ...type.label,
-    fontSize: 12,
-    color: palette.textMuted,
-  },
-  heatmapPillTextActive: {
-    color: '#FF8A80',
-    fontWeight: '600',
-  },
-  reportPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    height: 40,
-    borderRadius: radii.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  reportPillText: {
-    ...type.label,
-    fontSize: 12,
-    color: palette.text,
-  },
   iconPill: {
     width: 44,
     height: 44,
@@ -521,10 +338,6 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.border,
-  },
-  iconGlyph: {
-    fontSize: 19,
-    color: palette.text,
   },
   banner: {
     position: 'absolute',
@@ -545,48 +358,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingTop: spacing.xl,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg + 2,
-    paddingBottom: spacing.sm + 2,
-  },
-  statusLine: {
-    ...type.caption,
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 0.1,
-  },
-  ackLine: {
-    ...type.caption,
-    paddingHorizontal: spacing.lg + 2,
-    paddingBottom: spacing.sm,
-    color: palette.success,
-  },
-  liveIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: palette.success,
-  },
-  liveText: {
-    ...type.caption,
-    color: palette.success,
-    fontWeight: '600',
-    fontSize: 12,
+    paddingTop: spacing.sm,
   },
   recenter: {
     position: 'absolute',
     right: spacing.lg,
-    bottom: 154,
+    top: -(56 + spacing.md),
     width: 44,
     height: 44,
     borderRadius: 22,

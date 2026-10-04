@@ -244,7 +244,6 @@ export function createApiClient(getToken: TokenProvider) {
       if (typeof detailRaw === 'string') {
         detail = detailRaw;
       } else if (Array.isArray(detailRaw)) {
-        placeholder
         const parts = detailRaw
           .map((e) => {
             if (typeof e === 'string') return e;
